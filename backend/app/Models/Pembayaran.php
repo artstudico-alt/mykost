@@ -13,6 +13,7 @@ class Pembayaran extends Model
         'nomor_referensi',
         'bukti_pembayaran',
         'status',
+        'snap_token',
         'tanggal_bayar',
         'keterangan',
     ];

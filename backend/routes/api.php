@@ -43,6 +43,11 @@ Route::prefix('auth')->group(function () {
 });
 
 // ============================================================
+// WEBHOOK MIDTRANS — Public API (Tidak Butuh Token)
+// ============================================================
+Route::post('/pembayaran/webhook', [PembayaranController::class, 'webhook']);
+
+// ============================================================
 // SEMUA ROUTE DI BAWAH MEMBUTUHKAN AUTH
 // ============================================================
 Route::middleware('auth:sanctum')->group(function () {

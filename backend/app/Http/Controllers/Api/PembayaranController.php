@@ -8,6 +8,10 @@ use App\Models\Booking;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Midtrans\Config;
+use Midtrans\Snap;
+use App\Models\Karyawan;
+use App\Models\Hunian;
 
 class PembayaranController extends Controller
 {
@@ -36,19 +40,17 @@ class PembayaranController extends Controller
         ]);
     }
 
-    // POST /api/pembayaran — karyawan submit pembayaran
+    // POST /api/pembayaran — karyawan submit pembayaran & dapat snap token
     public function store(Request $request)
     {
         $validated = $request->validate([
             'booking_id'       => 'required|exists:bookings,id',
             'jumlah'           => 'required|numeric|min:0',
-            'metode'           => 'required|in:transfer,cash,virtual_account,qris',
-            'bukti_pembayaran' => 'nullable|string',
             'keterangan'       => 'nullable|string',
         ]);
 
         $user    = $request->user();
-        $booking = Booking::find($validated['booking_id']);
+        $booking = Booking::with('kost')->find($validated['booking_id']);
 
         if (!$booking) {
             return response()->json(['message' => 'Booking tidak ditemukan'], 404);
@@ -59,25 +61,62 @@ class PembayaranController extends Controller
             return response()->json(['message' => 'Akses ditolak'], 403);
         }
 
-        if (!in_array($booking->status, ['confirmed', 'aktif'])) {
+        if (!in_array($booking->status, ['pending', 'confirmed', 'aktif'])) {
             return response()->json([
-                'message' => 'Booking harus berstatus confirmed atau aktif untuk melakukan pembayaran',
+                'message' => 'Booking status: ' . $booking->status . ' tidak bisa diproses pembayarannya',
             ], 422);
+        }
+
+        $nomor_referensi = 'PAY-' . strtoupper(Str::random(10));
+
+        // Konfigurasi Midtrans
+        Config::$serverKey = config('midtrans.server_key');
+        Config::$isProduction = config('midtrans.is_production');
+        Config::$isSanitized = config('midtrans.is_sanitized');
+        Config::$is3ds = config('midtrans.is_3ds');
+
+        $params = array(
+            'transaction_details' => array(
+                'order_id' => $nomor_referensi,
+                'gross_amount' => $validated['jumlah'],
+            ),
+            'customer_details' => array(
+                'first_name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone ?? '08123456789',
+            ),
+            'item_details' => array(
+                [
+                    'id' => $booking->kamar_id,
+                    'price' => $validated['jumlah'],
+                    'quantity' => 1,
+                    'name' => 'Sewa Kost: ' . $booking->kost->nama_kost,
+                ]
+            )
+        );
+
+        try {
+            $snapToken = Snap::getSnapToken($params);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Gagal generate Snap Token Midtrans: ' . $e->getMessage()
+            ], 500);
         }
 
         $pembayaran = Pembayaran::create([
             'booking_id'       => $booking->id,
             'jumlah'           => $validated['jumlah'],
-            'metode'           => $validated['metode'],
-            'nomor_referensi'  => 'PAY-' . strtoupper(Str::random(10)),
-            'bukti_pembayaran' => $validated['bukti_pembayaran'] ?? null,
+            'metode'           => 'midtrans', // default untuk sementara
+            'nomor_referensi'  => $nomor_referensi,
+            'snap_token'       => $snapToken,
             'status'           => 'pending',
             'keterangan'       => $validated['keterangan'] ?? null,
         ]);
 
         return response()->json([
-            'message' => 'Pembayaran berhasil disubmit, menunggu verifikasi',
-            'data'    => $pembayaran->load('booking'),
+            'message'    => 'Pembayaran berhasil diinisiasi, silakan proses',
+            'snap_token' => $snapToken,
+            'data'       => $pembayaran->load('booking'),
         ], 201);
     }
 
@@ -127,5 +166,61 @@ class PembayaranController extends Controller
             'message' => 'Status pembayaran berhasil diperbarui',
             'data'    => $pembayaran->load('booking'),
         ]);
+    }
+
+    // POST /api/pembayaran/webhook — Webhook Midtrans
+    public function webhook(Request $request)
+    {
+        $serverKey = config('midtrans.server_key');
+        $hashed = hash("sha512", $request->order_id . $request->status_code . $request->gross_amount . $serverKey);
+        
+        if ($hashed == $request->signature_key) {
+            if ($request->transaction_status == 'capture' || $request->transaction_status == 'settlement') {
+                $pembayaran = Pembayaran::with('booking.kamar')->where('nomor_referensi', $request->order_id)->first();
+                
+                if ($pembayaran && $pembayaran->status != 'berhasil') {
+                    $pembayaran->update([
+                        'status' => 'berhasil',
+                        'tanggal_bayar' => Carbon::now(),
+                        'metode' => $request->payment_type, // Misal: bank_transfer, qris, dll
+                    ]);
+
+                    $booking = $pembayaran->booking;
+                    if ($booking && in_array($booking->status, ['pending', 'confirmed'])) {
+                        $booking->update(['status' => 'aktif']);
+                        if ($booking->kamar) {
+                            $booking->kamar->update(['status' => 'terisi']);
+                        }
+
+                        // Buat data hunian otomatis
+                        $karyawan = Karyawan::where('user_id', $booking->user_id)->first();
+                        if ($karyawan) {
+                            // Nonaktifkan hunian lama
+                            Hunian::where('karyawan_id', $karyawan->id)
+                                ->where('status', 'aktif')
+                                ->update(['status' => 'selesai', 'tanggal_keluar' => now()]);
+
+                            Hunian::create([
+                                'karyawan_id'    => $karyawan->id,
+                                'kost_id'        => $booking->kost_id,
+                                'kamar_id'       => $booking->kamar_id,
+                                'booking_id'     => $booking->id,
+                                'tanggal_masuk'  => $booking->tanggal_mulai,
+                                'tanggal_keluar' => $booking->tanggal_selesai,
+                                'status'         => 'aktif',
+                                'is_verified'    => false,
+                            ]);
+                        }
+                    }
+                }
+            } elseif (in_array($request->transaction_status, ['cancel', 'deny', 'expire'])) {
+                $pembayaran = Pembayaran::where('nomor_referensi', $request->order_id)->first();
+                if ($pembayaran) {
+                    $pembayaran->update(['status' => 'gagal']);
+                }
+            }
+        }
+        
+        return response()->json(['message' => 'Webhook received']);
     }
 }
