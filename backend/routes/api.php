@@ -90,7 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/',     [KostController::class, 'index']);
         Route::get('/{id}', [KostController::class, 'show']);
 
-        Route::middleware('role:pemilik_kost')->group(function () {
+        Route::middleware('role:pemilik_kost,super_admin')->group(function () {
             Route::post('/',       [KostController::class, 'store']);
             Route::put('/{id}',    [KostController::class, 'update']);
             Route::delete('/{id}', [KostController::class, 'destroy']);
@@ -100,7 +100,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/{id}/status', [KostController::class, 'updateStatus'])
             ->middleware('role:super_admin');
 
-        // Super Admin juga bisa delete
+        // Super Admin juga bisa delete (force)
         Route::delete('/{id}/force', [KostController::class, 'destroy'])
             ->middleware('role:super_admin');
 

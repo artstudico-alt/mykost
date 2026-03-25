@@ -57,8 +57,27 @@ function Login() {
     setLoading(true)
 
     try {
-      await login(formData)
-      navigate('/')
+      const response = await login(formData)
+      const user = response.user
+      const role = user.role?.name || ''
+
+      // Redirection logic based on role
+      switch (role) {
+        case 'super_admin':
+          navigate('/admin/dashboard')
+          break
+        case 'hr':
+          navigate('/hr/dashboard')
+          break
+        case 'pemilik_kost':
+          navigate('/owner/dashboard')
+          break
+        case 'karyawan':
+          navigate('/')
+          break
+        default:
+          navigate('/')
+      }
     } catch (err) {
       setError(err?.message || 'Login gagal. Periksa email dan password Anda.')
     } finally {
@@ -248,7 +267,7 @@ function Login() {
         </div>
 
         <p className="auth-page__demo-hint">
-          <span>Demo:</span> admin@example.com · password
+          <span>Demo:</span> superadmin@mykost.com · password123
         </p>
       </main>
     </div>

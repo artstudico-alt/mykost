@@ -1,6 +1,6 @@
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, MessageCircle, Ruler, Send, ShowerHead, Snowflake, Loader2 } from 'lucide-react'
+import { Activity, MessageCircle, Ruler, Send, ShowerHead, Snowflake, Loader2, LogOut } from 'lucide-react'
 import { getKostById } from '../utils/kostDummy'
 import { useAuth } from '../hooks/useAuth'
 import api from '../utils/api'
@@ -170,19 +170,36 @@ function KostDetail() {
                 <a href="#">Syarat dan Ketentuan</a>
               </nav>
               {isAuthenticated ? (
-                <div 
-                  className="landing-profile-btn" 
-                  onClick={logout} 
-                  title="Logout" 
-                  style={{ 
-                    width: '38px', height: '38px', borderRadius: '50%', 
-                    backgroundColor: '#0288D1', color: 'white', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                    fontWeight: 'bold', fontSize: '18px', cursor: 'pointer',
-                    userSelect: 'none'
-                  }}
-                >
-                  {userInitial}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div 
+                    className="landing-profile-btn" 
+                    title={`Logged in as ${userEmail}`}
+                    style={{ 
+                      width: '38px', height: '38px', borderRadius: '50%', 
+                      backgroundColor: '#0288D1', color: 'white', 
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                      fontWeight: 'bold', fontSize: '18px', cursor: 'default',
+                      userSelect: 'none'
+                    }}
+                  >
+                    {userInitial}
+                  </div>
+                  <button
+                    onClick={logout}
+                    title="Logout"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      padding: '8px 12px', borderRadius: '8px',
+                      border: '1px solid #ef4444', color: '#ef4444',
+                      backgroundColor: 'transparent', fontWeight: '600',
+                      fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => { e.target.style.backgroundColor = '#fef2f2' }}
+                    onMouseOut={(e) => { e.target.style.backgroundColor = 'transparent' }}
+                  >
+                    <LogOut size={16} />
+                    <span>Keluar</span>
+                  </button>
                 </div>
               ) : (
                 <button
