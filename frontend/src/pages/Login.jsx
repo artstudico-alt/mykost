@@ -63,6 +63,7 @@ function Login() {
 
       // Redirection logic based on role
       switch (role) {
+        case 'admin':
         case 'super_admin':
           navigate('/admin/dashboard')
           break
@@ -266,9 +267,11 @@ function Login() {
           </p>
         </div>
 
-        <p className="auth-page__demo-hint">
-          <span>Demo:</span> superadmin@mykost.com · password123
-        </p>
+        <div className="auth-page__demo-hint" style={{ textAlign: 'center', marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <p style={{ margin: 0 }}><span>Super Admin:</span> superadmin@mykost.com · password123</p>
+          <p style={{ margin: 0 }}><span>HR Manager:</span> hr@mykost.com · password123</p>
+          <p style={{ margin: 0 }}><span>Pemilik Kost:</span> pemilik@mykost.com · password123</p>
+        </div>
       </main>
     </div>
   )

@@ -3,22 +3,6 @@ import api from '../utils/api'
 const authService = {
   login: async (credentials) => {
     try {
-      // Mock login untuk testing (hapus ini saat backend sudah siap)
-      if (credentials.email === 'admin@example.com' && credentials.password === 'password') {
-        const mockResponse = {
-          success: true,
-          token: 'mock-jwt-token-12345',
-          user: {
-            id: 1,
-            name: 'Admin User',
-            email: 'admin@example.com'
-          }
-        }
-        localStorage.setItem('token', mockResponse.token)
-        return mockResponse
-      }
-
-      // Coba ke backend jika bukan credentials mock
       const response = await api.post('/auth/login', credentials)
       if (response.data.token) {
         localStorage.setItem('token', response.data.token)
@@ -26,30 +10,10 @@ const authService = {
       }
       return response.data
     } catch (error) {
-      console.error('Login error:', error)
-      // Jika backend error, cek mock login
-      if (credentials.email === 'admin@example.com' && credentials.password === 'password') {
-        const mockResponse = {
-          success: true,
-          token: 'mock-jwt-token-12345',
-          user: {
-            id: 1,
-            name: 'Admin User',
-            email: 'admin@example.com'
-          }
-        }
-        localStorage.setItem('token', mockResponse.token)
-        localStorage.setItem('userEmail', credentials.email)
-        return mockResponse
-      }
-
-      if (error.response && error.response.data && error.response.data.message) {
+      if (error.response?.data?.message) {
         throw new Error(error.response.data.message)
-      } else if (error.message) {
-        throw new Error('Koneksi Gagal: ' + error.message)
       }
-
-      throw error
+      throw new Error('Koneksi ke server gagal. Pastikan server backend menyala.')
     }
   },
 
@@ -89,7 +53,8 @@ const authService = {
   logout: () => {
     localStorage.removeItem('token')
     localStorage.removeItem('userEmail')
-    window.location.href = '/login'
+    // HashRouter pakai /#/login bukan /login
+    window.location.hash = '#/login'
   },
 
   getToken: () => {

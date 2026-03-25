@@ -11,12 +11,16 @@ import KostDetail from './pages/KostDetail'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminKost from './pages/AdminKost'
 import AdminUsers from './pages/AdminUsers'
-import AdminKantor from './pages/AdminKantor'
+import AdminPembayaran from './pages/AdminPembayaran'
+import AdminTracking from './pages/AdminTracking'
+import AdminLaporan from './pages/AdminLaporan'
 import AdminLayout from './components/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
+import HRDashboard from './pages/HRDashboard'
+import OwnerDashboard from './pages/OwnerDashboard'
 
 function App() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
 
   return (
     <Router>
@@ -27,41 +31,70 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/kost/:kostId" element={<KostDetail />} />
+
+          {/* Super Admin Routes */}
           <Route path="/admin" element={
-            <ProtectedRoute allowedRoles={['super_admin']}>
+            <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
               <AdminLayout />
             </ProtectedRoute>
           }>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="kost" element={<AdminKost />} />
-            <Route path="users" element={<AdminUsers />} />
-            <Route path="kantor" element={<AdminKantor />} />
-            <Route path="properti" element={<div className="p-8"><h1>Halaman Verifikasi Kost (Segera Hadir)</h1></div>} />
-            <Route path="pembayaran" element={<div className="p-8"><h1>Halaman Pembayaran (Segera Hadir)</h1></div>} />
-            <Route path="laporan" element={<div className="p-8"><h1>Halaman Laporan (Segera Hadir)</h1></div>} />
+            <Route path="karyawan" element={<AdminUsers />} />
+            <Route path="tracking" element={<AdminTracking />} />
+            <Route path="pembayaran" element={<AdminPembayaran />} />
+            <Route path="laporan" element={<AdminLaporan />} />
           </Route>
 
-          {/* Fallback dashboard / Legacy */}
+          {/* HR Routes */}
+          <Route path="/hr" element={
+            <ProtectedRoute allowedRoles={['hr']}>
+              <AdminLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<Navigate to="/hr/dashboard" replace />} />
+            <Route path="dashboard" element={<HRDashboard />} />
+            <Route path="karyawan" element={<AdminUsers />} />
+            <Route path="tracking" element={<AdminTracking />} />
+            <Route path="laporan" element={<AdminLaporan />} />
+          </Route>
+
+          {/* Owner Routes */}
+          <Route path="/owner" element={
+            <ProtectedRoute allowedRoles={['pemilik_kost']}>
+              <AdminLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<Navigate to="/owner/dashboard" replace />} />
+            <Route path="dashboard" element={<OwnerDashboard />} />
+            <Route path="kost" element={<AdminKost />} />
+            <Route path="pembayaran" element={<AdminPembayaran />} />
+          </Route>
+
+          {/* User / Fallback Routes */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
-              <Dashboard />
+              <DashboardNavigator />
             </ProtectedRoute>
           } />
-          <Route path="/kamar" element={
-            <ProtectedRoute>
-              <Kamar />
-            </ProtectedRoute>
-          } />
-          <Route path="/penyewa" element={
-            <ProtectedRoute>
-              <Penyewa />
-            </ProtectedRoute>
-          } />
+          <Route path="/kamar" element={<ProtectedRoute><Kamar /></ProtectedRoute>} />
+          <Route path="/penyewa" element={<ProtectedRoute><Penyewa /></ProtectedRoute>} />
         </Routes>
       </div>
     </Router>
   )
+}
+
+function DashboardNavigator() {
+  const { user } = useAuth()
+  const role = user?.role?.name || ''
+  
+  if (role === 'hr') return <Navigate to="/hr/dashboard" replace />
+  if (role === 'pemilik_kost') return <Navigate to="/owner/dashboard" replace />
+  if (role === 'super_admin' || role === 'admin') return <Navigate to="/admin/dashboard" replace />
+  
+  return <Navigate to="/kamar" replace />
 }
 
 export default App
