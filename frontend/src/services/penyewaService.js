@@ -3,7 +3,7 @@ import api from '../utils/api'
 const penyewaService = {
   getAllPenyewa: async () => {
     try {
-      const response = await api.get('/penyewas')
+      const response = await api.get('/karyawan')
       return response.data
     } catch (error) {
       console.error('Error fetching penyewa:', error)
@@ -13,7 +13,7 @@ const penyewaService = {
 
   getPenyewaById: async (id) => {
     try {
-      const response = await api.get(`/penyewas/${id}`)
+      const response = await api.get(`/karyawan/${id}`)
       return response.data
     } catch (error) {
       console.error('Error fetching penyewa:', error)
@@ -23,7 +23,7 @@ const penyewaService = {
 
   createPenyewa: async (penyewaData) => {
     try {
-      const response = await api.post('/penyewas', penyewaData)
+      const response = await api.post('/karyawan', penyewaData)
       return response.data
     } catch (error) {
       console.error('Error creating penyewa:', error)
@@ -33,7 +33,7 @@ const penyewaService = {
 
   updatePenyewa: async (id, penyewaData) => {
     try {
-      const response = await api.put(`/penyewas/${id}`, penyewaData)
+      const response = await api.put(`/karyawan/${id}`, penyewaData)
       return response.data
     } catch (error) {
       console.error('Error updating penyewa:', error)
@@ -43,7 +43,7 @@ const penyewaService = {
 
   deletePenyewa: async (id) => {
     try {
-      await api.delete(`/penyewas/${id}`)
+      await api.delete(`/karyawan/${id}`)
       return true
     } catch (error) {
       console.error('Error deleting penyewa:', error)

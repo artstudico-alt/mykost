@@ -2,9 +2,10 @@ import api from '../utils/api'
 
 const kamarService = {
   // Get all kamar
-  getAllKamar: async () => {
+  getAllKamar: async (kostId = null) => {
+    const currentKostId = kostId || localStorage.getItem('kostId') || 1;
     try {
-      const response = await api.get('/kamars')
+      const response = await api.get(`/kost/${currentKostId}/kamar`)
       return response.data
     } catch (error) {
       console.error('Error fetching kamar:', error)
@@ -13,9 +14,10 @@ const kamarService = {
   },
 
   // Get kamar by id
-  getKamarById: async (id) => {
+  getKamarById: async (id, kostId = null) => {
+    const currentKostId = kostId || localStorage.getItem('kostId') || 1;
     try {
-      const response = await api.get(`/kamars/${id}`)
+      const response = await api.get(`/kost/${currentKostId}/kamar/${id}`)
       return response.data
     } catch (error) {
       console.error('Error fetching kamar:', error)
@@ -24,9 +26,10 @@ const kamarService = {
   },
 
   // Create new kamar
-  createKamar: async (kamarData) => {
+  createKamar: async (kamarData, kostId = null) => {
+    const currentKostId = kostId || localStorage.getItem('kostId') || 1;
     try {
-      const response = await api.post('/kamars', kamarData)
+      const response = await api.post(`/kost/${currentKostId}/kamar`, kamarData)
       return response.data
     } catch (error) {
       console.error('Error creating kamar:', error)
@@ -35,9 +38,10 @@ const kamarService = {
   },
 
   // Update kamar
-  updateKamar: async (id, kamarData) => {
+  updateKamar: async (id, kamarData, kostId = null) => {
+    const currentKostId = kostId || localStorage.getItem('kostId') || 1;
     try {
-      const response = await api.put(`/kamars/${id}`, kamarData)
+      const response = await api.put(`/kost/${currentKostId}/kamar/${id}`, kamarData)
       return response.data
     } catch (error) {
       console.error('Error updating kamar:', error)
@@ -46,9 +50,10 @@ const kamarService = {
   },
 
   // Delete kamar
-  deleteKamar: async (id) => {
+  deleteKamar: async (id, kostId = null) => {
+    const currentKostId = kostId || localStorage.getItem('kostId') || 1;
     try {
-      await api.delete(`/kamars/${id}`)
+      await api.delete(`/kost/${currentKostId}/kamar/${id}`)
       return true
     } catch (error) {
       console.error('Error deleting kamar:', error)
