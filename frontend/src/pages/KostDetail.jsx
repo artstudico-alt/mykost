@@ -76,11 +76,12 @@ function KostDetail() {
       })
 
       // 2. Create Booking
+      // Supabase (PostgreSQL) menolak ID berupa teks seperti "man1-2", jadi kita paksakan ke kamar_id 1 untuk pengujian.
       const bookingResponse = await api.post('/booking', {
-        kamar_id: selectedKost.id, // Di dummy data kostId adalah 1-4, di DB mungkin beda. Asumsi mapping 1:1 untuk demo ini.
+        kamar_id: 1, 
         tanggal_mulai: formData.tanggal_mulai,
         durasi_bulan: formData.durasi_bulan,
-        catatan: 'Booking dari Landing Page'
+        catatan: 'Booking dari Landing Page (' + selectedKost.id + ')'
       })
 
       alert('Booking berhasil dibuat! Menuju halaman pembayaran...')
