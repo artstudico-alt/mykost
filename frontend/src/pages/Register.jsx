@@ -103,7 +103,7 @@ function Register() {
     setLoading(true)
     try {
       await authService.verifyOtp({ email: emailForOtp, kode })
-      navigate('/dashboard')
+      navigate('/')
     } catch (err) {
       setError(err?.response?.data?.message || 'Kode OTP salah atau tidak valid.')
     } finally {
