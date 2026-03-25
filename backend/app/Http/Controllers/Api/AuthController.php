@@ -325,6 +325,37 @@ class AuthController extends Controller
     }
 
     // ================================================================
+    // UPDATE PROFILE — Update data diri (Phone, NIK, Foto KTP)
+    // POST /api/auth/update-profile
+    // ================================================================
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'phone'     => 'nullable|string|max:20',
+            'nik'       => 'nullable|string|size:16',
+            'ktp_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        $data = $request->only(['phone', 'nik']);
+
+        if ($request->hasFile('ktp_photo')) {
+            $file = $request->file('ktp_photo');
+            $filename = time() . '_ktp_' . $user->id . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/ktp'), $filename);
+            $data['ktp_photo'] = 'uploads/ktp/' . $filename;
+        }
+
+        $user->update($data);
+
+        return response()->json([
+            'message' => 'Profil berhasil diperbarui.',
+            'user'    => $user,
+        ]);
+    }
+
+    // ================================================================
     // LOGOUT
     // POST /api/auth/logout
     // ================================================================

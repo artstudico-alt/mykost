@@ -1,8 +1,10 @@
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, MessageCircle, Ruler, Send, ShowerHead, Snowflake } from 'lucide-react'
+import { Activity, MessageCircle, Ruler, Send, ShowerHead, Snowflake, Loader2 } from 'lucide-react'
 import { getKostById } from '../utils/kostDummy'
 import { useAuth } from '../hooks/useAuth'
+import api from '../utils/api'
+import BookingModal from '../components/BookingModal'
 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -31,10 +33,67 @@ function KostDetail() {
   const selectedKost = getKostById(kostId)
   const seeds = useMemo(() => selectedKost?.seeds ?? [], [selectedKost])
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
+  const [userData, setUserData] = useState(null)
+  const [isSubmittingBooking, setIsSubmittingBooking] = useState(false)
 
   useEffect(() => {
     setActivePhotoIndex(0)
-  }, [kostId])
+    if (isAuthenticated) {
+      fetchUserData()
+    }
+  }, [kostId, isAuthenticated])
+
+  const fetchUserData = async () => {
+    try {
+      const response = await api.get('/auth/me')
+      setUserData(response.data.user)
+    } catch (error) {
+      console.error('Gagal mengambil data user:', error)
+    }
+  }
+
+  const handleBookingSubmit = async (formData) => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+
+    setIsSubmittingBooking(true)
+    try {
+      // 1. Update Profile (NIK & Phone) jika ada perubahan/kosong
+      const profileData = new FormData()
+      profileData.append('phone', formData.phone)
+      profileData.append('nik', formData.nik)
+      if (formData.ktp_photo instanceof File) {
+        profileData.append('ktp_photo', formData.ktp_photo)
+      }
+
+      // Kita bisa buat endpoint khusus update profile, atau update di sini
+      // Asumsikan kita butuh update profil dulu sebelum booking
+      await api.post('/auth/update-profile', profileData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
+      // 2. Create Booking
+      const bookingResponse = await api.post('/booking', {
+        kamar_id: selectedKost.id, // Di dummy data kostId adalah 1-4, di DB mungkin beda. Asumsi mapping 1:1 untuk demo ini.
+        tanggal_mulai: formData.tanggal_mulai,
+        durasi_bulan: formData.durasi_bulan,
+        catatan: 'Booking dari Landing Page'
+      })
+
+      alert('Booking berhasil dibuat! Menuju halaman pembayaran...')
+      setIsBookingModalOpen(false)
+      // Redirect ke payment summary atau Midtrans
+      // window.location.href = bookingResponse.data.payment_url;
+    } catch (error) {
+      console.error('Error saat booking:', error)
+      alert(error.response?.data?.message || 'Terjadi kesalahan saat memproses booking.')
+    } finally {
+      setIsSubmittingBooking(false)
+    }
+  }
 
   const activeSeed = seeds[activePhotoIndex] || seeds[0]
   const sideSeeds = seeds.slice(1, 5)
@@ -386,7 +445,14 @@ function KostDetail() {
                     <MessageCircle className="kost-detail-action-icon" aria-hidden />
                     Chat
                   </button>
-                  <button type="button" className="kost-detail-action-btn kost-detail-action-btn--outline-green">
+                  <button 
+                    type="button" 
+                    className="kost-detail-action-btn kost-detail-action-btn--outline-green"
+                    onClick={() => {
+                      console.log('Button Ajukan sewa clicked!');
+                      setIsBookingModalOpen(true);
+                    }}
+                  >
                     <Send className="kost-detail-action-icon" aria-hidden />
                     Ajukan sewa
                   </button>
@@ -532,6 +598,14 @@ function KostDetail() {
           </div>
         </div>
       )}
+      {/* Booking Modal */}
+      <BookingModal 
+        isOpen={isBookingModalOpen} 
+        onClose={() => setIsBookingModalOpen(false)} 
+        kost={selectedKost}
+        user={userData}
+        onSubmit={handleBookingSubmit}
+      />
     </div>
   )
 }
