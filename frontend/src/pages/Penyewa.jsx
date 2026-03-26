@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '../hooks/useAuth'
 import penyewaService from '../services/penyewaService'
 
 function Penyewa() {
+  const { user, loading: authLoading } = useAuth()
   const [penyewas, setPenyewas] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetchPenyewas()
-  }, [])
+    if (!authLoading && user) {
+      fetchPenyewas()
+    }
+  }, [authLoading, user])
 
   const fetchPenyewas = async () => {
     try {

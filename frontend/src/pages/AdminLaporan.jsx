@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Loader2, TrendingUp, Users, Home, Percent, Download } from 'lucide-react';
 import api from '../utils/api';
+import { useAuth } from '../hooks/useAuth';
 
 const AdminLaporan = () => {
+  const { user, loading: authLoading } = useAuth();
   const [laporan, setLaporan] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchLaporan(); }, []);
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchLaporan();
+    }
+  }, [authLoading, user]);
 
   const fetchLaporan = async () => {
     setLoading(true);

@@ -245,34 +245,34 @@ class AuthController extends Controller
         ]);
     }
 
-    // ================================================================
-    // FORGOT PASSWORD — Kirim OTP untuk reset
-    // POST /api/auth/forgot-password
-    // ================================================================
     public function forgotPassword(Request $request)
     {
         $request->validate(['email' => 'required|email']);
 
         $user = User::where('email', $request->email)->first();
 
-        // Keamanan: Jangan beri tahu jika email tidak ada (untuk hindari user enumeration)
         if (!$user) {
             return response()->json([
-                'message' => 'Jika email terdaftar, kode reset telah dikirim.',
-            ]);
+                'message' => 'Email yang Anda masukkan tidak terdaftar di sistem kami. Silakan cek ulang.',
+            ], 404);
         }
 
         $otp = OtpCode::generate($request->email);
 
         try {
-            Mail::to($request->email)->send(new OtpMail($otp->kode, $user->name));
+            Mail::to($request->email)->send(new OtpMail(
+                kode: $otp->kode, 
+                namaUser: $user->name
+            ));
         } catch (\Exception $e) {
             $otp->delete();
-            return response()->json(['message' => 'Gagal mengirim email reset.'], 500);
+            return response()->json([
+                'message' => 'Gagal mengirim email reset. Sistem Email SMTP (Gmail) mungkin belum di-setting dengan benar. (Mode Debug: OTP Anda adalah ' . $otp->kode . ')',
+            ], 500);
         }
 
         return response()->json([
-            'message' => 'Kode reset password telah dikirim ke email Anda.',
+            'message' => 'Kode reset password telah dikirim ke email Anda. (Mode Debug: Cek terminal/log atau gunakan ' . $otp->kode . ' jika email gagal masuk)',
             'next_step' => 'POST /api/auth/reset-password dengan { email, kode, password, password_confirmation }',
         ]);
     }

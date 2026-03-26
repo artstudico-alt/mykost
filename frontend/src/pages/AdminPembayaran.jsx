@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { CheckSquare, Search, Loader2, CheckCircle, Clock, XCircle, Eye, DollarSign } from 'lucide-react';
 import api from '../utils/api';
+import { useAuth } from '../hooks/useAuth';
 
 const AdminPembayaran = () => {
+  const { user, loading: authLoading } = useAuth();
   const [pembayarans, setPembayarans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [summary, setSummary] = useState({ total: 0, lunas: 0, pending: 0, totalNominal: 0 });
 
-  useEffect(() => { fetchPembayaran(); }, []);
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchPembayaran();
+    }
+  }, [authLoading, user]);
 
   const fetchPembayaran = async () => {
     setLoading(true);

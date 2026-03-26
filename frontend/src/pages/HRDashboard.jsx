@@ -47,7 +47,7 @@ const RadiusBadge = ({ km }) => {
 
 /* ─── Main Component ─── */
 const HRDashboard = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [tab, setTab] = useState('dashboard');
@@ -98,7 +98,11 @@ const HRDashboard = () => {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchAll();
+    }
+  }, [authLoading, user]);
 
   /* ─── Computed Stats ─── */
   const totalKaryawan = karyawanList.length;

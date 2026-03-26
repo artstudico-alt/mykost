@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Loader2, CheckCircle, Clock, Users, Home, XCircle } from 'lucide-react';
 import api from '../utils/api';
+import { useAuth } from '../hooks/useAuth';
 
 const AdminTracking = () => {
+  const { user, loading: authLoading } = useAuth();
   const [hunians, setHunians] = useState([]);
   const [stats, setStats] = useState({ total_hunian: 0, aktif: 0, verified: 0, belum_verified: 0 });
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => { fetchTracking(); }, []);
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchTracking();
+    }
+  }, [authLoading, user]);
 
   const fetchTracking = async () => {
     setLoading(true);

@@ -49,6 +49,14 @@ Route::prefix('auth')->group(function () {
 Route::post('/pembayaran/webhook', [PembayaranController::class, 'webhook']);
 
 // ============================================================
+// PUBLIC SEARCH API
+// ============================================================
+Route::prefix('search')->group(function () {
+    Route::get('/kost',           [SearchController::class, 'cariKost']);
+    Route::get('/kost-by-kantor', [SearchController::class, 'kostByKantor']);
+});
+
+// ============================================================
 // SEMUA ROUTE DI BAWAH MEMBUTUHKAN AUTH
 // ============================================================
 Route::middleware('auth:sanctum')->group(function () {
@@ -184,12 +192,10 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // --------------------------------------------------------
-    // SEARCH — Semua authenticated
+    // SEARCH — Diprioritaskan untuk public sekarang
     // --------------------------------------------------------
-    Route::prefix('search')->group(function () {
-        Route::get('/kost',            [SearchController::class, 'cariKost']);
-        Route::get('/kost-by-kantor',  [SearchController::class, 'kostByKantor']);
-    });
+// ROUTE INI MUNGKIN SUDAH DIPINDAHKAN KE LUAR BLOK AUTH
+
 
     // --------------------------------------------------------
     // KELUHAN

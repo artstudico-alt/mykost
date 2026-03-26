@@ -22,11 +22,35 @@ class SearchController extends Controller
             'harga_max' => 'nullable|numeric|min:0',
             'fasilitas' => 'nullable|array',
             'search'    => 'nullable|string',
+            'latitude'  => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'radius_km' => 'nullable|numeric|min:0.1|max:100',
         ]);
+
+        // Titik pusat kantor default: Kedung Waringin, Kota Bogor (CQPJ+GC)
+        $kantorLat = -6.5637499;
+        $kantorLng = 106.7810624;
 
         $query = Kost::with(['kamarsKosong'])
             ->withCount('kamarsKosong')
             ->where('status', 'aktif');
+
+        // ==== LOGIKA PENCARIAN RADIUS HAVERSINE (dari input user) ====
+        if ($request->filled('latitude') && $request->filled('longitude')) {
+            $lat = $request->latitude;
+            $lng = $request->longitude;
+            $radius = $request->filled('radius_km') ? $request->radius_km : 5;
+
+            $query->selectRaw("kosts.*, ( 6371 * acos( cos( radians(?) ) *
+                cos( radians( kosts.latitude ) )
+                * cos( radians( kosts.longitude ) - radians(?) ) + sin( radians(?) ) *
+                sin( radians( kosts.latitude ) ) )
+            ) AS distance_km", [$lat, $lng, $lat])
+            ->having("distance_km", "<=", $radius)
+            ->orderBy("distance_km", "asc");
+        } else {
+            $query->select('kosts.*')->latest();
+        }
 
         if ($request->filled('kota')) {
             $query->where('kota', 'like', '%' . $request->kota . '%');
@@ -44,22 +68,42 @@ class SearchController extends Controller
             $query->where(function ($q) use ($request) {
                 $q->where('nama_kost', 'like', '%' . $request->search . '%')
                   ->orWhere('alamat', 'like', '%' . $request->search . '%')
-                  ->orWhere('kecamatan', 'like', '%' . $request->search . '%');
+                  ->orWhere('kecamatan', 'like', '%' . $request->search . '%')
+                  ->orWhere('kota', 'like', '%' . $request->search . '%');
             });
         }
 
-        // Filter fasilitas
         if ($request->filled('fasilitas')) {
             foreach ($request->fasilitas as $fasilitas) {
                 $query->whereJsonContains('fasilitas_umum', $fasilitas);
             }
         }
 
-        $kosts = $query->latest()->get();
+        $kosts = $query->get();
+
+        // ==== SELALU tambahkan jarak_dari_kantor untuk setiap kost ====
+        $kosts = $kosts->map(function ($kost) use ($kantorLat, $kantorLng) {
+            $kost->jarak_dari_kantor = round($this->hitungJarak(
+                $kantorLat, $kantorLng,
+                (float) $kost->latitude,
+                (float) $kost->longitude
+            ), 2);
+            return $kost;
+        });
 
         return response()->json([
             'message' => 'Hasil pencarian kost',
             'total'   => $kosts->count(),
+            'radius'  => $request->radius_km ?? 5,
+            'center'  => [
+                'latitude'  => $request->latitude ?? $kantorLat,
+                'longitude' => $request->longitude ?? $kantorLng,
+            ],
+            'kantor'  => [
+                'nama'      => 'Kantor Pusat (Kedung Waringin, Bogor)',
+                'latitude'  => $kantorLat,
+                'longitude' => $kantorLng,
+            ],
             'data'    => $kosts,
         ]);
     }

@@ -4,12 +4,16 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../utils/api';
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [stats, setStats] = useState({ kosts: 0, kostsAktif: 0, pendapatan: 0, totalBooking: 0 });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('This Month');
 
-  useEffect(() => { fetchStats(); }, []);
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchStats();
+    }
+  }, [authLoading, user]);
 
   const fetchStats = async () => {
     try {

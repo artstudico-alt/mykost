@@ -76,7 +76,9 @@ function LandingPage() {
   const handleSearch = (e) => {
     e.preventDefault()
     if (searchLocation.trim()) {
-      navigate('/kamar?search=' + encodeURIComponent(searchLocation))
+      navigate('/cari?q=' + encodeURIComponent(searchLocation))
+    } else {
+      navigate('/cari')
     }
   }
 
@@ -120,6 +122,12 @@ function LandingPage() {
 
             <div className="landing-main-actions">
               <nav className="landing-main-nav">
+                <span 
+                  onClick={() => navigate('/cari')} 
+                  style={{ cursor: 'pointer', fontWeight: 'bold', color: '#16a34a' }}
+                >
+                  Cari Kos (Radius Map)
+                </span>
                 <a href="#">Pusat Bantuan</a>
                 <a href="#">Syarat dan Ketentuan</a>
               </nav>

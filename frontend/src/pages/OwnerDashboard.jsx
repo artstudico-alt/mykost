@@ -4,12 +4,16 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../utils/api';
 
 const OwnerDashboard = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [stats, setStats] = useState({ totalKost: 0, aktif: 0, pendapatan: 0, bookingBaru: 0 });
   const [recentBookings, setRecentBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchOwnerStats(); }, []);
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchOwnerStats();
+    }
+  }, [authLoading, user]);
 
   const fetchOwnerStats = async () => {
     try {

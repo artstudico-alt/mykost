@@ -1,10 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { Home, Edit2, Trash2, Search, MapPin, CheckCircle, XCircle, Clock, Loader2, Plus } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 
+// Fix Marker Leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Helper component untuk update peta jika FormData diganti manual
+function FormMapUpdater({ lat, lng }) {
+  const map = useMap();
+  useEffect(() => {
+    if (lat && lng) map.setView([lat, lng], map.getZoom());
+  }, [lat, lng, map]);
+  return null;
+}
+
+// Helper untuk klik Map Interaktif
+function MapClickSetter({ setFormData }) {
+  useMapEvents({
+    click(e) {
+      setFormData(prev => ({ ...prev, latitude: parseFloat(e.latlng.lat), longitude: parseFloat(e.latlng.lng) }));
+    },
+  });
+  return null;
+}
+
 const AdminKost = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const role = user?.role?.name || '';
   const isOwner = role === 'pemilik_kost';
   const isAdmin = role === 'super_admin';
@@ -34,15 +64,31 @@ const AdminKost = () => {
   };
 
 
-  useEffect(() => { fetchKosts(); }, []);
+  // Tunggu AuthContext selesai sebelum fetch, cegah race condition
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchKosts();
+    }
+  }, [authLoading, user]);
 
   const fetchKosts = async () => {
     setLoading(true);
     try {
+      // Pastikan token ada sebelum request
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('Token belum tersedia, skip fetch.');
+        return;
+      }
       const response = await api.get('/kost');
       setKosts(response.data.data || []);
     } catch (error) {
       console.error('Gagal mengambil data kost:', error);
+      // Jika 401, token sudah expired — jangan crash UI
+      if (error.response?.status !== 401) {
+        // Coba sekali lagi setelah 1 detik
+        setTimeout(() => fetchKosts(), 1000);
+      }
     } finally {
       setLoading(false);
     }
@@ -414,6 +460,133 @@ const AdminKost = () => {
                         onFocus={e => e.target.style.borderColor = '#22c55e'}
                         onBlur={e => e.target.style.borderColor = '#e2e8f0'}
                       />
+                    </div>
+
+                    {/* Container Koordinat */}
+                    <div style={{ gridColumn: 'span 2', background: '#f8fafc', padding: 20, borderRadius: 16, border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                        <div>
+                          <label style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', display: 'block' }}>Pemetaan Otomatis Koordinat</label>
+                          <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>Tekan tombol di samping setelah mengisi Alamat, Kota, dan Provinsi.</p>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={async () => {
+                            if (!formData.kota) return alert('Silakan isi Kota terlebih dahulu (Minimal Kota/Kabupaten)!');
+                            
+                            // Percobaan 1: Detail Lengkap (Alamat + Kota)
+                            let queryLengkap = '';
+                            if (formData.alamat) queryLengkap += `${formData.alamat}, `;
+                            queryLengkap += `${formData.kota}`;
+
+                            // Percobaan 2: Fallback (Hanya Kota + Provinsi)
+                            const queryKotaP = `${formData.kota}${formData.provinsi ? ', ' + formData.provinsi : ''}`;
+
+                            // Percobaan 3: Super Toleran (HANYA KOTA)
+                            const queryHanyaKota = formData.kota;
+
+                            // Fungsi Helper untuk parsing hasil dari Photon (Komoot API)
+                            const trySearch = async (queryStr) => {
+                               const resp = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(queryStr)}&limit=1`);
+                               const json = await resp.json();
+                               if (json && json.features && json.features.length > 0) {
+                                  return {
+                                     lat: json.features[0].geometry.coordinates[1],
+                                     lon: json.features[0].geometry.coordinates[0]
+                                  };
+                               }
+                               return null;
+                            };
+
+                            setIsSubmitting(true);
+                            try {
+                              // Tembak 1 (Paling Presisi)
+                              let point = await trySearch(queryLengkap);
+                              if (point) {
+                                setFormData(prev => ({...prev, latitude: point.lat, longitude: point.lon}));
+                                alert('✅ Titik Y/X berhasil diisi akurat menggunakan Mesin Pencari Lanjutan!');
+                                return;
+                              } 
+
+                              // Tembak 2 (Kota + Provinsi)
+                              point = await trySearch(queryKotaP);
+                              if (point) {
+                                  setFormData(prev => ({...prev, latitude: point.lat, longitude: point.lon}));
+                                  alert('⚠️ Jalan spesifik tidak dikenali secara utuh.\nNamun, koordinat otomatis diletakkan persis di pusat Desa/Wilayah Anda.');
+                                  return;
+                              }
+
+                              // Tembak 3 (Paling Darurat - Hanya Kota)
+                              point = await trySearch(queryHanyaKota);
+                              if (point) {
+                                  setFormData(prev => ({...prev, latitude: point.lat, longitude: point.lon}));
+                                  alert('⚠️ Peta gagal melacak susunan alamat kompleks.\n\nKoordinat terpaksa kami letakkan di titik pusat Kota/Kabupaten [' + formData.kota + ']. Silakan seret Pin di peta mini untuk menyesuaikan.');
+                              } else {
+                                  alert('❌ Lokasi "' + formData.kota + '" tidak eksis di database Peta. Pastikan ketikan nama kota di Indonesia.');
+                              }
+
+                            } catch (e) {
+                              alert('❌ Gagal menghubungi satelit Peta.');
+                            } finally {
+                              setIsSubmitting(false);
+                            }
+                          }}
+                          style={{ background: 'white', color: '#2563eb', border: '1px solid #bfdbfe', padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                        >
+                          <MapPin size={16} /> Cari Auto
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                        {/* Titik Koordinat - Latitude */}
+                        <div>
+                          <label style={labelStyle}>Latitude (Titik Y)</label>
+                          <input type="number" step="any" placeholder="contoh: -6.563749"
+                            value={formData.latitude}
+                            onChange={e => setFormData({...formData, latitude: parseFloat(e.target.value) || ''})}
+                            required style={{...inputStyle, background: 'white'}}
+                            onFocus={e => e.target.style.borderColor = '#22c55e'}
+                            onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                          />
+                        </div>
+
+                        {/* Titik Koordinat - Longitude */}
+                        <div>
+                          <label style={labelStyle}>Longitude (Titik X)</label>
+                          <input type="number" step="any" placeholder="contoh: 106.781062"
+                            value={formData.longitude}
+                            onChange={e => setFormData({...formData, longitude: parseFloat(e.target.value) || ''})}
+                            required style={{...inputStyle, background: 'white'}}
+                            onFocus={e => e.target.style.borderColor = '#22c55e'}
+                            onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Interactive Mini Map */}
+                      <div style={{ marginTop: 20, width: '100%', height: 250, borderRadius: 14, overflow: 'hidden', border: '2px solid #e2e8f0', position: 'relative' }}>
+                        <MapContainer 
+                          center={[formData.latitude || -6.1751, formData.longitude || 106.8650]} 
+                          zoom={14} 
+                          scrollWheelZoom={true} 
+                          style={{ height: '100%', width: '100%', zIndex: 0 }}
+                        >
+                          <TileLayer 
+                            attribution='&copy; Google Maps'
+                            url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" 
+                          />
+                          <FormMapUpdater lat={formData.latitude} lng={formData.longitude} />
+                          <MapClickSetter setFormData={setFormData} />
+                          
+                          {(formData.latitude && formData.longitude) && (
+                            <Marker position={[formData.latitude, formData.longitude]} />
+                          )}
+                        </MapContainer>
+                        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 400, background: 'rgba(255,255,255,0.9)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#0f172a', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', pointerEvents: 'none' }}>
+                          💡 Sentuh/klik peta untuk pindahkan pin
+                        </div>
+                      </div>
+
                     </div>
 
                   </div>

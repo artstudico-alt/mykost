@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '../hooks/useAuth'
 import kamarService from '../services/kamarService'
 import penyewaService from '../services/penyewaService'
 
 function Dashboard() {
+  const { user, loading: authLoading } = useAuth()
   const [stats, setStats] = useState({
     totalKamar: 0,
     kamarTersedia: 0,
@@ -13,8 +15,10 @@ function Dashboard() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    if (!authLoading && user) {
+      fetchDashboardData()
+    }
+  }, [authLoading, user])
 
   const fetchDashboardData = async () => {
     try {

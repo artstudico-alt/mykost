@@ -4,7 +4,7 @@ import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 
 const AdminUsers = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const role = user?.role?.name || '';
   const isHR = role === 'hr';
 
@@ -13,7 +13,11 @@ const AdminUsers = () => {
   const [filterRole, setFilterRole] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchUsers();
+    }
+  }, [authLoading, user]);
 
   const fetchUsers = async () => {
     setLoading(true);

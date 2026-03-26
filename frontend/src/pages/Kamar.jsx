@@ -1,20 +1,33 @@
 import { useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 import kamarService from '../services/kamarService'
+import { Loader2 } from 'lucide-react'
 
 function Kamar() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { user, loading: authLoading } = useAuth()
+  
+  // Get kost_id from URL query: ?kost_id=123
+  const searchParams = new URLSearchParams(location.search)
+  const kostId = searchParams.get('kost_id')
+
   const [kamars, setKamars] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetchKamars()
-  }, [])
+    if (!authLoading && user) {
+      fetchKamars()
+    }
+  }, [authLoading, user, kostId])
 
   const fetchKamars = async () => {
     try {
       setLoading(true)
-      const data = await kamarService.getAllKamar()
-      setKamars(data)
+      const data = await kamarService.getAllKamar(kostId)
+      setKamars(Array.isArray(data) ? data : (data.data || []))
       setError(null)
     } catch (err) {
       setError('Gagal mengambil data kamar')
