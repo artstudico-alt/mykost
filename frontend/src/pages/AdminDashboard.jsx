@@ -32,51 +32,28 @@ const AdminDashboard = () => {
   };
 
   const statCards = [
-    { label: 'Revenue', value: `Rp ${stats.pendapatan.toLocaleString()}`, icon: Wallet, color: '#14b8a6', bg: '#f0fdfa', trend: '+8.5% Up from yesterday' },
+    { label: 'Revenue', value: `Rp ${stats.pendapatan.toLocaleString()}`, icon: Wallet, color: '#16a34a', bg: '#f0fdf4', trend: '+8.5% Up from yesterday' },
     { label: 'Total Kost', value: stats.kosts, icon: Home, color: '#f59e0b', bg: '#fffbeb', trend: '0.0% Status constant' },
-    { label: 'Booking', value: stats.totalBooking, icon: CalendarCheck, color: '#10b981', bg: '#f0fdf4', trend: '-4.3% Down from yesterday' },
+    { label: 'Booking', value: stats.totalBooking, icon: CalendarCheck, color: '#22c55e', bg: '#f0fdf4', trend: '-4.3% Down from yesterday' },
     { label: 'Profit Est.', value: `Rp ${(stats.pendapatan * 0.15).toLocaleString()}`, icon: TrendingUp, color: '#f97316', bg: '#fff7ed', trend: '+12% Target met' },
   ];
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       
-      {/* Welcome Banner */}
-      <div style={{ 
-        position: 'relative', background: '#f5fcf9', borderRadius: 24, padding: '40px 48px', marginBottom: 32, 
-        border: '1px solid #e2f2eb', overflow: 'hidden', display: 'flex', justifyContent: 'space-between', alignItems: 'center' 
-      }}>
-        <div style={{ position: 'relative', zIndex: 2, maxWidth: 500 }}>
-          <p style={{ color: '#64748b', fontSize: 13, fontWeight: 700, margin: '0 0 10px' }}>Welcome To</p>
-          <h2 style={{ fontSize: 32, fontWeight: 900, color: '#0f172a', margin: '0 0 12px', letterSpacing: '-0.8px' }}>MYKOST ANALYTICS</h2>
-          <p style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.6, margin: '0 0 24px', fontWeight: 500 }}>
-            Pantau performa bisnis properti Anda dengan metrik real-time. Kelola seluruh aset, pendapatan, dan hunian karyawan secara efisien dalam satu dashboard.
-          </p>
-          <button style={{ 
-            background: '#10b981', color: 'white', border: 'none', padding: '12px 28px', borderRadius: 12, 
-            fontSize: 14, fontWeight: 800, cursor: 'pointer', boxShadow: '0 10px 20px -5px #10b98166' 
-          }}>
-	    Panduan Sistem
-          </button>
-        </div>
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <img src="/brain/852da0b2-173c-4fd5-9a08-45ed3e087fea/dashboard_illustration_1774431714639.png" 
-               alt="Dashboard Illustration" 
-               style={{ width: 380, height: 'auto', borderRadius: 12 }} />
-        </div>
-      </div>
 
       {/* Tabs / Filter Row */}
-      <div style={{ background: 'white', borderRadius: 16, padding: '16px 24px', border: '1px solid #f1f5f9', display: 'flex', gap: 24, marginBottom: 28, alignItems: 'center' }}>
+      <div style={{ background: '#f8fafc', borderRadius: 20, padding: '8px', border: '1px solid #f1f5f9', display: 'flex', gap: 8, marginBottom: 32, width: 'fit-content' }}>
           {['Today', 'Last 7 days', 'This Month', 'This Year'].map(t => (
             <button 
               key={t}
               onClick={() => setActiveTab(t)}
               style={{
-                background: activeTab === t ? '#10b981' : 'transparent',
-                color: activeTab === t ? 'white' : '#94a3b8',
-                border: 'none', padding: '8px 20px', borderRadius: 10,
-                fontSize: 13, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s'
+                background: activeTab === t ? 'white' : 'transparent',
+                color: activeTab === t ? '#0f172a' : '#94a3b8',
+                border: 'none', padding: '10px 24px', borderRadius: 14,
+                fontSize: 13, fontWeight: activeTab === t ? 800 : 700, cursor: 'pointer', transition: 'all 0.2s',
+                boxShadow: activeTab === t ? '0 4px 12px rgba(0,0,0,0.05)' : 'none'
               }}
             >
               {t}
@@ -87,55 +64,58 @@ const AdminDashboard = () => {
       {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 24, marginBottom: 32 }}>
         {loading ? Array(4).fill(0).map((_, i) => (
-          <div key={i} style={{ height: 140, background: 'white', border: '1px solid #f1f5f9', borderRadius: 20 }} />
+          <div key={i} style={{ height: 160, background: 'white', border: '1px solid #f1f5f9', borderRadius: 24 }} />
         )) : statCards.map(c => (
-          <div key={c.label} style={{ background: 'white', border: '1px solid #f1f5f9', borderRadius: 20, padding: 24, transition: 'transform 0.2s' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <div key={c.label} className="admin-dashboard-card" style={{ 
+            background: 'white', border: '1px solid #f1f5f9', borderRadius: 24, padding: 28, 
+            boxShadow: '0 4px 20px rgba(0,0,0,0.02)', cursor: 'default'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                <div>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#94a3b8', margin: '0 0 6px' }}>{c.label}</p>
-                  <h3 style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{c.value}</h3>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#94a3b8', margin: '0 0 8px' }}>{c.label}</p>
+                  <h3 style={{ fontSize: 26, fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.8px' }}>{c.value}</h3>
                </div>
-               <div style={{ width: 50, height: 50, borderRadius: 14, background: c.bg, color: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <c.icon size={24} />
+               <div style={{ width: 54, height: 54, borderRadius: 16, background: c.bg, color: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 8px 16px ${c.color}15` }}>
+                  <c.icon size={26} />
                </div>
             </div>
-            <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
-               <TrendingUp size={12} /> {c.trend}
+            <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: c.trend.includes('Up') ? '#16a34a' : '#f97316', display: 'flex', alignItems: 'center', gap: 6 }}>
+               <TrendingUp size={14} /> {c.trend}
             </p>
           </div>
         ))}
       </div>
 
       {/* Row with "Cash Flow" Chart and Distribution */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 28 }}>
           {/* Main Chart Card (Simplified Area Chart) */}
-          <div style={{ background: 'white', border: '1px solid #f1f5f9', borderRadius: 24, padding: 32 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>Cash Flow Statistics</h3>
-              <div style={{ display: 'flex', gap: 12 }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>Pendapatan</span>
+          <div style={{ background: 'white', border: '1px solid #f1f5f9', borderRadius: 28, padding: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+              <h3 style={{ fontSize: 17, fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>Cash Flow Statistics</h3>
+              <div style={{ display: 'flex', gap: 16 }}>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e' }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Pendapatan</span>
                  </div>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>Pengeluaran</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Pengeluaran</span>
                  </div>
               </div>
             </div>
             {/* Mock Area Chart - CSS Lines */}
-            <div style={{ height: 260, width: '100%', position: 'relative', borderBottom: '2px solid #f1f5f9', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 10 }}>
+            <div style={{ height: 260, width: '100%', position: 'relative', borderBottom: '2px solid #f8fafc', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 10 }}>
                {[40, 60, 45, 80, 55, 90, 75].map((h, i) => (
-                 <div key={i} style={{ width: '12%', height: `${h}%`, background: 'rgba(16, 185, 129, 0.1)', borderTop: '3px solid #10b981', position: 'relative' }}>
-                    <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', fontSize: 10, fontWeight: 800, color: '#10b981' }}>{h}k</div>
+                 <div key={i} style={{ width: '12%', height: `${h}%`, background: 'rgba(34, 197, 94, 0.08)', borderTop: '4px solid #22c55e', position: 'relative', borderRadius: '4px 4px 0 0' }}>
+                    <div style={{ position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)', fontSize: 11, fontWeight: 800, color: '#16a34a' }}>{h}k</div>
                  </div>
                ))}
                <div style={{ position: 'absolute', left: 0, bottom: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
                   {/* Grid lines */}
-                  {[25, 50, 75, 100].map(v => <div key={v} style={{ position: 'absolute', top: `${100-v}%`, left: 0, width: '100%', height: 1, background: '#f8fafc' }} />)}
+                  {[25, 50, 75, 100].map(v => <div key={v} style={{ position: 'absolute', bottom: `${v}%`, left: 0, width: '100%', height: 1, background: '#f1f5f9' }} />)}
                </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, padding: '0 10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, padding: '0 10px' }}>
                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => <span key={d} style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>{d}</span>)}
             </div>
           </div>

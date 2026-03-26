@@ -20,6 +20,20 @@ const AdminKost = () => {
     nama_kost: '', alamat: '', kota: '', provinsi: 'Jawa Barat', tipe: 'campur', harga_min: '', status: 'pending', deskripsi: '', latitude: -6.1751, longitude: 106.8650
   });
 
+  const inputStyle = {
+    width: '100%', padding: '13px 16px', borderRadius: 12,
+    border: '1.5px solid #e2e8f0', outline: 'none',
+    fontSize: 14, fontWeight: 600, color: '#0f172a',
+    background: 'white', transition: 'border-color 0.2s',
+    boxSizing: 'border-box',
+  };
+  const labelStyle = {
+    fontSize: 11, fontWeight: 800, color: '#64748b',
+    display: 'block', marginBottom: 8,
+    textTransform: 'uppercase', letterSpacing: '0.7px',
+  };
+
+
   useEffect(() => { fetchKosts(); }, []);
 
   const fetchKosts = async () => {
@@ -114,10 +128,10 @@ const AdminKost = () => {
       {/* Header */}
       <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>
+          <h1 style={{ fontSize: 26, fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.8px' }}>
             {isOwner ? 'Kost Saya' : 'Properti Kost'}
           </h1>
-          <p style={{ color: '#64748b', fontSize: 14, marginTop: 6, fontWeight: 500 }}>
+          <p style={{ color: '#64748b', fontSize: 14, marginTop: 8, fontWeight: 500 }}>
             {isOwner ? 'Kelola daftar properti kost yang Anda miliki.' : 'Kelola dan moderasi properti yang didaftarkan oleh Pemilik Kost.'}
           </p>
         </div>
@@ -125,59 +139,62 @@ const AdminKost = () => {
           <button 
             onClick={() => handleOpenModal()}
             style={{ 
-              background: '#10b981', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, 
-              fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(16,185,129,0.2)'
+              background: '#22c55e', color: 'white', border: 'none', padding: '12px 28px', borderRadius: 14, 
+              fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+              boxShadow: '0 10px 20px -5px rgba(34, 197, 94, 0.4)', transition: 'all 0.2s'
             }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
           >
-            <Plus size={18} /> Tambah Kost
+            <Plus size={18} strokeWidth={3} /> Tambah Properti
           </button>
         )}
       </div>
 
       {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 24, marginBottom: 32 }}>
         {[
           { label: 'Total Properti', value: kosts.length, color: '#3b82f6', bg: '#eff6ff' },
-          { label: 'Kost Aktif', value: kosts.filter(k => k.status === 'aktif').length, color: '#10b981', bg: '#ecfdf5' },
+          { label: 'Kost Aktif', value: kosts.filter(k => k.status === 'aktif').length, color: '#22c55e', bg: '#f0fdf4' },
           { label: 'Pending Review', value: kosts.filter(k => k.status === 'pending').length, color: '#f59e0b', bg: '#fffbeb' },
         ].map(card => (
-          <div key={card.label} style={{ background: 'white', borderRadius: 16, padding: '20px 24px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div key={card.label} style={{ background: 'white', borderRadius: 24, padding: '24px 28px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
             <div>
-              <p style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>{card.label}</p>
-              <p style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', margin: '4px 0 0' }}>{card.value}</p>
+              <p style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.8px', margin: 0 }}>{card.label}</p>
+              <p style={{ fontSize: 32, fontWeight: 900, color: '#0f172a', margin: '4px 0 0', letterSpacing: '-0.5px' }}>{card.value}</p>
             </div>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: card.color }}>
-              <Home size={22} />
+            <div style={{ width: 54, height: 54, borderRadius: 16, background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: card.color, boxShadow: `0 8px 16px ${card.color}15` }}>
+              <Home size={24} />
             </div>
           </div>
         ))}
       </div>
 
       {/* Table Card */}
-      <div style={{ background: 'white', borderRadius: 20, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.03)' }}>
+      <div style={{ background: 'white', borderRadius: 28, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.03)' }}>
         {/* Toolbar */}
-        <div style={{ padding: '18px 28px', borderBottom: '1px solid #f8fafc', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: '#fcfcfd' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'white', border: '1px solid #e2e8f0', borderRadius: 12, padding: '9px 16px', flex: 1, maxWidth: 380, transition: 'all 0.2s' }}>
-            <Search size={16} color="#94a3b8" />
+        <div style={{ padding: '20px 32px', borderBottom: '1px solid #f8fafc', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', background: '#fcfcfd' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, padding: '10px 18px', flex: 1, maxWidth: 400, transition: 'all 0.2s' }}>
+            <Search size={18} color="#94a3b8" />
             <input
               type="text"
-              placeholder="Cari nama kost atau kota..."
+              placeholder="Cari nama kost atau lokasi..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               style={{ border: 'none', outline: 'none', fontSize: 14, color: '#1e293b', background: 'transparent', width: '100%', fontWeight: 500 }}
             />
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 8, background: '#f1f5f9', padding: 4, borderRadius: 14 }}>
             {['all', 'aktif', 'pending', 'nonaktif'].map(s => (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
                 style={{
-                  padding: '8px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                  border: filterStatus === s ? 'none' : '1px solid #e2e8f0',
-                  background: filterStatus === s ? '#0f172a' : 'white',
-                  color: filterStatus === s ? 'white' : '#64748b',
+                  padding: '8px 16px', borderRadius: 11, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                  border: 'none',
+                  background: filterStatus === s ? 'white' : 'transparent',
+                  color: filterStatus === s ? '#0f172a' : '#64748b',
+                  boxShadow: filterStatus === s ? '0 4px 12px rgba(0,0,0,0.05)' : 'none'
                 }}
               >
                 {s === 'all' ? 'Semua' : s.charAt(0).toUpperCase() + s.slice(1)}
@@ -191,8 +208,8 @@ const AdminKost = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
-                {['Properti', 'Lokasi', 'Tipe', 'Harga/Bulan', 'Status', 'Aksi'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '14px 24px', color: '#94a3b8', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', borderBottom: '1px solid #f1f5f9' }}>
+                {['Properti', 'Lokasi', 'Tipe', 'Harga / Bulan', 'Status', 'Aksi'].map(h => (
+                  <th key={h} style={{ textAlign: 'left', padding: '16px 32px', color: '#94a3b8', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: '1px solid #f1f5f9' }}>
                     {h}
                   </th>
                 ))}
@@ -201,16 +218,16 @@ const AdminKost = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: '60px 0', textAlign: 'center', color: '#94a3b8' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                      <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
-                      <span style={{ fontSize: 14, fontWeight: 600 }}>Memuat data properti...</span>
+                  <td colSpan="6" style={{ padding: '80px 0', textAlign: 'center', color: '#94a3b8' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                      <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
+                      <span style={{ fontSize: 15, fontWeight: 600 }}>Memuat data properti...</span>
                     </div>
                   </td>
                 </tr>
               ) : filteredKosts.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: '60px 0', textAlign: 'center', color: '#94a3b8', fontSize: 14, fontWeight: 500 }}>
+                  <td colSpan="6" style={{ padding: '80px 0', textAlign: 'center', color: '#94a3b8', fontSize: 15, fontWeight: 500 }}>
                     Tidak ada properti ditemukan.
                   </td>
                 </tr>
@@ -218,55 +235,59 @@ const AdminKost = () => {
                 const sc = statusConfig[k.status] || statusConfig.pending;
                 const tc = tipeConfig[k.tipe] || tipeConfig.campur;
                 return (
-                  <tr key={k.id} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.15s' }}
+                  <tr key={k.id} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.2s' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 38, height: 38, borderRadius: 11, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', flexShrink: 0 }}>
-                          <Home size={17} />
+                    <td style={{ padding: '20px 32px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 14, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', flexShrink: 0, fontWeight: 800 }}>
+                          <Home size={18} />
                         </div>
                         <div>
-                          <p style={{ fontWeight: 700, color: '#0f172a', margin: 0, fontSize: 14 }}>{k.nama_kost}</p>
-                          <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, fontWeight: 600 }}>#{k.id}</p>
+                          <p style={{ fontWeight: 800, color: '#0f172a', margin: 0, fontSize: 14, letterSpacing: '-0.2px' }}>{k.nama_kost}</p>
+                          <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, fontWeight: 700 }}>#{k.id} • Registered</p>
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#64748b', fontSize: 13 }}>
-                        <MapPin size={13} />
+                    <td style={{ padding: '20px 32px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#64748b', fontSize: 13, fontWeight: 500 }}>
+                        <MapPin size={14} color="#94a3b8" />
                         <span>{k.kota}{k.provinsi ? `, ${k.provinsi}` : ''}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <span className={tc.cls} style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
+                    <td style={{ padding: '20px 32px' }}>
+                      <span className={tc.cls} style={{ padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                         {tc.label}
                       </span>
                     </td>
-                    <td style={{ padding: '16px 24px', fontWeight: 700, color: '#0f172a', fontSize: 14 }}>
+                    <td style={{ padding: '20px 32px', fontWeight: 800, color: '#0f172a', fontSize: 14 }}>
                       Rp {parseInt(k.harga_min || 0).toLocaleString('id-ID')}
                     </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <span className={sc.cls} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                    <td style={{ padding: '20px 32px' }}>
+                      <span className={sc.cls} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                         {sc.icon} {sc.label}
                       </span>
                     </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                    <td style={{ padding: '20px 32px' }}>
+                      <div style={{ display: 'flex', gap: 8 }}>
                         <button
                           onClick={() => handleOpenModal(k)}
-                          title="Edit Kost"
-                          style={{ width: 34, height: 34, borderRadius: 9, border: 'none', background: '#f1f5f9', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                          title="Edit Properti"
+                          style={{ width: 38, height: 38, borderRadius: 11, border: 'none', background: '#f1f5f9', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                          onMouseEnter={e => e.currentTarget.style.background='#e2e8f0'}
+                          onMouseLeave={e => e.currentTarget.style.background='#f1f5f9'}
                         >
-                          <Edit2 size={14} />
+                          <Edit2 size={15} />
                         </button>
                         <button
                           onClick={() => handleDelete(k.id, k.nama_kost)}
-                          title="Hapus Kost"
-                          style={{ width: 34, height: 34, borderRadius: 9, border: 'none', background: '#fef2f2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                          title="Hapus Properti"
+                          style={{ width: 38, height: 38, borderRadius: 11, border: 'none', background: '#fef2f2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                          onMouseEnter={e => e.currentTarget.style.background='#fee2e2'}
+                          onMouseLeave={e => e.currentTarget.style.background='#fef2f2'}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </td>
@@ -280,90 +301,151 @@ const AdminKost = () => {
 
       {/* Modal Form */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: 24, width: '100%', maxWidth: isAdmin ? 480 : 700, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.2)', animation: 'fadeUp 0.25s ease' }}>
-            <div style={{ padding: '24px 28px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'white', zIndex: 10 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div style={{ background: 'white', borderRadius: 32, width: '100%', maxWidth: isAdmin ? 500 : 760, maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 30px 60px -12px rgba(0,0,0,0.3)', animation: 'fadeUp 0.3s ease-out', display: 'flex', flexDirection: 'column' }}>
+            {/* Modal Header */}
+            <div style={{ padding: '32px 40px', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                  {isAdmin ? 'Moderasi Kost' : (currentKost ? 'Edit Data Kost' : 'Tambah Kost Baru')}
+                <h2 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.8px' }}>
+                  {isAdmin ? 'Moderasi Properti' : (currentKost ? 'Perbarui Properti' : 'Tambah Properti Baru')}
                 </h2>
-                {currentKost && <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0', fontWeight: 500 }}>{currentKost.nama_kost}</p>}
+                {currentKost && <p style={{ fontSize: 13, color: '#64748b', margin: '6px 0 0', fontWeight: 600 }}>ID: #{currentKost.id} • {currentKost.nama_kost}</p>}
               </div>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowModal(false)} style={{ background: 'white', border: '1px solid #e2e8f0', width: 44, height: 44, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', cursor: 'pointer', transition: 'all 0.2s' }}>
                 <XCircle size={22} />
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} style={{ padding: 28 }}>
-              {isAdmin ? (
-                <div style={{ marginBottom: 20 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status Persetujuan</label>
-                  <select
-                    value={formData.status}
-                    onChange={e => setFormData({ ...formData, status: e.target.value })}
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 14, fontWeight: 600, outline: 'none' }}
-                  >
-                    <option value="aktif">✅ Aktif — Setujui</option>
-                    <option value="pending">⏳ Pending — Review</option>
-                    <option value="nonaktif">❌ Nonaktif — Tolak</option>
-                  </select>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>Nama Kost</label>
-                    <input type="text" value={formData.nama_kost} onChange={e => setFormData({...formData, nama_kost: e.target.value})} required style={{ width: '100%', padding: '11px 16px', borderRadius: 10, border: '1px solid #e2e8f0', outline: 'none' }} />
+            {/* Modal Body */}
+            <div style={{ padding: '32px 40px', overflowY: 'auto', flex: 1 }}>
+              <form onSubmit={handleSubmit} id="kost-form">
+                {isAdmin ? (
+                  <div style={{ marginBottom: 8 }}>
+                    <label style={{ fontSize: 12, fontWeight: 800, color: '#64748b', display: 'block', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '1px' }}>Tentukan Status Approval</label>
+                    <div style={{ display: 'grid', gap: 12 }}>
+                       {['aktif', 'pending', 'nonaktif'].map(s => (
+                         <div key={s} 
+                            onClick={() => setFormData({ ...formData, status: s })}
+                            style={{ 
+                              padding: '16px 20px', borderRadius: 16, border: `2px solid ${formData.status === s ? (s === 'aktif' ? '#22c55e' : (s === 'pending' ? '#f59e0b' : '#ef4444')) : '#f1f5f9'}`,
+                              background: formData.status === s ? (s === 'aktif' ? '#f0fdf4' : (s === 'pending' ? '#fffbeb' : '#fef2f2')) : 'white',
+                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.2s'
+                            }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                               <div style={{ width: 12, height: 12, borderRadius: '50%', background: s === 'aktif' ? '#22c55e' : (s === 'pending' ? '#f59e0b' : '#ef4444') }} />
+                               <span style={{ fontWeight: 800, color: '#0f172a', fontSize: 15, textTransform: 'capitalize' }}>{s}</span>
+                            </div>
+                            {formData.status === s && <CheckCircle size={20} color={s === 'aktif' ? '#22c55e' : (s === 'pending' ? '#f59e0b' : '#ef4444')} />}
+                         </div>
+                       ))}
+                    </div>
                   </div>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>Tipe</label>
-                    <select value={formData.tipe} onChange={e => setFormData({...formData, tipe: e.target.value})} style={{ width: '100%', padding: '11px 16px', borderRadius: 10, border: '1px solid #e2e8f0' }}>
-                      <option value="putra">Putra</option>
-                      <option value="putri">Putri</option>
-                      <option value="campur">Campur</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>Harga Sewa / Bulan (Rp)</label>
-                    <input type="number" value={formData.harga_min} onChange={e => setFormData({...formData, harga_min: e.target.value})} required style={{ width: '100%', padding: '11px 16px', borderRadius: 10, border: '1px solid #e2e8f0' }} />
-                  </div>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>Alamat Lengkap</label>
-                    <textarea value={formData.alamat} onChange={e => setFormData({...formData, alamat: e.target.value})} required style={{ width: '100%', padding: '11px 16px', borderRadius: 10, border: '1px solid #e2e8f0', minHeight: 80 }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>Kota</label>
-                    <input type="text" value={formData.kota} onChange={e => setFormData({...formData, kota: e.target.value})} required style={{ width: '100%', padding: '11px 16px', borderRadius: 10, border: '1px solid #e2e8f0' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>Provinsi</label>
-                    <input type="text" value={formData.provinsi} onChange={e => setFormData({...formData, provinsi: e.target.value})} required style={{ width: '100%', padding: '11px 16px', borderRadius: 10, border: '1px solid #e2e8f0' }} />
-                  </div>
-                </div>
-              )}
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 24, marginTop: 20, borderTop: '1px solid #f1f5f9' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #e2e8f0', background: 'white', fontWeight: 700, fontSize: 14 }}>Batal</button>
-                <button type="submit" disabled={isSubmitting} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#0f172a', color: 'white', fontWeight: 700, fontSize: 14, opacity: isSubmitting ? 0.7 : 1 }}>
-                  {isSubmitting ? 'Memproses...' : 'Simpan Perubahan'}
-                </button>
-              </div>
-            </form>
+                    {/* Nama Properti */}
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={labelStyle}>Nama Properti</label>
+                      <input type="text" placeholder="Contoh: Kost Hijau Sejahtera"
+                        value={formData.nama_kost}
+                        onChange={e => setFormData({...formData, nama_kost: e.target.value})}
+                        required style={inputStyle}
+                        onFocus={e => e.target.style.borderColor = '#22c55e'}
+                        onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                      />
+                    </div>
+
+                    {/* Tipe Hunian */}
+                    <div>
+                      <label style={labelStyle}>Tipe Hunian</label>
+                      <select value={formData.tipe}
+                        onChange={e => setFormData({...formData, tipe: e.target.value})}
+                        style={inputStyle}>
+                        <option value="putra">Putra</option>
+                        <option value="putri">Putri</option>
+                        <option value="campur">Campur</option>
+                      </select>
+                    </div>
+
+                    {/* Harga */}
+                    <div>
+                      <label style={labelStyle}>Harga Sewa / Bulan (Rp)</label>
+                      <input type="number" placeholder="500000"
+                        value={formData.harga_min}
+                        onChange={e => setFormData({...formData, harga_min: e.target.value})}
+                        required style={inputStyle}
+                        onFocus={e => e.target.style.borderColor = '#22c55e'}
+                        onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                      />
+                    </div>
+
+                    {/* Alamat */}
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={labelStyle}>Alamat Lengkap</label>
+                      <textarea placeholder="Jalan Raya No. 123..."
+                        value={formData.alamat}
+                        onChange={e => setFormData({...formData, alamat: e.target.value})}
+                        required
+                        style={{ ...inputStyle, minHeight: 90, resize: 'vertical' }}
+                        onFocus={e => e.target.style.borderColor = '#22c55e'}
+                        onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                      />
+                    </div>
+
+                    {/* Kota */}
+                    <div>
+                      <label style={labelStyle}>Kota</label>
+                      <input type="text" placeholder="contoh: Bogor"
+                        value={formData.kota}
+                        onChange={e => setFormData({...formData, kota: e.target.value})}
+                        required style={inputStyle}
+                        onFocus={e => e.target.style.borderColor = '#22c55e'}
+                        onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                      />
+                    </div>
+
+                    {/* Provinsi */}
+                    <div>
+                      <label style={labelStyle}>Provinsi</label>
+                      <input type="text" placeholder="contoh: Jawa Barat"
+                        value={formData.provinsi}
+                        onChange={e => setFormData({...formData, provinsi: e.target.value})}
+                        required style={inputStyle}
+                        onFocus={e => e.target.style.borderColor = '#22c55e'}
+                        onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                      />
+                    </div>
+
+                  </div>
+                )}
+              </form>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ padding: '24px 40px', background: '#fcfcfd', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setShowModal(false)} style={{ padding: '13px 28px', borderRadius: 14, border: '1px solid #e2e8f0', background: 'white', fontWeight: 800, fontSize: 14, cursor: 'pointer', color: '#475569', transition: 'all 0.2s' }}>Batal</button>
+              <button type="submit" form="kost-form" disabled={isSubmitting} style={{ padding: '13px 32px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white', fontWeight: 800, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 8px 20px -5px rgba(34,197,94,0.4)', minWidth: 160, opacity: isSubmitting ? 0.7 : 1 }}>
+                {isSubmitting ? 'Memproses...' : (currentKost ? 'Simpan Perubahan' : 'Daftarkan Properti')}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       <style>{`
-        .tipe-putra { background: #eff6ff; color: #2563eb; }
-        .tipe-putri { background: #fdf2f8; color: #db2777; }
-        .tipe-campur { background: #f5f3ff; color: #7c3aed; }
-        .pill-aktif { background: #ecfdf5; color: #059669; }
-        .pill-pending { background: #fffbeb; color: #d97706; }
-        .pill-nonaktif { background: #f1f5f9; color: #64748b; }
+        .tipe-putra { background: #eff6ff; color: #2563eb; border: 1px solid #dbeafe; }
+        .tipe-putri { background: #fdf2f8; color: #db2777; border: 1px solid #fce7f3; }
+        .tipe-campur { background: #f5f3ff; color: #7c3aed; border: 1px solid #ede9fe; }
+        .pill-aktif { background: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }
+        .pill-pending { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
+
+        .pill-nonaktif { background: #f8fafc; color: #64748b; border: 1px solid #f1f5f9; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes fadeUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes fadeUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
       `}</style>
     </div>
   );
 };
+
 
 export default AdminKost;

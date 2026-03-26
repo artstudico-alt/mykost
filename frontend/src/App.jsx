@@ -18,13 +18,15 @@ import AdminLayout from './components/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import HRDashboard from './pages/HRDashboard'
 import OwnerDashboard from './pages/OwnerDashboard'
+import Profile from './pages/Profile'
+
+import { AuthProvider } from './context/AuthContext'
 
 function App() {
-  const { user } = useAuth()
-
   return (
-    <Router>
-      <div className="min-h-screen">
+    <AuthProvider>
+      <Router>
+        <div className="min-h-screen">
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
@@ -80,9 +82,11 @@ function App() {
           } />
           <Route path="/kamar" element={<ProtectedRoute><Kamar /></ProtectedRoute>} />
           <Route path="/penyewa" element={<ProtectedRoute><Penyewa /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         </Routes>
       </div>
-    </Router>
+      </Router>
+    </AuthProvider>
   )
 }
 

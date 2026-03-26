@@ -25,10 +25,9 @@ L.Icon.Default.mergeOptions({
 function KostDetail() {
   const navigate = useNavigate()
   const { kostId } = useParams()
-  const { isAuthenticated, logout } = useAuth()
-
-  const userEmail = localStorage.getItem('userEmail') || 'User'
-  const userInitial = userEmail.charAt(0).toUpperCase()
+  const { isAuthenticated, logout, user } = useAuth()
+  const userInitial = (user?.name || user?.email || localStorage.getItem('userEmail') || 'U').charAt(0).toUpperCase()
+  const userDisplayName = user?.name || user?.email || localStorage.getItem('userEmail') || 'User'
 
   const selectedKost = getKostById(kostId)
   const seeds = useMemo(() => selectedKost?.seeds ?? [], [selectedKost])
@@ -170,37 +169,20 @@ function KostDetail() {
                 <a href="#">Syarat dan Ketentuan</a>
               </nav>
               {isAuthenticated ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div 
-                    className="landing-profile-btn" 
-                    title={`Logged in as ${userEmail}`}
-                    style={{ 
-                      width: '38px', height: '38px', borderRadius: '50%', 
-                      backgroundColor: '#0288D1', color: 'white', 
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                      fontWeight: 'bold', fontSize: '18px', cursor: 'default',
-                      userSelect: 'none'
-                    }}
-                  >
-                    {userInitial}
-                  </div>
-                  <button
-                    onClick={logout}
-                    title="Logout"
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '6px',
-                      padding: '8px 12px', borderRadius: '8px',
-                      border: '1px solid #ef4444', color: '#ef4444',
-                      backgroundColor: 'transparent', fontWeight: '600',
-                      fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s'
-                    }}
-                    onMouseOver={(e) => { e.target.style.backgroundColor = '#fef2f2' }}
-                    onMouseOut={(e) => { e.target.style.backgroundColor = 'transparent' }}
-                  >
-                    <LogOut size={16} />
-                    <span>Keluar</span>
-                  </button>
-                </div>
+                <button
+                  className="landing-profile-btn"
+                  title={`Profil: ${userDisplayName}`}
+                  onClick={() => navigate('/profile')}
+                  style={{
+                    width: '38px', height: '38px', borderRadius: '50%',
+                    backgroundColor: '#22c55e', color: 'white',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 'bold', fontSize: '18px', cursor: 'pointer',
+                    userSelect: 'none', border: 'none', flexShrink: 0
+                  }}
+                >
+                  {userInitial}
+                </button>
               ) : (
                 <button
                   type="button"
@@ -267,184 +249,47 @@ function KostDetail() {
             </div>
           </div>
 
-          <div className="kost-detail-layout">
-            <div className="kost-detail-left">
-              <div className="kost-detail-summary kost-detail-summary--below-gallery">
-                <div className="kost-detail-summary-top">
-                  <span className="kost-detail-category">{selectedKost.type}</span>
-                  <div className="kost-detail-badges">
-                    <span className="kost-detail-badge-room">{`SISA ${selectedKost.roomsLeft} KAMAR`}</span>
-                    <span className="kost-detail-badge-transaksi">
-                      <Activity className="kost-detail-badge-transaksi-icon" aria-hidden />
-                      <span>TRANSAKSI DI MYKOST</span>
-                    </span>
-                  </div>
-                </div>
-
-                <div className="kost-detail-price">{selectedKost.priceLabel}</div>
-                <div className="kost-detail-minstay">{minimumStayLabel}</div>
-                <div className="kost-detail-info-divider" />
-
-                <h2 className="kost-detail-title">{selectedKost.title}</h2>
-                <p className="kost-detail-area">{selectedKost.area}</p>
-
-                <div className="kost-detail-features" aria-label="Fitur properti">
-                  <div className="kost-detail-feature-row">
-                    <ShowerHead className="kost-detail-feature-icon" aria-hidden />
-                    <span>Kamar Mandi Dalam</span>
-                  </div>
-                  <span className="kost-detail-feature-sep" aria-hidden>•</span>
-                  <div className="kost-detail-feature-row">
-                    <Ruler className="kost-detail-feature-icon" aria-hidden />
-                    <span>Luas Kamar 4x3m</span>
-                  </div>
-                  <span className="kost-detail-feature-sep" aria-hidden>•</span>
-                  <div className="kost-detail-feature-row">
-                    <Snowflake className="kost-detail-feature-icon" aria-hidden />
-                    <span>AC</span>
-                  </div>
+          {/* Top Row: Summary & Owner Card aligned in height */}
+          <div className="kost-detail-top-row" style={{ display: 'flex', alignItems: 'stretch', gap: '24px', marginBottom: '24px' }}>
+            <div className="kost-detail-summary kost-detail-summary--below-gallery" style={{ flex: 1, marginBottom: 0 }}>
+              <div className="kost-detail-summary-top">
+                <span className="kost-detail-category">{selectedKost.type}</span>
+                <div className="kost-detail-badges">
+                  <span className="kost-detail-badge-room">{`SISA ${selectedKost.roomsLeft} KAMAR`}</span>
+                  <span className="kost-detail-badge-transaksi">
+                    <Activity className="kost-detail-badge-transaksi-icon" aria-hidden />
+                    <span>TRANSAKSI DI MYKOST</span>
+                  </span>
                 </div>
               </div>
 
-              <div className="kost-detail-transaksi">
-                <h3 className="kost-detail-transaksi-title">Transaksi Sewa Langsung</h3>
-                <p className="kost-detail-transaksi-desc">
-                  Bayar sewa lebih aman dan praktis untuk kebutuhan hunian.
-                </p>
+              <div className="kost-detail-price">{selectedKost.priceLabel}</div>
+              <div className="kost-detail-minstay">{minimumStayLabel}</div>
+              <div className="kost-detail-info-divider" />
 
-                <div className="kost-detail-benefits">
-                  <div className="kost-detail-benefit">
-                    <div className="kost-detail-benefit-ico" aria-hidden>
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"></path>
-                        <path d="M9 12l2 2 4-4"></path>
-                      </svg>
-                    </div>
-                    <div className="kost-detail-benefit-title">Keamanan Dana</div>
-                    <div className="kost-detail-benefit-desc">Perlindungan dana selama proses sewa berjalan.</div>
-                  </div>
+              <h2 className="kost-detail-title">{selectedKost.title}</h2>
+              <p className="kost-detail-area">{selectedKost.area}</p>
 
-                  <div className="kost-detail-benefit">
-                    <div className="kost-detail-benefit-ico" aria-hidden>
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M20 6H4"></path>
-                        <path d="M20 12H4"></path>
-                        <path d="M20 18H4"></path>
-                      </svg>
-                    </div>
-                    <div className="kost-detail-benefit-title">Vouchers</div>
-                    <div className="kost-detail-benefit-desc">Penawaran menarik sesuai kebutuhan rumah.</div>
-                  </div>
-
-                  <div className="kost-detail-benefit">
-                    <div className="kost-detail-benefit-ico" aria-hidden>
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 1v22"></path>
-                        <path d="M17 5H9.5a2.5 2.5 0 0 0 0 5H14.5a2.5 2.5 0 0 1 0 5H7"></path>
-                      </svg>
-                    </div>
-                    <div className="kost-detail-benefit-title">Pembayaran Fleksibel</div>
-                    <div className="kost-detail-benefit-desc">Pilihan jadwal yang lebih ringan.</div>
-                  </div>
+              <div className="kost-detail-features" aria-label="Fitur properti">
+                <div className="kost-detail-feature-row">
+                  <ShowerHead className="kost-detail-feature-icon" aria-hidden />
+                  <span>Kamar Mandi Dalam</span>
+                </div>
+                <span className="kost-detail-feature-sep" aria-hidden>•</span>
+                <div className="kost-detail-feature-row">
+                  <Ruler className="kost-detail-feature-icon" aria-hidden />
+                  <span>Luas Kamar 4x3m</span>
+                </div>
+                <span className="kost-detail-feature-sep" aria-hidden>•</span>
+                <div className="kost-detail-feature-row">
+                  <Snowflake className="kost-detail-feature-icon" aria-hidden />
+                  <span>AC</span>
                 </div>
               </div>
-
-              <div className="kost-detail-location">
-                <div className="kost-detail-location-header">
-                  <h3 className="kost-detail-location-title">
-                    Lokasi Kost <span>{selectedKost.title} di {selectedKost.area}</span>
-                  </h3>
-                  <button type="button" className="kost-detail-location-btn">
-                    <MessageCircle className="kost-detail-action-icon" aria-hidden />
-                    Tanya Detail Lokasi
-                  </button>
-                </div>
-
-                <div className="kost-detail-location-address">
-                  <svg className="kost-detail-location-address-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-                    <circle cx="12" cy="10" r="3"></circle>
-                  </svg>
-                  Bunk House Bogor (Kamar Kost, Rumah kost di Perumahan Bumi Menteng Asri)
-                </div>
-
-                <div className="kost-detail-location-body">
-                  <div className="kost-detail-location-map" style={{ zIndex: 0 }}>
-                    <div onClick={handleOpenGoogleMaps} style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', zIndex:400, cursor:'pointer'}}></div>
-                    <MapContainer center={[mapLat, mapLng]} zoom={18} scrollWheelZoom={false} zoomControl={false} dragging={false} style={{ height: '100%', width: '100%', minHeight: "350px" }}>
-                      <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      />
-                      <Marker position={[mapLat, mapLng]} />
-                    </MapContainer>
-
-                    <button type="button" className="kost-detail-location-map-action" onClick={handleOpenGoogleMaps} style={{ zIndex: 1000 }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3-6-3z"></path>
-                        <path d="M9 3v15"></path>
-                        <path d="M15 6v15"></path>
-                      </svg>
-                      Buka Peta
-                    </button>
-                  </div>
-
-                  <div className="kost-detail-location-panel">
-                    <div className="kost-detail-location-tabs">
-                      <button type="button" className="kost-detail-location-tab kost-detail-location-tab--active">
-                        Akses Transportasi
-                      </button>
-                      <button type="button" className="kost-detail-location-tab">
-                        Sekolah & Universitas
-                      </button>
-                      <button type="button" className="kost-detail-location-tab">
-                        Pusat Belanja
-                      </button>
-                    </div>
-
-                    <div className="kost-detail-location-list">
-                      <div className="kost-detail-location-item">
-                        <div className="kost-detail-location-item-left">
-                          <svg className="kost-detail-location-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-                            <circle cx="12" cy="10" r="3"></circle>
-                          </svg>
-                          <span className="kost-detail-location-item-name" title="WAN Teknologi | Jasa Web dan Aplikasi Profesional dan Berkualitas">
-                            WAN Teknologi | Jasa Web dan Aplikasi Profesional dan Berkualitas
-                          </span>
-                        </div>
-                        <span className="kost-detail-location-item-dist">0,3 KM</span>
-                      </div>
-
-                      <div className="kost-detail-location-item">
-                        <div className="kost-detail-location-item-left">
-                          <svg className="kost-detail-location-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-                            <circle cx="12" cy="10" r="3"></circle>
-                          </svg>
-                          <span className="kost-detail-location-item-name">RS Melania</span>
-                        </div>
-                        <span className="kost-detail-location-item-dist">0,5 KM</span>
-                      </div>
-
-                      <div className="kost-detail-location-item">
-                        <div className="kost-detail-location-item-left">
-                          <svg className="kost-detail-location-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-                            <circle cx="12" cy="10" r="3"></circle>
-                          </svg>
-                          <span className="kost-detail-location-item-name">Halte Paledang</span>
-                        </div>
-                        <span className="kost-detail-location-item-dist">1,2 KM</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
             </div>
-            <aside className="kost-detail-right">
-              <div className="kost-detail-owner">
+
+            <aside className="kost-detail-right" style={{ display: 'flex', width: '320px', flexShrink: 0 }}>
+              <div className="kost-detail-owner" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <div className="kost-detail-owner-header">
                   <div className="kost-detail-avatar" aria-hidden>
                     <svg viewBox="0 0 24 24" style={{ width: '24px', height: '24px' }}>
@@ -458,29 +303,181 @@ function KostDetail() {
                   </div>
                 </div>
 
-                <div className="kost-detail-owner-actions">
-                  <button type="button" className="kost-detail-action-btn kost-detail-action-btn--green">
-                    <MessageCircle className="kost-detail-action-icon" aria-hidden />
-                    Chat
-                  </button>
+                <div className="kost-detail-owner-actions" style={{ marginTop: '24px' }}>
                   <button 
                     type="button" 
-                    className="kost-detail-action-btn kost-detail-action-btn--outline-green"
+                    className="kost-detail-action-btn"
+                    style={{ 
+                      flex: 1, 
+                      width: '100%',
+                      backgroundColor: '#22c55e', 
+                      color: 'white', 
+                      border: 'none',
+                      padding: '14px 24px',
+                      borderRadius: '12px',
+                      fontWeight: '700',
+                      fontSize: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
                     onClick={() => {
                       console.log('Button Ajukan sewa clicked!');
                       setIsBookingModalOpen(true);
                     }}
                   >
-                    <Send className="kost-detail-action-icon" aria-hidden />
+                    <Send size={20} aria-hidden />
                     Ajukan sewa
                   </button>
                 </div>
 
-                <div className="kost-detail-owner-hint">
+                <div className="kost-detail-owner-hint" style={{ marginTop: 'auto', paddingTop: '16px' }}>
                   Properti ini cocok untuk kamu yang ingin sewa aman dan nyaman.
                 </div>
               </div>
             </aside>
+          </div>
+
+          {/* Bottom Row: Transaction & Location Section */}
+          <div className="kost-detail-bottom-section">
+            <div className="kost-detail-transaksi">
+              <h3 className="kost-detail-transaksi-title">Transaksi Sewa Langsung</h3>
+              <p className="kost-detail-transaksi-desc">
+                Bayar sewa lebih aman dan praktis untuk kebutuhan hunian.
+              </p>
+
+              <div className="kost-detail-benefits">
+                <div className="kost-detail-benefit">
+                  <div className="kost-detail-benefit-ico" aria-hidden>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"></path>
+                      <path d="M9 12l2 2 4-4"></path>
+                    </svg>
+                  </div>
+                  <div className="kost-detail-benefit-title">Keamanan Dana</div>
+                  <div className="kost-detail-benefit-desc">Perlindungan dana selama proses sewa berjalan.</div>
+                </div>
+
+                <div className="kost-detail-benefit">
+                  <div className="kost-detail-benefit-ico" aria-hidden>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 6H4"></path>
+                      <path d="M20 12H4"></path>
+                      <path d="M20 18H4"></path>
+                    </svg>
+                  </div>
+                  <div className="kost-detail-benefit-title">Vouchers</div>
+                  <div className="kost-detail-benefit-desc">Penawaran menarik sesuai kebutuhan rumah.</div>
+                </div>
+
+                <div className="kost-detail-benefit">
+                  <div className="kost-detail-benefit-ico" aria-hidden>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 1v22"></path>
+                      <path d="M17 5H9.5a2.5 2.5 0 0 0 0 5H14.5a2.5 2.5 0 0 1 0 5H7"></path>
+                    </svg>
+                  </div>
+                  <div className="kost-detail-benefit-title">Pembayaran Fleksibel</div>
+                  <div className="kost-detail-benefit-desc">Pilihan jadwal yang lebih ringan.</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="kost-detail-location">
+              <div className="kost-detail-location-header">
+                <h3 className="kost-detail-location-title">
+                  Lokasi Kost <span>{selectedKost.title} di {selectedKost.area}</span>
+                </h3>
+                <button type="button" className="kost-detail-location-btn">
+                  <MessageCircle className="kost-detail-action-icon" aria-hidden />
+                  Tanya Detail Lokasi
+                </button>
+              </div>
+
+              <div className="kost-detail-location-address">
+                <svg className="kost-detail-location-address-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+                Bunk House Bogor (Kamar Kost, Rumah kost di Perumahan Bumi Menteng Asri)
+              </div>
+
+              <div className="kost-detail-location-body">
+                <div className="kost-detail-location-map" style={{ zIndex: 0 }}>
+                  <div onClick={handleOpenGoogleMaps} style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', zIndex:400, cursor:'pointer'}}></div>
+                  <MapContainer center={[mapLat, mapLng]} zoom={18} scrollWheelZoom={false} zoomControl={false} dragging={false} style={{ height: '100%', width: '100%', minHeight: "350px" }}>
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={[mapLat, mapLng]} />
+                  </MapContainer>
+
+                  <button type="button" className="kost-detail-location-map-action" onClick={handleOpenGoogleMaps} style={{ zIndex: 1000 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3-6-3z"></path>
+                      <path d="M9 3v15"></path>
+                      <path d="M15 6v15"></path>
+                    </svg>
+                    Buka Peta
+                  </button>
+                </div>
+
+                <div className="kost-detail-location-panel">
+                  <div className="kost-detail-location-tabs">
+                    <button type="button" className="kost-detail-location-tab kost-detail-location-tab--active">
+                      Akses Transportasi
+                    </button>
+                    <button type="button" className="kost-detail-location-tab">
+                      Sekolah & Universitas
+                    </button>
+                    <button type="button" className="kost-detail-location-tab">
+                      Pusat Belanja
+                    </button>
+                  </div>
+
+                  <div className="kost-detail-location-list">
+                    <div className="kost-detail-location-item">
+                      <div className="kost-detail-location-item-left">
+                        <svg className="kost-detail-location-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                          <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <span className="kost-detail-location-item-name" title="WAN Teknologi | Jasa Web dan Aplikasi Profesional dan Berkualitas">
+                          WAN Teknologi | Jasa Web dan Aplikasi Profesional dan Berkualitas
+                        </span>
+                      </div>
+                      <span className="kost-detail-location-item-dist">0,3 KM</span>
+                    </div>
+
+                    <div className="kost-detail-location-item">
+                      <div className="kost-detail-location-item-left">
+                        <svg className="kost-detail-location-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                          <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <span className="kost-detail-location-item-name">RS Melania</span>
+                      </div>
+                      <span className="kost-detail-location-item-dist">0,5 KM</span>
+                    </div>
+
+                    <div className="kost-detail-location-item">
+                      <div className="kost-detail-location-item-left">
+                        <svg className="kost-detail-location-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                          <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <span className="kost-detail-location-item-name">Halte Paledang</span>
+                      </div>
+                      <span className="kost-detail-location-item-dist">1,2 KM</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="kost-detail-divider" />
@@ -616,7 +613,6 @@ function KostDetail() {
           </div>
         </div>
       )}
-      {/* Booking Modal */}
       <BookingModal 
         isOpen={isBookingModalOpen} 
         onClose={() => setIsBookingModalOpen(false)} 

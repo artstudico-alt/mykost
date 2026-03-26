@@ -1,19 +1,76 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, User } from 'lucide-react'
 import { NEARBY_KOST_DUMMY } from '../utils/kostDummy'
 import { useAuth } from '../hooks/useAuth'
+import api from '../utils/api'
+import BookingModal from '../components/BookingModal'
 
 function LandingPage() {
   const [searchLocation, setSearchLocation] = useState('')
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
+  const [selectedBookingKost, setSelectedBookingKost] = useState(null)
+  const [userData, setUserData] = useState(null)
+  const [isSubmittingBooking, setIsSubmittingBooking] = useState(false)
   const navigate = useNavigate()
-  const { isAuthenticated, logout } = useAuth()
+  const { isAuthenticated, logout, user } = useAuth()
 
-  const userEmail = localStorage.getItem('userEmail') || 'User'
-  const userInitial = userEmail.charAt(0).toUpperCase()
+  const userInitial = (user?.name || user?.email || localStorage.getItem('userEmail') || 'U').charAt(0).toUpperCase()
+  const userDisplayName = user?.name || user?.email || localStorage.getItem('userEmail') || 'User'
 
   const handleSelectKost = (k) => {
     navigate(`/kost/${k.id}`)
+  }
+
+  const fetchUserData = async () => {
+    try {
+      const response = await api.get('/auth/me')
+      setUserData(response.data.user)
+    } catch (error) {
+      console.error('Gagal mengambil data user:', error)
+    }
+  }
+
+  const handleAjukanSewa = (e, kost) => {
+    e.stopPropagation()
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+    setSelectedBookingKost(kost)
+    fetchUserData()
+    setIsBookingModalOpen(true)
+  }
+
+  const handleBookingSubmit = async (formData) => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+    setIsSubmittingBooking(true)
+    try {
+      const profileData = new FormData()
+      profileData.append('phone', formData.phone)
+      profileData.append('nik', formData.nik)
+      if (formData.ktp_photo instanceof File) {
+        profileData.append('ktp_photo', formData.ktp_photo)
+      }
+      await api.post('/auth/update-profile', profileData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      await api.post('/booking', {
+        kamar_id: 1,
+        tanggal_mulai: formData.tanggal_mulai,
+        durasi_bulan: formData.durasi_bulan,
+        catatan: 'Booking dari Landing Page (' + selectedBookingKost?.id + ')'
+      })
+      alert('Booking berhasil dibuat! Menuju halaman pembayaran...')
+      setIsBookingModalOpen(false)
+    } catch (error) {
+      console.error('Error saat booking:', error)
+      alert(error.response?.data?.message || 'Terjadi kesalahan saat memproses booking.')
+    } finally {
+      setIsSubmittingBooking(false)
+    }
   }
 
   const handleSearch = (e) => {
@@ -67,37 +124,20 @@ function LandingPage() {
                 <a href="#">Syarat dan Ketentuan</a>
               </nav>
               {isAuthenticated ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div 
-                    className="landing-profile-btn" 
-                    title={`Logged in as ${userEmail}`}
-                    style={{ 
-                      width: '38px', height: '38px', borderRadius: '50%', 
-                      backgroundColor: '#0288D1', color: 'white', 
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                      fontWeight: 'bold', fontSize: '18px', cursor: 'default',
-                      userSelect: 'none'
-                    }}
-                  >
-                    {userInitial}
-                  </div>
-                  <button
-                    onClick={logout}
-                    title="Logout"
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '6px',
-                      padding: '8px 12px', borderRadius: '8px',
-                      border: '1px solid #ef4444', color: '#ef4444',
-                      backgroundColor: 'transparent', fontWeight: '600',
-                      fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s'
-                    }}
-                    onMouseOver={(e) => { e.target.style.backgroundColor = '#fef2f2' }}
-                    onMouseOut={(e) => { e.target.style.backgroundColor = 'transparent' }}
-                  >
-                    <LogOut size={16} />
-                    <span>Keluar</span>
-                  </button>
-                </div>
+                <button
+                  className="landing-profile-btn"
+                  title={`Profil: ${userDisplayName}`}
+                  onClick={() => navigate('/profile')}
+                  style={{
+                    width: '38px', height: '38px', borderRadius: '50%',
+                    backgroundColor: '#22c55e', color: 'white',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 'bold', fontSize: '18px', cursor: 'pointer',
+                    userSelect: 'none', border: 'none', flexShrink: 0
+                  }}
+                >
+                  {userInitial}
+                </button>
               ) : (
                 <button
                   type="button"
@@ -316,23 +356,14 @@ function LandingPage() {
                     <button
                       type="button"
                       className="recommend-kost-btn recommend-kost-btn--outline"
-                      onClick={(e) => e.stopPropagation()}
+                      style={{ flex: 1 }}
+                      onClick={(e) => handleAjukanSewa(e, k)}
                     >
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M9 12l2 2 4-4"></path>
                         <rect x="3" y="5" width="18" height="14" rx="2"></rect>
                       </svg>
                       Ajukan sewa
-                    </button>
-                    <button
-                      type="button"
-                      className="recommend-kost-btn recommend-kost-btn--primary"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-                      </svg>
-                      Chat
                     </button>
                   </div>
                 </div>
@@ -422,6 +453,15 @@ function LandingPage() {
           </div>
         </div>
       </footer>
+      {selectedBookingKost && (
+        <BookingModal
+          isOpen={isBookingModalOpen}
+          onClose={() => setIsBookingModalOpen(false)}
+          kost={selectedBookingKost}
+          user={userData}
+          onSubmit={handleBookingSubmit}
+        />
+      )}
     </div>
   )
 }
