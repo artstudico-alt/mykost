@@ -47,8 +47,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// Returns 1–2 uppercase initials from a name string.
   String _initials(String name) {
+    if (name.trim().isEmpty) return 'GU';
     final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts[0].isEmpty) return '?';
     if (parts.length == 1) return parts[0][0].toUpperCase();
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
@@ -71,7 +71,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showEditProfile() {
     final nameCtrl = TextEditingController(text: _userData?['name'] ?? '');
     final emailCtrl = TextEditingController(text: _userData?['email'] ?? '');
+    final phoneCtrl = TextEditingController(text: _userData?['phone'] ?? '');
+    final passwordCtrl = TextEditingController();
+    final confirmPasswordCtrl = TextEditingController();
     bool isSaving = false;
+    bool isPasswordVisible = false;
 
     showModalBottomSheet(
       context: context,
@@ -81,16 +85,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (ctx, setSheetState) => Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
+            height: MediaQuery.of(ctx).size.height * 0.85, // max height to prevent overflow
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Drag handle
+                const SizedBox(height: 12),
                 Center(
                   child: Container(
                     width: 40,
@@ -101,115 +106,191 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
-
-                // Preview avatar in sheet
-                Center(
-                  child: _buildInitialsAvatar(
-                    nameCtrl.text.isNotEmpty ? nameCtrl.text : (_userData?['name'] ?? ''),
-                    radius: 36,
-                    fontSize: 22,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                const Text(
-                  'Edit Profil',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Foto profil otomatis menggunakan inisial nama kamu.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 24),
-
-                // Name field
-                _sheetField(
-                  label: 'Nama Lengkap',
-                  controller: nameCtrl,
-                  icon: Icons.person_outline_rounded,
-                  onChanged: (_) => setSheetState(() {}),
-                ),
-                const SizedBox(height: 16),
-
-                // Email field
-                _sheetField(
-                  label: 'Email',
-                  controller: emailCtrl,
-                  icon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 28),
-
-                // Save button
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: isSaving
-                        ? null
-                        : () async {
-                            setSheetState(() => isSaving = true);
-                            try {
-                              await ApiService.updateProfile({
-                                'name': nameCtrl.text.trim(),
-                                'email': emailCtrl.text.trim(),
-                              });
-                              if (mounted) {
-                                Navigator.pop(ctx);
-                                await _loadProfile();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Row(children: [
-                                      Icon(Icons.check_circle, color: Colors.white, size: 18),
-                                      SizedBox(width: 8),
-                                      Text('Profil berhasil diperbarui'),
-                                    ]),
-                                    backgroundColor: AppColors.primary,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              setSheetState(() => isSaving = false);
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Gagal menyimpan: $e'),
-                                    backgroundColor: Colors.red,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: isSaving
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2.5))
-                        : const Text(
-                            'Simpan Perubahan',
-                            style: TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.bold),
+                
+                // Form Content inside ScrollView
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 36),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Preview avatar in sheet
+                        Center(
+                          child: _buildInitialsAvatar(
+                            nameCtrl.text.trim().isNotEmpty 
+                                ? nameCtrl.text 
+                                : (_userData?['name'] != null && _userData!['name'].toString().trim().isNotEmpty 
+                                    ? _userData!['name'] 
+                                    : 'Guest User'),
+                            radius: 36,
+                            fontSize: 22,
                           ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        const Text(
+                          'Edit Profil',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Sesuaikan data dirimu di bawah ini.',
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Name field
+                        _sheetField(
+                          label: 'Nama Lengkap',
+                          controller: nameCtrl,
+                          icon: Icons.person_outline_rounded,
+                          onChanged: (_) => setSheetState(() {}),
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Phone field
+                        _sheetField(
+                          label: 'Nomor Telepon',
+                          controller: phoneCtrl,
+                          icon: Icons.phone_outlined,
+                          keyboardType: TextInputType.phone,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Email field
+                        _sheetField(
+                          label: 'Email',
+                          controller: emailCtrl,
+                          icon: Icons.email_outlined,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Separator for Password
+                        const Divider(height: 32),
+                        const Text(
+                          'Ubah Kata Sandi',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                        ),
+                        const Text(
+                          'Kosongkan jika tidak ingin mengubah password.',
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Password field
+                        _sheetField(
+                          label: 'Password Baru',
+                          controller: passwordCtrl,
+                          icon: Icons.lock_outline_rounded,
+                          isPassword: true,
+                          obscureText: !isPasswordVisible,
+                          onTogglePass: () => setSheetState(() => isPasswordVisible = !isPasswordVisible),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Confirm Password field
+                        _sheetField(
+                          label: 'Ulangi Password',
+                          controller: confirmPasswordCtrl,
+                          icon: Icons.lock_outline_rounded,
+                          isPassword: true,
+                          obscureText: !isPasswordVisible,
+                          onTogglePass: () => setSheetState(() => isPasswordVisible = !isPasswordVisible),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Save button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: isSaving
+                                ? null
+                                : () async {
+                                    if (passwordCtrl.text.isNotEmpty && passwordCtrl.text != confirmPasswordCtrl.text) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Password tidak cocok.'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    setSheetState(() => isSaving = true);
+                                    try {
+                                      final Map<String, dynamic> updateData = {
+                                        'name': nameCtrl.text.trim(),
+                                        'email': emailCtrl.text.trim(),
+                                        'phone': phoneCtrl.text.trim(),
+                                      };
+                                      
+                                      if (passwordCtrl.text.isNotEmpty) {
+                                        updateData['password'] = passwordCtrl.text;
+                                        updateData['password_confirmation'] = confirmPasswordCtrl.text;
+                                      }
+
+                                      await ApiService.updateProfile(updateData);
+                                      
+                                      if (mounted) {
+                                        Navigator.pop(ctx);
+                                        await _loadProfile();
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: const Row(children: [
+                                              Icon(Icons.check_circle, color: Colors.white, size: 18),
+                                              SizedBox(width: 8),
+                                              Text('Profil berhasil diperbarui'),
+                                            ]),
+                                            backgroundColor: AppColors.primary,
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12)),
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      setSheetState(() => isSaving = false);
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Gagal menyimpan: $e'),
+                                            backgroundColor: Colors.red,
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12)),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16)),
+                            ),
+                            child: isSaving
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2.5))
+                                : const Text(
+                                    'Simpan Perubahan',
+                                    style: TextStyle(
+                                        fontSize: 15, fontWeight: FontWeight.bold),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -226,6 +307,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     ValueChanged<String>? onChanged,
+    bool isPassword = false,
+    bool obscureText = false,
+    VoidCallback? onTogglePass,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,12 +332,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             controller: controller,
             keyboardType: keyboardType,
             onChanged: onChanged,
+            obscureText: obscureText,
             style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
             decoration: InputDecoration(
               border: InputBorder.none,
               contentPadding:
                   const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
               prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+              suffixIcon: isPassword
+                  ? IconButton(
+                      icon: Icon(
+                        obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        color: Colors.grey.shade400,
+                        size: 20,
+                      ),
+                      onPressed: onTogglePass,
+                    )
+                  : null,
             ),
           ),
         ),

@@ -8,6 +8,9 @@ class CustomTextField extends StatefulWidget {
   final bool isPassword;
   final TextEditingController controller;
   final TextInputType keyboardType;
+  final bool obscureText;
+  final Widget? suffixIcon;
+  final int? maxLength;
 
   const CustomTextField({
     super.key,
@@ -17,6 +20,9 @@ class CustomTextField extends StatefulWidget {
     this.isPassword = false,
     required this.controller,
     this.keyboardType = TextInputType.text,
+    this.obscureText = false,
+    this.suffixIcon,
+    this.maxLength,
   });
 
   @override
@@ -29,7 +35,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
   @override
   void initState() {
     super.initState();
-    _obscureText = widget.isPassword;
+    _obscureText = widget.isPassword || widget.obscureText;
   }
 
   @override
@@ -58,6 +64,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
             controller: widget.controller,
             obscureText: _obscureText,
             keyboardType: widget.keyboardType,
+            maxLength: widget.maxLength,
             style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
             decoration: InputDecoration(
               hintText: widget.hintText,
@@ -71,7 +78,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
                       size: 22,
                     )
                   : null,
-              suffixIcon: widget.isPassword
+              suffixIcon: widget.suffixIcon ?? (widget.isPassword
                   ? IconButton(
                       icon: Icon(
                         _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
@@ -84,7 +91,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
                         });
                       },
                     )
-                  : null,
+                  : null),
             ),
           ),
         ),

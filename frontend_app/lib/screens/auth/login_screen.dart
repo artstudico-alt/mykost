@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../widgets/google_logo.dart';
 import '../../api/api_service.dart';
 import '../home/home_screen.dart';
 import 'register_screen.dart';
@@ -188,11 +189,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      _buildSocialButton(
-                        icon: Icons.g_mobiledata_rounded,
-                        label: "Google",
-                        onTap: () {},
-                      ),
+                      _buildGoogleButton(onTap: () {}),
                       const SizedBox(height: 24),
                       Center(
                         child: Row(
@@ -241,27 +238,36 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildSocialButton({required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _buildGoogleButton({required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          color: Colors.white,
+          border: Border.all(color: AppColors.border, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 20, color: label == "Google" ? Colors.red : Colors.black),
-            const SizedBox(width: 8),
+            GoogleLogo(size: 22),
+            SizedBox(width: 10),
             Text(
-              "Masuk dengan $label",
-              style: const TextStyle(
-                fontSize: 12,
+              'Masuk dengan Google',
+              style: TextStyle(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
+                letterSpacing: 0.1,
               ),
             ),
           ],

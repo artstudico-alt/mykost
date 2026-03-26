@@ -110,6 +110,37 @@ class ApiService {
     return await post("/auth/register", data);
   }
 
+  // VERIFY OTP
+  static Future<dynamic> verifyOtp(String email, String otp) async {
+    return await post("/auth/verify-otp", {
+      "email": email,
+      "otp": otp,
+    });
+  }
+
+  // RESEND OTP
+  static Future<dynamic> resendOtp(String email) async {
+    return await post("/auth/resend-otp", {
+      "email": email,
+    });
+  }
+
+  // FORGOT PASSWORD
+  static Future<dynamic> forgotPassword(String email) async {
+    return await post("/auth/forgot-password", {
+      "email": email,
+    });
+  }
+
+  // RESET PASSWORD
+  static Future<dynamic> resetPassword(String email, String otp, String password) async {
+    return await post("/auth/reset-password", {
+      "email": email,
+      "otp": otp,
+      "password": password,
+    });
+  }
+
   // GET PROFILE
   static Future<dynamic> me() async {
     return await get("/auth/me");
@@ -117,7 +148,7 @@ class ApiService {
 
   // UPDATE PROFILE
   static Future<dynamic> updateProfile(Map<String, dynamic> data) async {
-    return await put("/auth/profile", data);
+    return await post("/auth/update-profile", data);
   }
 
   // LOGOUT
@@ -142,7 +173,7 @@ class ApiService {
   }
 
   static Future<dynamic> searchKost(String query) async {
-    return await get("/search/kost?q=$query");
+    return await get("/search/kost?search=$query");
   }
 
 //BOOKING
@@ -178,6 +209,19 @@ class ApiService {
 
   static Future<dynamic> getRiwayatHunian() async {
     return await get("/hunian/riwayat");
+  }
+
+//KELUHAN
+  static Future<dynamic> getKeluhan() async {
+    return await get("/keluhan");
+  }
+
+  static Future<dynamic> getDetailKeluhan(int id) async {
+    return await get("/keluhan/$id");
+  }
+
+  static Future<dynamic> createKeluhan(Map<String, dynamic> data) async {
+    return await post("/keluhan", data);
   }
 
 //DASHBOARD

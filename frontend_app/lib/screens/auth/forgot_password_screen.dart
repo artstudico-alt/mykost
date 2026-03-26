@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../api/api_service.dart';
+import 'reset_password_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -14,13 +16,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final emailController = TextEditingController();
   bool isLoading = false;
 
-  void _handleSendCode() {
+  void _handleSendCode() async {
+    if (emailController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Harap masukkan email Anda")),
+      );
+      return;
+    }
+
     setState(() {
       isLoading = true;
     });
 
-    // Simulasikan pengiriman kode
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      await ApiService.forgotPassword(emailController.text);
+      
       if (mounted) {
         setState(() {
           isLoading = false;
@@ -28,8 +38,25 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Kode reset telah dikirim ke email Anda.")),
         );
+        
+        // Navigasi ke screen reset password
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ResetPasswordScreen(email: emailController.text),
+          ),
+        );
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Gagal mengirim kode: ${e.toString()}")),
+        );
+      }
+    }
   }
 
   @override

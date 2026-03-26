@@ -105,8 +105,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _initials(String name) {
+    if (name.trim().isEmpty) return 'GU';
     final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts[0].isEmpty) return '?';
     if (parts.length == 1) return parts[0][0].toUpperCase();
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
@@ -849,8 +849,8 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildBenefitItem(text: "Mudah &\nCepat", iconType: 1),
-              _buildBenefitItem(text: "Gratis\nIklan", iconType: 2),
-              _buildBenefitItem(text: "Info Nilai\nProperti", iconType: 3),
+              _buildBenefitItem(text: "Bebas Biaya\nAdmin", iconType: 2),
+              _buildBenefitItem(text: "Harga\nTerbaik", iconType: 3),
               const Icon(Icons.chevron_right, color: Colors.black87),
             ],
           ),
@@ -953,9 +953,9 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 24),
               _buildPopupBenefitItem(Icons.flash_on, Colors.blue, "Mudah & Cepat", "Cari dan ajukan sewa kost impianmu dengan cepat dan mudah tanpa ribet."),
               const SizedBox(height: 16),
-              _buildPopupBenefitItem(Icons.campaign, Colors.green, "Gratis Iklan", "Pasang iklan kost pertamamu secara gratis dan jangkau lebih banyak penyewa."),
+              _buildPopupBenefitItem(Icons.money_off, Colors.green, "Bebas Biaya Admin", "Pemesanan kost lewat MyKost tidak dipungut biaya admin tambahan apapun."),
               const SizedBox(height: 16),
-              _buildPopupBenefitItem(Icons.analytics, Colors.orange, "Info Nilai Properti", "Dapatkan estimasi harga sewa yang tepat untuk propertimu dengan data terkini."),
+              _buildPopupBenefitItem(Icons.local_offer, Colors.orange, "Harga Terbaik", "Dapatkan rekomendasi kost dengan harga terbaik yang sesuai dengan budget kamu."),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,

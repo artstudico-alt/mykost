@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
+import '../../api/api_service.dart';
 
 class ComplaintScreen extends StatefulWidget {
   const ComplaintScreen({super.key});
@@ -21,7 +22,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
     'Lainnya',
   ];
 
-  void _submitComplaint() {
+  void _submitComplaint() async {
     if (_titleController.text.isEmpty || _descriptionController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Harap lengkapi semua data keluhan!")),
@@ -29,20 +30,32 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
       return;
     }
 
-    // Simulasi pengiriman data
+    // Tampilkan loading
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
     );
 
-    Future.delayed(const Duration(seconds: 1), () {
-      Navigator.pop(context); // Tahan loading
+    try {
+      // Kirim data ke backend
+      await ApiService.createKeluhan({
+        'kategori': _selectedCategory,
+        'judul': _titleController.text,
+        'deskripsi': _descriptionController.text,
+      });
+
+      Navigator.pop(context); // Tutup loading
       Navigator.pop(context); // Kembali ke halaman sebelumnya
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Keluhan berhasil dikirim. Kami akan segera menindaklanjuti.")),
       );
-    });
+    } catch (e) {
+      Navigator.pop(context); // Tutup loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Gagal mengirim keluhan: ${e.toString()}")),
+      );
+    }
   }
 
   @override
