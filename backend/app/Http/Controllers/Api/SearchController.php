@@ -39,15 +39,23 @@ class SearchController extends Controller
         if ($request->filled('latitude') && $request->filled('longitude')) {
             $lat = $request->latitude;
             $lng = $request->longitude;
-            $radius = $request->filled('radius_km') ? $request->radius_km : 5;
+            $radius = (float)($request->filled('radius_km') ? $request->radius_km : 5);
 
-            $query->selectRaw("kosts.*, ( 6371 * acos( cos( radians(?) ) *
-                cos( radians( kosts.latitude ) )
-                * cos( radians( kosts.longitude ) - radians(?) ) + sin( radians(?) ) *
-                sin( radians( kosts.latitude ) ) )
-            ) AS distance_km", [$lat, $lng, $lat])
-            ->having("distance_km", "<=", $radius)
-            ->orderBy("distance_km", "asc");
+            // Kita gunakan subquery agar kolom 'distance_km' bisa dikenali di WHERE (untuk Postgres)
+            $query = Kost::query()
+                ->selectRaw("kosts.*, ( 6371 * acos( cos( radians(?) ) *
+                    cos( radians( kosts.latitude ) )
+                    * cos( radians( kosts.longitude ) - radians(?) ) + sin( radians(?) ) *
+                    sin( radians( kosts.latitude ) ) )
+                ) AS distance_km", [$lat, $lng, $lat])
+                ->where('status', 'aktif');
+            
+            // Laravel's fromSub or wrapping the query
+            $query = Kost::fromSub($query, 'kost_distance')
+                ->with(['kamarsKosong'])
+                ->withCount('kamarsKosong')
+                ->where("distance_km", "<=", $radius)
+                ->orderBy("distance_km", "asc");
         } else {
             $query->select('kosts.*')->latest();
         }
