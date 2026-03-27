@@ -49,12 +49,16 @@ Route::prefix('auth')->group(function () {
 Route::post('/pembayaran/webhook', [PembayaranController::class, 'webhook']);
 
 // ============================================================
-// PUBLIC SEARCH API
+// PUBLIC KOST & KAMAR API
 // ============================================================
-Route::prefix('search')->group(function () {
-    Route::get('/kost',           [SearchController::class, 'cariKost']);
-    Route::get('/kost-by-kantor', [SearchController::class, 'kostByKantor']);
-});
+Route::get('/kost',             [KostController::class, 'index']);
+Route::get('/kost/{id}',         [KostController::class, 'show']);
+Route::get('/kost/{kostId}/kamar',      [KamarController::class, 'index']);
+Route::get('/kost/{kostId}/kamar/{id}', [KamarController::class, 'show']);
+
+// SEARCH API
+Route::get('/search/kost',           [SearchController::class, 'cariKost']);
+Route::get('/search/kost-by-kantor', [SearchController::class, 'kostByKantor']);
 
 // ============================================================
 // SEMUA ROUTE DI BAWAH MEMBUTUHKAN AUTH
@@ -92,12 +96,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // --------------------------------------------------------
-    // KOST — Semua bisa read, Pemilik Kost bisa create/edit
+    // KOST — Write Protected
     // --------------------------------------------------------
     Route::prefix('kost')->group(function () {
-        Route::get('/',     [KostController::class, 'index']);
-        Route::get('/{id}', [KostController::class, 'show']);
-
         Route::middleware('role:pemilik_kost,super_admin')->group(function () {
             Route::post('/',       [KostController::class, 'store']);
             Route::put('/{id}',    [KostController::class, 'update']);
@@ -114,9 +115,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // ── KAMAR (nested di bawah kost) ──────────────────
         Route::prefix('/{kostId}/kamar')->group(function () {
-            Route::get('/',     [KamarController::class, 'index']);
-            Route::get('/{id}', [KamarController::class, 'show']);
-
             Route::middleware('role:pemilik_kost,super_admin')->group(function () {
                 Route::post('/',       [KamarController::class, 'store']);
                 Route::put('/{id}',    [KamarController::class, 'update']);

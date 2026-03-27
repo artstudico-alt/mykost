@@ -55,11 +55,12 @@ class _KostDetailScreenState extends State<KostDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.kost['title'] ?? widget.kost['nama_kost'] ?? "Detail Kost";
-    final price = widget.kost['price'] ?? "Rp ${widget.kost['harga_per_bulan'] ?? '...'}";
-    final location = widget.kost['location'] ?? "Lokasi tidak diketahui";
-    final type = widget.kost['type'] ?? "Campur";
-    final ownerName = widget.kost['ownerName'] ?? widget.kost['pemilik'] ?? "Nama Pemilik Kost";
+    final title = widget.kost['nama_kost'] ?? "Detail Kost";
+    final price = "Rp ${widget.kost['harga_min'] ?? '...'}";
+    final location = "${widget.kost['kecamatan'] ?? ''}, ${widget.kost['kota'] ?? ''}";
+    final type = (widget.kost['tipe'] ?? "CAMPUR").toString().toUpperCase();
+    final ownerName = widget.kost['user'] != null ? widget.kost['user']['name'] : "Pemilik Kost";
+    final mainImage = widget.kost['foto_utama'] ?? 'https://picsum.photos/800/600';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -74,9 +75,13 @@ class _KostDetailScreenState extends State<KostDetailScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Container(
-                    color: Colors.grey.shade300,
-                    child: const Icon(Icons.maps_home_work, size: 100, color: Colors.grey),
+                  Image.network(
+                    mainImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.grey.shade300,
+                      child: const Icon(Icons.maps_home_work, size: 100, color: Colors.grey),
+                    ),
                   ),
                   Container(
                     decoration: BoxDecoration(
@@ -216,14 +221,9 @@ class _KostDetailScreenState extends State<KostDetailScreen> {
                   Wrap(
                     spacing: 12,
                     runSpacing: 12,
-                    children: [
-                      _buildFacility(Icons.wifi, "WiFi"),
-                      _buildFacility(Icons.ac_unit, "AC"),
-                      _buildFacility(Icons.bed, "Kasur"),
-                      _buildFacility(Icons.bathtub_outlined, "K.Mandi Dalam"),
-                      _buildFacility(Icons.kitchen_outlined, "Dapur Bersama"),
-                      _buildFacility(Icons.local_parking_outlined, "Parkir Motor"),
-                    ],
+                    children: (widget.kost['fasilitas_umum'] as List? ?? ["Bebas Jam Malam", "Aman", "Strategis"]).map((f) {
+                      return _buildFacility(Icons.check_circle_outline, f.toString());
+                    }).toList(),
                   ),
                   const SizedBox(height: 32),
                   const Text(
@@ -235,9 +235,9 @@ class _KostDetailScreenState extends State<KostDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    "Kost bebas jam malam yang strategis di pusat kota. Akses mudah ke stasiun, halte bus, dan perkantoran. Fasilitas lengkap tinggal bawa koper.",
-                    style: TextStyle(
+                  Text(
+                    widget.kost['deskripsi'] ?? "Kost strategis dengan fasilitas lengkap, aman, dan nyaman untuk hunian Anda.",
+                    style: const TextStyle(
                       color: AppColors.textSecondary,
                       height: 1.5,
                     ),

@@ -142,11 +142,11 @@ const BookingModal = ({ isOpen, onClose, kost, user, onSubmit }) => {
             <div className="booking-summary-card">
               <div className="summary-row">
                 <span>Harga per Bulan</span>
-                <span>{kost.priceLabel}</span>
+                <span>Rp {new Intl.NumberFormat('id-ID').format(kost.harga_min)}/bulan</span>
               </div>
               <div className="summary-row total">
                 <span>Total Estimasi</span>
-                <span>Rp {(parseInt(kost.priceLabel.replace(/[^0-9]/g, '')) * formData.durasi_bulan).toLocaleString('id-ID')}</span>
+                <span>Rp {new Intl.NumberFormat('id-ID').format(kost.harga_min * formData.durasi_bulan)}</span>
               </div>
             </div>
             <div className="booking-actions">
@@ -164,7 +164,7 @@ const BookingModal = ({ isOpen, onClose, kost, user, onSubmit }) => {
             <h3 className="booking-step-title">Siap untuk Pembayaran?</h3>
             <p className="booking-step-desc">Klik tombol di bawah untuk melanjutkan ke gerbang pembayaran aman.</p>
             <div className="booking-final-summary">
-              <p>Properti: <strong>{kost.title}</strong></p>
+              <p>Properti: <strong>{kost.nama_kost}</strong></p>
               <p>Mulai: <strong>{formData.tanggal_mulai}</strong></p>
               <p>Durasi: <strong>{formData.durasi_bulan} Bulan</strong></p>
             </div>

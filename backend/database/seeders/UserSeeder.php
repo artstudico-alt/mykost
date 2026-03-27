@@ -52,5 +52,18 @@ class UserSeeder extends Seeder
             ]
         );
         $this->command->info('✅ Pemilik Kost : pemilik@mykost.com / password123');
+
+        // ── Custom User for Testing ─────────────────────────────
+        User::firstOrCreate(
+            ['email' => 'artstudi.co@gmail.com'],
+            [
+                'name'              => 'Art Studi Co',
+                'password'          => 'password123',
+                'phone'             => '085147144348',
+                'role_id'           => $superAdminRole?->id,
+                'email_verified_at' => now(),
+            ]
+        );
+        $this->command->info('✅ Test User     : artstudi.co@gmail.com / password123');
     }
 }

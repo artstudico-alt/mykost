@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // Gunakan 127.0.0.1 untuk web/windows local, atau 10.0.2.2 jika menggunakan emulator Android
-  static const String baseUrl = "http://127.0.0.1:8000/api";
+  // Gunakan IP Laptop Anda agar HP Infinix bisa mengakses (Satu WiFi)
+  static const String baseUrl = "http://192.168.18.214:8000/api"; 
+  // static const String baseUrl = "http://127.0.0.1:8000/api";
+  
   static String? token;
 
 //HEADER
@@ -110,11 +112,11 @@ class ApiService {
     return await post("/auth/register", data);
   }
 
-  // VERIFY OTP
-  static Future<dynamic> verifyOtp(String email, String otp) async {
+  // VERIFY OTP (Updated 'otp' -> 'kode' based on Backend AuthController)
+  static Future<dynamic> verifyOtp(String email, String kode) async {
     return await post("/auth/verify-otp", {
       "email": email,
-      "otp": otp,
+      "kode": kode,
     });
   }
 
@@ -132,12 +134,13 @@ class ApiService {
     });
   }
 
-  // RESET PASSWORD
-  static Future<dynamic> resetPassword(String email, String otp, String password) async {
+  // RESET PASSWORD (Updated 'otp' -> 'kode' and added password_confirmation)
+  static Future<dynamic> resetPassword(String email, String kode, String password, String passwordConfirmation) async {
     return await post("/auth/reset-password", {
       "email": email,
-      "otp": otp,
+      "kode": kode,
       "password": password,
+      "password_confirmation": passwordConfirmation,
     });
   }
 

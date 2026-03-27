@@ -23,11 +23,34 @@ function FormMapUpdater({ lat, lng }) {
   return null;
 }
 
-// Helper untuk klik Map Interaktif
+// Helper untuk klik Map Interaktif + Reverse Geocoding
 function MapClickSetter({ setFormData }) {
   useMapEvents({
-    click(e) {
-      setFormData(prev => ({ ...prev, latitude: parseFloat(e.latlng.lat), longitude: parseFloat(e.latlng.lng) }));
+    async click(e) {
+      const { lat, lng } = e.latlng;
+      setFormData(prev => ({ ...prev, latitude: parseFloat(lat), longitude: parseFloat(lng) }));
+      
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+        const data = await res.json();
+        if (data && data.address) {
+          const addr = data.address;
+          const street = addr.road || addr.pedestrian || addr.suburb || '';
+          const city = addr.city || addr.town || addr.village || addr.county || '';
+          const state = addr.state || '';
+          
+          if (window.confirm(`Gunakan alamat terdeteksi?\n${data.display_name}`)) {
+            setFormData(prev => ({
+              ...prev,
+              alamat: street ? `${street}, ${addr.house_number || ''}` : prev.alamat,
+              kota: city || prev.kota,
+              provinsi: state || prev.provinsi
+            }));
+          }
+        }
+      } catch (err) {
+        console.error('Reverse Geocode Error:', err);
+      }
     },
   });
   return null;
@@ -84,11 +107,6 @@ const AdminKost = () => {
       setKosts(response.data.data || []);
     } catch (error) {
       console.error('Gagal mengambil data kost:', error);
-      // Jika 401, token sudah expired — jangan crash UI
-      if (error.response?.status !== 401) {
-        // Coba sekali lagi setelah 1 detik
-        setTimeout(() => fetchKosts(), 1000);
-      }
     } finally {
       setLoading(false);
     }
@@ -469,72 +487,128 @@ const AdminKost = () => {
                           <label style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', display: 'block' }}>Pemetaan Otomatis Koordinat</label>
                           <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>Tekan tombol di samping setelah mengisi Alamat, Kota, dan Provinsi.</p>
                         </div>
-                        <button 
-                          type="button" 
-                          onClick={async () => {
-                            if (!formData.kota) return alert('Silakan isi Kota terlebih dahulu (Minimal Kota/Kabupaten)!');
-                            
-                            // Percobaan 1: Detail Lengkap (Alamat + Kota)
-                            let queryLengkap = '';
-                            if (formData.alamat) queryLengkap += `${formData.alamat}, `;
-                            queryLengkap += `${formData.kota}`;
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button 
+                            type="button" 
+                            onClick={async () => {
+                              if (!formData.alamat && !formData.kota) {
+                                return alert('Silakan isi Alamat atau minimal Kota terlebih dahulu!');
+                              }
+                              
+                              setIsSubmitting(true);
+                              try {
+                                // Fungsi membersihkan alamat dari RT/RW & singkatan yang membingungkan GPS
+                                const cleanAddr = (str) => {
+                                  return str
+                                    .replace(/RT[-./\s]?\d+/gi, '')
+                                    .replace(/RW[-./\s]?\d+/gi, '')
+                                    .replace(/RT\.?\d+/gi, '')
+                                    .replace(/RW\.?\d+/gi, '')
+                                    .replace(/Kec\.?\s?\w+/gi, '')
+                                    .replace(/Kel\.?\s?\w+/gi, '')
+                                    .replace(/No\.\s?\d+/gi, '')
+                                    .replace(/\b\d{5}\b/g, '') // hapus kodepos
+                                    .replace(/,/g, ' ')
+                                    .replace(/\s{2,}/g, ' ')
+                                    .trim();
+                                };
 
-                            // Percobaan 2: Fallback (Hanya Kota + Provinsi)
-                            const queryKotaP = `${formData.kota}${formData.provinsi ? ', ' + formData.provinsi : ''}`;
+                                const alamatBersih = cleanAddr(formData.alamat);
+                                const kota = formData.kota;
+                                
+                                const trySearch = async (queryStr, engine = 'nominatim') => {
+                                   try {
+                                       // Deteksi jika input adalah Koordinat Langsung (-6.xxx, 106.xxx)
+                                       const coordRegex = /^([-+]?\d{1,2}(?:\.\d+)?),\s*([-+]?\d{1,3}(?:\.\d+)?)$/;
+                                       const match = queryStr.match(coordRegex);
+                                       if (match) {
+                                          return { lat: match[1], lon: match[2], name: 'Koordinat Langsung' };
+                                       }
 
-                            // Percobaan 3: Super Toleran (HANYA KOTA)
-                            const queryHanyaKota = formData.kota;
+                                       const url = engine === 'nominatim' 
+                                          ? `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryStr)}&limit=1`
+                                          : `https://photon.komoot.io/api/?q=${encodeURIComponent(queryStr)}&limit=1&lang=id`;
+                                       
+                                       const resp = await fetch(url, { timeout: 6000 });
+                                       if (!resp.ok) return null;
+                                       const data = await resp.json();
+                                       
+                                       if (engine === 'nominatim') {
+                                          return (data && data.length > 0) ? { lat: data[0].lat, lon: data[0].lon, name: data[0].display_name } : null;
+                                       } else {
+                                          return (data && data.features && data.features.length > 0) 
+                                             ? { 
+                                                 lat: data.features[0].geometry.coordinates[1], 
+                                                 lon: data.features[0].geometry.coordinates[0], 
+                                                 name: data.features[0].properties.label || data.features[0].properties.name || data.features[0].properties.street || data.features[0].properties.city 
+                                               } 
+                                             : null;
+                                       }
+                                   } catch (err) { return null; }
+                                };
 
-                            // Fungsi Helper untuk parsing hasil dari Photon (Komoot API)
-                            const trySearch = async (queryStr) => {
-                               const resp = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(queryStr)}&limit=1`);
-                               const json = await resp.json();
-                               if (json && json.features && json.features.length > 0) {
-                                  return {
-                                     lat: json.features[0].geometry.coordinates[1],
-                                     lon: json.features[0].geometry.coordinates[0]
-                                  };
-                               }
-                               return null;
-                            };
+                                // Langkah 1: Koordinat Langsung (Jika user paste koordinat dari GMaps)
+                                const inputAlamat = formData.alamat.trim();
+                                const coordMatch = inputAlamat.match(/^([-+]?\d{1,2}(?:\.\d+)?),\s*([-+]?\d{1,3}(?:\.\d+)?)$/);
+                                if (coordMatch) {
+                                   setFormData(prev => ({ ...prev, latitude: parseFloat(coordMatch[1]), longitude: parseFloat(coordMatch[2]) }));
+                                   alert('🎯 Koordinat Langsung Berhasil Dideteksi!');
+                                   return;
+                                }
 
-                            setIsSubmitting(true);
-                            try {
-                              // Tembak 1 (Paling Presisi)
-                              let point = await trySearch(queryLengkap);
-                              if (point) {
-                                setFormData(prev => ({...prev, latitude: point.lat, longitude: point.lon}));
-                                alert('✅ Titik Y/X berhasil diisi akurat menggunakan Mesin Pencari Lanjutan!');
-                                return;
-                              } 
+                                // Langkah 2: FULL ADDRESS via Photon (Lebih Cerdas cari Toko/POI Gmaps)
+                                let result = await trySearch(`${formData.alamat}, ${formData.kota}`, 'photon');
+                                if (result) {
+                                   setFormData(prev => ({ ...prev, latitude: parseFloat(result.lat), longitude: parseFloat(result.lon) }));
+                                   alert(`🎯 Lokasi Ditemukan!\n\n${result.name}`);
+                                   return;
+                                }
 
-                              // Tembak 2 (Kota + Provinsi)
-                              point = await trySearch(queryKotaP);
-                              if (point) {
-                                  setFormData(prev => ({...prev, latitude: point.lat, longitude: point.lon}));
-                                  alert('⚠️ Jalan spesifik tidak dikenali secara utuh.\nNamun, koordinat otomatis diletakkan persis di pusat Desa/Wilayah Anda.');
+                                await new Promise(r => setTimeout(r, 600));
+
+                                // Langkah 3: Smart Clean
+                                const smartClean = formData.alamat
+                                    .replace(/RT[-./\s]?\d+/gi, '')
+                                    .replace(/RW[-./\s]?\d+/gi, '')
+                                    .replace(/Kec\.?\s?\w+/gi, '')
+                                    .replace(/Kel\.?\s?\w+/gi, '')
+                                    .trim();
+                                
+                                result = await trySearch(`${smartClean}, ${formData.kota}`, 'nominatim');
+                                if (result) {
+                                   setFormData(prev => ({ ...prev, latitude: parseFloat(result.lat), longitude: parseFloat(result.lon) }));
+                                   alert(`✅ Alamat Berhasil Ditemukan!\n\n${result.name}`);
+                                   return;
+                                }
+
+                                // Langkah 4: Hanya Nama Jalan Utama
+                                const streetOnly = smartClean.split('No')[0].split(',')[0].trim();
+                                result = await trySearch(`${streetOnly} ${formData.kota}`, 'photon');
+                                if (result) {
+                                  setFormData(prev => ({ ...prev, latitude: parseFloat(result.lat), longitude: parseFloat(result.lon) }));
+                                  alert(`⚠️ Nama Jalan Ditemukan.\nArea: ${streetOnly}, ${formData.kota}`);
                                   return;
-                              }
+                                }
 
-                              // Tembak 3 (Paling Darurat - Hanya Kota)
-                              point = await trySearch(queryHanyaKota);
-                              if (point) {
-                                  setFormData(prev => ({...prev, latitude: point.lat, longitude: point.lon}));
-                                  alert('⚠️ Peta gagal melacak susunan alamat kompleks.\n\nKoordinat terpaksa kami letakkan di titik pusat Kota/Kabupaten [' + formData.kota + ']. Silakan seret Pin di peta mini untuk menyesuaikan.');
-                              } else {
-                                  alert('❌ Lokasi "' + formData.kota + '" tidak eksis di database Peta. Pastikan ketikan nama kota di Indonesia.');
+                                // Final Fallback
+                                result = await trySearch(`${formData.kota}, Indonesia`, 'nominatim');
+                                if (result) {
+                                  setFormData(prev => ({ ...prev, latitude: parseFloat(result.lat), longitude: parseFloat(result.lon) }));
+                                  alert('⚠️ Lokasi detail tidak terdeteksi. Silakan tandai manual di peta.');
+                                } else {
+                                  alert('❌ Lokasi tidak terdaftar di satelit.');
+                                }
+                              } catch (e) {
+                                alert('❌ Gangguan koneksi peta.');
+                              } finally {
+                                setIsSubmitting(false);
                               }
-
-                            } catch (e) {
-                              alert('❌ Gagal menghubungi satelit Peta.');
-                            } finally {
-                              setIsSubmitting(false);
-                            }
-                          }}
-                          style={{ background: 'white', color: '#2563eb', border: '1px solid #bfdbfe', padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                        >
-                          <MapPin size={16} /> Cari Auto
-                        </button>
+                            }}
+                            style={{ background: 'white', color: '#2563eb', border: '1px solid #bfdbfe', padding: '10px 24px', borderRadius: 12, fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, flex: 1, justifyContent: 'center', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.1)' }}
+                          >
+                            <Search size={18} strokeWidth={3} /> Deteksi Lokasi Otomatis (Koordinat)
+                          </button>
+                        </div>
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
@@ -564,16 +638,18 @@ const AdminKost = () => {
                       </div>
 
                       {/* Interactive Mini Map */}
-                      <div style={{ marginTop: 20, width: '100%', height: 250, borderRadius: 14, overflow: 'hidden', border: '2px solid #e2e8f0', position: 'relative' }}>
+                      <div style={{ marginTop: 20, width: '100%', height: 280, borderRadius: 18, overflow: 'hidden', border: '2px solid #e2e8f0', position: 'relative' }}>
                         <MapContainer 
                           center={[formData.latitude || -6.1751, formData.longitude || 106.8650]} 
-                          zoom={14} 
+                          zoom={16} 
                           scrollWheelZoom={true} 
                           style={{ height: '100%', width: '100%', zIndex: 0 }}
                         >
                           <TileLayer 
                             attribution='&copy; Google Maps'
-                            url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" 
+                            url={formData.use_satellite 
+                                ? "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}" 
+                                : "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"} 
                           />
                           <FormMapUpdater lat={formData.latitude} lng={formData.longitude} />
                           <MapClickSetter setFormData={setFormData} />
@@ -582,8 +658,19 @@ const AdminKost = () => {
                             <Marker position={[formData.latitude, formData.longitude]} />
                           )}
                         </MapContainer>
-                        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 400, background: 'rgba(255,255,255,0.9)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#0f172a', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', pointerEvents: 'none' }}>
-                          💡 Sentuh/klik peta untuk pindahkan pin
+                        
+                        <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 400, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                           <button 
+                             type="button"
+                             onClick={() => setFormData(p => ({ ...p, use_satellite: !p.use_satellite }))}
+                             style={{ background: 'white', border: 'none', padding: '8px 12px', borderRadius: 10, fontSize: 11, fontWeight: 800, color: '#0f172a', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                           >
+                             <MapPin size={14} /> {formData.use_satellite ? 'Mode Standar' : 'Mode Satelit'}
+                           </button>
+                        </div>
+
+                        <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 400, background: 'rgba(255,255,255,0.92)', padding: '8px 14px', borderRadius: 10, fontSize: 11, fontWeight: 700, color: '#0f172a', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', maxWidth: '80%' }}>
+                          💡 <b>Tips:</b> Data RT/RW tidak tersedia di peta digital publik. Gunakan <b>Mode Satelit</b> di atas untuk menarik Pin tepat ke atap rumah Anda.
                         </div>
                       </div>
 

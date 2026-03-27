@@ -1,18 +1,58 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { NEARBY_KOST_DUMMY } from '../utils/kostDummy'
 import { useAuth } from '../hooks/useAuth'
 import api from '../utils/api'
 import BookingModal from '../components/BookingModal'
+import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
+import L from 'leaflet'
+
+// Fix for default Leaflet icon not showing
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Component to handle map center changes
+function ChangeView({ center }) {
+  const map = useMap();
+  map.setView(center);
+  return null;
+}
 
 function LandingPage() {
+  const [kostData, setKostData] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchLocation, setSearchLocation] = useState('')
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
   const [selectedBookingKost, setSelectedBookingKost] = useState(null)
   const [userData, setUserData] = useState(null)
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false)
+  
+  // Radar & Location States
+  const [userPos, setUserPos] = useState({ lat: -6.5946, lng: 106.7892 }) // Default Bogor
+  const [radius, setRadius] = useState(2000) // in meters
+  const [isGeolocating, setIsGeolocating] = useState(false)
+  const [useRadar, setUseRadar] = useState(false)
   const navigate = useNavigate()
   const { isAuthenticated, logout, user } = useAuth()
+
+  useEffect(() => {
+    fetchKosts()
+  }, [])
+
+  const fetchKosts = async () => {
+    try {
+      const response = await api.get('/kost')
+      setKostData(response.data.data)
+    } catch (error) {
+      console.error('Gagal mengambil data kost:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const userInitial = (user?.name || user?.email || localStorage.getItem('userEmail') || 'U').charAt(0).toUpperCase()
   const userDisplayName = user?.name || user?.email || localStorage.getItem('userEmail') || 'User'
@@ -58,10 +98,10 @@ function LandingPage() {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       await api.post('/booking', {
-        kamar_id: 1,
+        kamar_id: 1, // Defaulting for simple booking from landing
         tanggal_mulai: formData.tanggal_mulai,
         durasi_bulan: formData.durasi_bulan,
-        catatan: 'Booking dari Landing Page (' + selectedBookingKost?.id + ')'
+        catatan: 'Booking dari Landing Page (' + selectedBookingKost?.nama_kost + ')'
       })
       alert('Booking berhasil dibuat! Menuju halaman pembayaran...')
       setIsBookingModalOpen(false)
@@ -82,81 +122,99 @@ function LandingPage() {
     }
   }
 
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation tidak didukung oleh browser Anda.')
+      return
+    }
+
+    setIsGeolocating(true)
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords
+        const newPos = { lat: latitude, lng: longitude }
+        setUserPos(newPos)
+        
+        try {
+          // Reverse geocoding using Nominatim
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
+          const data = await res.json()
+          setSearchLocation(data.display_name || 'Lokasi Terdeteksi')
+        } catch (err) {
+          console.error('Reverse geocode error:', err)
+        }
+        
+        setIsGeolocating(false)
+        setUseRadar(true)
+      },
+      (error) => {
+        console.error('Geolocation error:', error)
+        alert('Gagal mendeteksi lokasi. Pastikan izin lokasi diaktifkan.')
+        setIsGeolocating(false)
+      }
+    )
+  }
+
+  // Calculate distance in meters between two points
+  const getDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3 // Earth radius in meters
+    const phi1 = lat1 * Math.PI / 180
+    const phi2 = lat2 * Math.PI / 180
+    const dPhi = (lat2 - lat1) * Math.PI / 180
+    const dLambda = (lon2 - lon1) * Math.PI / 180
+
+    const a = Math.sin(dPhi/2) * Math.sin(dPhi/2) +
+              Math.cos(phi1) * Math.cos(phi2) *
+              Math.sin(dLambda/2) * Math.sin(dLambda/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+
+    return R * c
+  }
+
+  const filteredKosts = useRadar 
+    ? kostData.filter(k => {
+        if (!k.latitude || !k.longitude) return false
+        return getDistance(userPos.lat, userPos.lng, parseFloat(k.latitude), parseFloat(k.longitude)) <= radius
+      })
+    : kostData
+
   return (
     <div className="min-h-screen">
-      {/* Header ala Mamikos */}
-      <header className="landing-header sticky top-0 z-50">
-        <div className="landing-header-top">
-          <div className="container landing-header-top-inner">
-            <button type="button" className="landing-top-link">
-              <svg viewBox="0 0 24 24" aria-hidden>
-                <rect x="7.2" y="2.2" width="9.6" height="19.6" rx="2"></rect>
-                <line x1="9.8" y1="5.5" x2="14.2" y2="5.5"></line>
-                <line x1="10.2" y1="18.6" x2="13.8" y2="18.6"></line>
+      <header className="landing-header">
+        <div className="container landing-header-main-inner">
+          <div className="landing-brand" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
+            <div className="landing-brand-mark">
+              <svg viewBox="0 0 24 24">
+                <path d="M4 12.2L12 5l8 7.2V20a1 1 0 0 1-1 1h-5v-5h-4v5H5a1 1 0 0 1-1-1z"></path>
               </svg>
-              <span>Download App</span>
-            </button>
-            <button type="button" className="landing-top-link">
-              <svg viewBox="0 0 24 24" aria-hidden>
-                <rect x="3.5" y="5.5" width="17" height="15" rx="1.5"></rect>
-                <line x1="3.5" y1="10" x2="20.5" y2="10"></line>
-                <line x1="8.2" y1="3.4" x2="8.2" y2="7.2"></line>
-                <line x1="15.8" y1="3.4" x2="15.8" y2="7.2"></line>
-                <line x1="8" y1="13.2" x2="12" y2="13.2"></line>
-              </svg>
-              <span>Sewa Kos</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="landing-header-main">
-          <div className="container landing-header-main-inner">
-            <div className="landing-brand">
-              <div className="landing-brand-mark" aria-hidden>
-                <svg viewBox="0 0 24 24">
-                  <path d="M4 12.2L12 5l8 7.2V20a1 1 0 0 1-1 1h-5v-5h-4v5H5a1 1 0 0 1-1-1z"></path>
-                </svg>
-              </div>
-              <span className="landing-brand-text">mykost</span>
             </div>
-
-            <div className="landing-main-actions">
-              <nav className="landing-main-nav">
-                <span 
-                  onClick={() => navigate('/cari')} 
-                  style={{ cursor: 'pointer', fontWeight: 'bold', color: '#16a34a' }}
-                >
-                  Cari Kos (Radius Map)
-                </span>
-                <a href="#">Pusat Bantuan</a>
-                <a href="#">Syarat dan Ketentuan</a>
-              </nav>
-              {isAuthenticated ? (
-                <button
-                  className="landing-profile-btn"
-                  title={`Profil: ${userDisplayName}`}
-                  onClick={() => navigate('/profile')}
-                  style={{
-                    width: '38px', height: '38px', borderRadius: '50%',
-                    backgroundColor: '#22c55e', color: 'white',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontWeight: 'bold', fontSize: '18px', cursor: 'pointer',
-                    userSelect: 'none', border: 'none', flexShrink: 0
-                  }}
-                >
-                  {userInitial}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => navigate('/login')}
-                  className="landing-login-btn"
-                >
-                  Masuk
-                </button>
-              )}
-            </div>
+            <span className="landing-brand-text">mykost</span>
           </div>
+
+          <nav className="landing-main-nav">
+            <span onClick={() => navigate('/cari')}>Temukan Kos</span>
+            <span>Cara Sewa</span>
+            <span>Bantuan</span>
+            {isAuthenticated ? (
+              <button
+                className="landing-profile-btn"
+                onClick={() => navigate('/profile')}
+                style={{
+                  width: '42px', height: '42px', borderRadius: '50%',
+                  background: 'var(--primary)', color: 'white',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer',
+                  border: 'none', boxShadow: 'var(--shadow-md)'
+                }}
+              >
+                {userInitial}
+              </button>
+            ) : (
+              <button onClick={() => navigate('/login')} className="landing-login-btn">
+                Masuk
+              </button>
+            )}
+          </nav>
         </div>
       </header>
 
@@ -165,218 +223,218 @@ function LandingPage() {
         <div className="container">
           <div className="landing-hero-layout">
             <div className="landing-hero-content">
-            <h1 className="landing-title">
-              Cari Kos Kosan Online <span className="landing-title-accent">Terpercaya</span>
-            </h1>
-            <p className="landing-subtitle">
-              Temukan kos idamanmu dengan mudah. Ribuan pilihan kos tersebar di seluruh Indonesia dengan harga terbaik.
-            </p>
+              <h1 className="landing-title">
+                Cari Kos-Kosan <br />
+                <span className="landing-title-accent">Online Terpercaya</span>
+              </h1>
+              <p className="landing-subtitle">
+                Ribuan pilihan hunian nyaman, aman, dan terjangkau tersebar di seluruh Bogor dan Indonesia. Proses mudah, booking sekarang!
+              </p>
 
-            <div className="landing-search-card">
-              <form onSubmit={handleSearch} className="landing-search-inner">
-                <div className="landing-search-input-wrap">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                  </svg>
-                  <input
-                    type="text"
-                    value={searchLocation}
-                    onChange={(e) => setSearchLocation(e.target.value)}
-                    placeholder="Cari lokasi, nama kos, atau universitas..."
-                    autoComplete="off"
-                  />
-                </div>
-                <button type="submit" className="landing-search-btn">
-                  Cari Kos
-                </button>
-              </form>
-            </div>
-
+              <div className="landing-search-card">
+                <form onSubmit={handleSearch} className="landing-search-inner">
+                  <div className="landing-search-input-wrap">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <path d="M21 21l-4.35-4.35"></path>
+                    </svg>
+                    <input
+                      type="text"
+                      value={searchLocation}
+                      onChange={(e) => setSearchLocation(e.target.value)}
+                      placeholder="Cari lokasi, stasiun, atau universitas..."
+                    />
+                  </div>
+                  <button type="submit" className="landing-search-btn">
+                    Cari Kos
+                  </button>
+                </form>
+              </div>
             </div>
             <div className="landing-hero-visual">
               <img
                 src="/hero-kost-illustration.png"
-                alt="Ilustrasi pencarian kos"
+                alt="MyKost Illustration"
                 className="landing-hero-image"
-                loading="eager"
               />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 bg-gray-50">
+      {/* Rekomendasi Kos - Real Data */}
+      <section className="recommend-kost-section">
         <div className="container">
-          <div className="landing-features-head flex flex-col items-center">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 text-center">Mengapa Memilih MyKost?</h2>
-            <p className="text-xl text-gray-600 max-w-3xl text-center">
-              Platform pencarian kos terlengkap dengan fitur-fitur terbaik untuk kemudahan Anda
-            </p>
+          <div className="recommend-kost-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h2 className="recommend-kost-title">
+              Rekomendasi kos <span className="recommend-kost-title-accent">terbaru</span>
+            </h2>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className={`radar-toggle-btn ${useRadar ? 'active' : ''}`}
+                onClick={() => setUseRadar(!useRadar)}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 2v20m10-10H2"></path>
+                  <circle cx="12" cy="12" r="9"></circle>
+                </svg>
+                Radar Radius
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 landing-features-grid">
-            <article className="landing-feature-card">
-              <div className="landing-feature-icon" aria-hidden>
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
+          {useRadar && (
+            <div className="radar-system-container animate-fade-in">
+              <div className="radar-map-wrap">
+                <MapContainer center={[userPos.lat, userPos.lng]} zoom={14} style={{ height: '350px', width: '100%', borderRadius: '24px' }}>
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <ChangeView center={[userPos.lat, userPos.lng]} />
+                  <Circle
+                    center={[userPos.lat, userPos.lng]}
+                    radius={radius}
+                    pathOptions={{ color: 'var(--primary)', fillColor: 'var(--primary)', fillOpacity: 0.1 }}
+                  />
+                  <Marker position={[userPos.lat, userPos.lng]} />
+                  {kostData.map(k => (k.latitude && k.longitude) && (
+                     <Marker 
+                      key={k.id} 
+                      position={[k.latitude, k.longitude]}
+                      icon={new L.Icon({
+                        iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+                        iconSize: [25, 25],
+                      })}
+                    />
+                  ))}
+                </MapContainer>
               </div>
-              <div className="landing-feature-body">
-                <h3 className="landing-feature-title">Terverifikasi</h3>
-                <p className="landing-feature-desc">
-                  Semua properti kos telah melalui proses verifikasi ketat untuk menjamin keamanan dan kenyamanan Anda
-                </p>
+              <div className="radar-controls">
+                <div className="radius-selector">
+                  <label>Filter Radius: <span>{(radius/1000).toFixed(1)} km</span></label>
+                  <input 
+                    type="range" 
+                    min="500" 
+                    max="10000" 
+                    step="500"
+                    value={radius} 
+                    onChange={(e) => setRadius(parseInt(e.target.value))}
+                  />
+                  <div className="radius-labels">
+                    <span>500m</span>
+                    <span>10km</span>
+                  </div>
+                </div>
+                <div className="radar-info">
+                  <p>Menampilkan <strong>{filteredKosts.length}</strong> kost di sekitar lokasi Anda.</p>
+                </div>
               </div>
-            </article>
+            </div>
+          )}
 
-            <article className="landing-feature-card">
-              <div className="landing-feature-icon" aria-hidden>
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-                </svg>
-              </div>
-              <div className="landing-feature-body">
-                <h3 className="landing-feature-title">Harga Terbaik</h3>
-                <p className="landing-feature-desc">
-                  Dapatkan penawaran harga terbaik dengan berbagai pilihan yang sesuai dengan budget Anda
-                </p>
-              </div>
-            </article>
+          <div className="recommend-kost-grid">
+            {isLoading ? (
+              [1, 2, 3].map(i => (
+                <div key={i} className="animate-pulse bg-gray-200 h-96 rounded-3xl" />
+              ))
+            ) : filteredKosts.length > 0 ? (
+              filteredKosts.map((k) => (
+                <article key={k.id} className="recommend-kost-card" onClick={() => handleSelectKost(k)}>
+                  <div className="recommend-kost-gallery">
+                    <img
+                      src={k.foto_utama || `https://picsum.photos/seed/${k.id}/640/480`}
+                      alt={k.nama_kost}
+                      loading="lazy"
+                    />
+                    <span className="recommend-kost-type-badge">{k.tipe}</span>
+                    <span className="recommend-kost-photo-count">Lihat Detail</span>
+                  </div>
 
-            <article className="landing-feature-card">
-              <div className="landing-feature-icon" aria-hidden>
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                </svg>
+                  <div className="recommend-kost-body">
+                    <p className="recommend-kost-price">
+                       Rp {new Intl.NumberFormat('id-ID').format(k.harga_min)}<span>/bulan</span>
+                    </p>
+                    <h3 className="recommend-kost-name">{k.nama_kost}</h3>
+                    <div className="recommend-kost-loc">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                      </svg>
+                      {k.kecamatan}, {k.kota}
+                    </div>
+                    
+                    <div className="recommend-kost-features">
+                      {(k.fasilitas_umum || ['WiFi', 'Parkir']).slice(0, 3).map((f, idx) => (
+                        <div key={idx} className="feature-item">
+                           <div style={{width: 6, height: 6, background: '#22c55e', borderRadius: '50%'}} />
+                           {f}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="recommend-kost-footer">
+                     <button
+                       type="button"
+                       className="ajukan-btn"
+                       onClick={(e) => handleAjukanSewa(e, k)}
+                     >
+                       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+                         <path d="M12 2v20m10-10H2"></path>
+                       </svg>
+                       Ajukan Sewa
+                     </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="col-span-full py-20 text-center">
+                <p className="text-xl text-gray-500">Belum ada data kos yang tersedia.</p>
               </div>
-              <div className="landing-feature-body">
-                <h3 className="landing-feature-title">Cepat & Mudah</h3>
-                <p className="landing-feature-desc">
-                  Proses pencarian dan booking kos yang cepat, mudah, dan tanpa ribet
-                </p>
-              </div>
-            </article>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Rekomendasi kos terdekat — MAN 1 Bogor (dummy) */}
-      <section className="recommend-kost-section">
+      {/* Features Section */}
+      <section className="py-20 bg-white">
         <div className="container">
-          <div className="recommend-kost-head">
-            <h2 className="recommend-kost-title">
-              Rekomendasi kos <span className="recommend-kost-title-accent">terdekat</span>
-            </h2>
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Mengapa Memilih MyKost?</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">Platform pencarian kos terlengkap untuk kemudahan dan keamanan masa depan Anda.</p>
           </div>
 
-          <div className="recommend-kost-grid">
-            {NEARBY_KOST_DUMMY.map((k) => (
-              <article
-                key={k.id}
-                className="recommend-kost-card"
-                onClick={() => handleSelectKost(k)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') handleSelectKost(k)
-                }}
-              >
-                <div className="recommend-kost-gallery">
-                  <div className="recommend-kost-gallery-main">
-                    <img
-                      src={`https://picsum.photos/seed/${k.seeds[0]}/640/480`}
-                      alt=""
-                      loading="lazy"
-                    />
-                    <span className="recommend-kost-photo-count" aria-hidden>
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                        <circle cx="8.5" cy="10" r="1.5"></circle>
-                        <path d="M21 15l-4-4-6 6"></path>
-                      </svg>
-                      1/{k.photoCount}
-                    </span>
-                  </div>
-                  <div className="recommend-kost-gallery-side">
-                    <img src={`https://picsum.photos/seed/${k.seeds[1]}/320/240`} alt="" loading="lazy" />
-                    <img src={`https://picsum.photos/seed/${k.seeds[2]}/320/240`} alt="" loading="lazy" />
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <article className="landing-feature-card">
+              <div className="landing-feature-icon">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
+                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                   <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+              </div>
+              <h3 className="mb-4 font-bold text-xl">100% Terverifikasi</h3>
+              <p className="text-gray-600">Properti kami diverifikasi langsung oleh tim lapangan untuk menjamin keaslian data.</p>
+            </article>
 
-                <div className="recommend-kost-body">
-                  <div className="recommend-kost-tags-row">
-                    <div className="recommend-kost-tags">
-                      <span className="recommend-kost-tag recommend-kost-tag--green">{k.type}</span>
-                      <span className="recommend-kost-tag recommend-kost-tag--amber">
-                        Sisa {k.roomsLeft} kamar
-                      </span>
-                    </div>
-                    <div className="recommend-kost-icon-actions">
-                      <button
-                        type="button"
-                        className="recommend-kost-icon-btn"
-                        aria-label="Bagikan"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="18" cy="5" r="3"></circle>
-                          <circle cx="6" cy="12" r="3"></circle>
-                          <circle cx="18" cy="19" r="3"></circle>
-                          <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"></path>
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className="recommend-kost-icon-btn"
-                        aria-label="Simpan"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
+            <article className="landing-feature-card">
+              <div className="landing-feature-icon" style={{background: '#fef3c7', color: '#f59e0b'}}>
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
+                   <line x1="12" y1="1" x2="12" y2="23"></line>
+                   <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+              </div>
+              <h3 className="mb-4 font-bold text-xl">Harga Transparan</h3>
+              <p className="text-gray-600">Tidak ada biaya tersembunyi. Semua harga ditampilkan secara jujur sesuai kontrak.</p>
+            </article>
 
-                  <p className="recommend-kost-price">{k.priceLabel}</p>
-                  <p className="recommend-kost-min">{k.minStay}</p>
-                  <h3 className="recommend-kost-name">{k.title}</h3>
-                  <p className="recommend-kost-loc">{k.area}</p>
-                </div>
-
-                <div className="recommend-kost-footer">
-                  <div className="recommend-kost-owner">
-                    <div className="recommend-kost-avatar" aria-hidden>
-                      <svg viewBox="0 0 24 24" style={{width: '24px', height: '24px'}}>
-                        <circle cx="12" cy="8" r="4" />
-                        <path d="M5 19v-1c0-3 2.5-5.5 5.5-5.5h3c3 0 5.5 2.5 5.5 5.5v1" />
-                      </svg>
-                    </div>
-                    <div className="recommend-kost-owner-meta">
-                      <p className="recommend-kost-updated">{k.updated}</p>
-                      <p className="recommend-kost-owner-name">
-                        {k.owner} <span className="recommend-kost-owner-role">• Pemilik properti</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="recommend-kost-actions">
-                    <button
-                      type="button"
-                      className="recommend-kost-btn recommend-kost-btn--outline"
-                      style={{ flex: 1 }}
-                      onClick={(e) => handleAjukanSewa(e, k)}
-                    >
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9 12l2 2 4-4"></path>
-                        <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                      </svg>
-                      Ajukan sewa
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
+            <article className="landing-feature-card">
+              <div className="landing-feature-icon" style={{background: '#dcfce7', color: '#22c55e'}}>
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
+                   <circle cx="12" cy="12" r="10"></circle>
+                   <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <h3 className="mb-4 font-bold text-xl">Proses Cepat</h3>
+              <p className="text-gray-600">Mulai dari pencarian hingga akad sewa, semuanya bisa dilakukan dalam satu aplikasi.</p>
+            </article>
           </div>
         </div>
       </section>
@@ -384,83 +442,41 @@ function LandingPage() {
       {/* Footer */}
       <footer className="landing-footer">
         <div className="container">
-          <div className="landing-footer-top">
-            <div className="landing-footer-brand">
-              <a className="landing-footer-logo" href="#">
-                <span className="landing-footer-logo-mark" aria-hidden>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 12l2-2 7-7 7 7 2 2"></path>
-                    <path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"></path>
-                  </svg>
-                </span>
-                <span className="landing-footer-logo-text">MyKost</span>
-              </a>
-              <p className="landing-footer-tagline">
-                Platform pencarian kos terpercaya untuk karyawan dan pemilik properti di seluruh Indonesia.
-              </p>
-              <div className="landing-footer-contact">
-                <a href="mailto:halo@mykost.id">halo@mykost.id</a>
-                <span>•</span>
-                <a href="tel:+6281212345678">+62 812-1234-5678</a>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-20 text-center md:text-left">
+            <div className="col-span-1 md:col-span-1">
+              <h3 className="text-2xl font-bold mb-6 landing-brand-text">mykost</h3>
+              <p className="opacity-70 mb-8">Solusi terbaik untuk mencari hunian impian Anda di mana saja, kapan saja.</p>
             </div>
-
-            <div className="landing-footer-links">
-              <div className="landing-footer-group">
-                <h4>Layanan</h4>
-                <a href="#">Cari Kos</a>
-                <a href="#">Daftarkan Kos</a>
-                <a href="#">Premium</a>
-                <a href="#">Partner</a>
-              </div>
-              <div className="landing-footer-group">
-                <h4>Perusahaan</h4>
-                <a href="#">Tentang Kami</a>
-                <a href="#">Karier</a>
-                <a href="#">Blog</a>
-                <a href="#">Press Kit</a>
-              </div>
-              <div className="landing-footer-group">
-                <h4>Bantuan</h4>
-                <a href="#">Pusat Bantuan</a>
-                <a href="#">FAQ</a>
-                <a href="#">Syarat & Ketentuan</a>
-                <a href="#">Kebijakan Privasi</a>
-              </div>
+            <div>
+              <h4 className="font-bold mb-6">Layanan</h4>
+              <ul className="space-y-3 opacity-70" style={{listStyle: 'none'}}>
+                <li onClick={() => navigate('/cari')} style={{cursor: 'pointer'}}>Cari Kos</li>
+                <li>Premium</li>
+                <li>Promo</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold mb-6">Perusahaan</h4>
+              <ul className="space-y-3 opacity-70" style={{listStyle: 'none'}}>
+                <li>Tentang</li>
+                <li>Karir</li>
+                <li>Blog</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold mb-6">Kontak</h4>
+              <ul className="space-y-3 opacity-70" style={{listStyle: 'none'}}>
+                <li>halo@mykost.id</li>
+                <li>021-123-456</li>
+              </ul>
             </div>
           </div>
-
-          <div className="landing-footer-bottom">
-            <p>© 2026 MyKost. Seluruh hak cipta dilindungi.</p>
-            <div className="landing-footer-social">
-              <a href="#" aria-label="Instagram">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="5"></rect>
-                  <circle cx="12" cy="12" r="4"></circle>
-                  <circle cx="17.2" cy="6.8" r="1"></circle>
-                </svg>
-              </a>
-              <a href="#" aria-label="LinkedIn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
-                  <rect x="2" y="9" width="4" height="12"></rect>
-                  <circle cx="4" cy="4" r="2"></circle>
-                </svg>
-              </a>
-              <a href="#" aria-label="X">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 3h3l-7 8 8 10h-6l-5-6-5 6H3l8-9-8-9h6l4 5 5-5z"></path>
-                </svg>
-              </a>
-              <a href="#" aria-label="Facebook">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
-                </svg>
-              </a>
-            </div>
+          <div className="pt-8 border-t border-gray-700 text-center opacity-50 text-sm">
+            &copy; 2026 MyKost Indonesia. Seluruh hak cipta dilindungi.
           </div>
         </div>
       </footer>
+
       {selectedBookingKost && (
         <BookingModal
           isOpen={isBookingModalOpen}

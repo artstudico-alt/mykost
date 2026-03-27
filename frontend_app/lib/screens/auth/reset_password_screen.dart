@@ -54,6 +54,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         widget.email,
         otpController.text,
         passwordController.text,
+        confirmPasswordController.text,
       );
       
       if (mounted) {

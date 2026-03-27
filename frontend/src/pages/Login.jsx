@@ -118,7 +118,8 @@ function Login() {
           <p className="auth-page__subtitle">Selamat datang kembali, senang bertemu lagi!</p>
         </div>
 
-        <div className="auth-card">
+        <div className={`auth-card ${loading ? 'is-processing' : ''}`}>
+          {loading && <div className="auth-progress-bar" />}
           <div className="auth-card__social-row">
             <button type="button" className="auth-btn-social">
               <GoogleIcon />
@@ -136,16 +137,21 @@ function Login() {
 
           <form onSubmit={handleSubmit} className="auth-form" noValidate>
             {error ? (
-              <div className="auth-alert" role="alert">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <span>{error}</span>
+              <div className="auth-alert animate-shake" role="alert">
+                <div className="auth-alert__icon">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <div className="auth-alert__content">
+                  <p className="auth-alert__title">Autentikasi Gagal</p>
+                  <p className="auth-alert__text">{error}</p>
+                </div>
               </div>
             ) : null}
 
@@ -171,6 +177,7 @@ function Login() {
                   onChange={handleChange}
                   placeholder="admin@example.com"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -197,12 +204,14 @@ function Login() {
                   onChange={handleChange}
                   placeholder="••••••••"
                   required
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   className="auth-input-toggle"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                  disabled={loading}
                 >
                   {showPassword ? (
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -235,30 +244,32 @@ function Login() {
 
             <div className="auth-row-options">
               <label className="auth-remember">
-                <input type="checkbox" name="remember" />
+                <input type="checkbox" name="remember" disabled={loading} />
                 Ingat saya
               </label>
-              <Link to="/forgot-password" className="auth-link-muted">
+              <Link to="/forgot-password" className={`auth-link-muted ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
                 Lupa password?
               </Link>
             </div>
 
-            <button type="submit" className="auth-btn-primary" disabled={loading}>
-              {loading ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  Memproses…
-                </span>
-              ) : (
-                'Masuk'
-              )}
+            <button type="submit" className={`auth-btn-primary ${loading ? 'is-loading' : ''}`} disabled={loading}>
+              <span className="auth-btn-inner">
+                {loading ? (
+                  <>
+                    <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <span>Memproses Verifikasi...</span>
+                  </>
+                ) : (
+                  'Masuk ke Akun'
+                )}
+              </span>
             </button>
           </form>
 

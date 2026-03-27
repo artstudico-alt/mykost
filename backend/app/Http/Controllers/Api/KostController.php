@@ -11,15 +11,15 @@ class KostController extends Controller
     // GET /api/kost — semua role bisa lihat
     public function index(Request $request)
     {
-        $user  = $request->user();
+        $user  = auth('sanctum')->user();
         $query = Kost::with('user')->withCount('kamarsKosong');
 
         // Pemilik kost: hanya lihat kost milik sendiri
-        if ($user->hasRole('pemilik_kost')) {
+        if ($user && $user->hasRole('pemilik_kost')) {
             $query->where('user_id', $user->id);
         } else {
-            // Role lain: hanya tampilkan kost aktif
-            if (!$user->hasAnyRole(['super_admin', 'hr'])) {
+            // Role lain / Guest: hanya tampilkan kost aktif
+            if (!$user || !$user->hasAnyRole(['super_admin', 'hr'])) {
                 $query->where('status', 'aktif');
             }
         }

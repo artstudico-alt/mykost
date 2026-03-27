@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../api/api_service.dart';
 
 class RentalApplicationScreen extends StatefulWidget {
   final Map<String, dynamic> kost;
@@ -15,6 +16,7 @@ class RentalApplicationScreen extends StatefulWidget {
 class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
   final PageController _pageController = PageController();
   int _currentStep = 0;
+  bool _isLoading = false;
 
   // Controllers Step 1
   final nameController = TextEditingController();
@@ -27,6 +29,27 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
   // Step 3
   DateTime selectedDate = DateTime.now();
   int durationMonths = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final response = await ApiService.me();
+      if (response != null && response['data'] != null) {
+        final u = response['data'];
+        setState(() {
+          nameController.text = u['name'] ?? '';
+          emailController.text = u['email'] ?? '';
+          phoneController.text = u['phone'] ?? '';
+          nikController.text = u['nik'] ?? '';
+        });
+      }
+    } catch (_) {}
+  }
 
   void _nextPage() {
     if (_currentStep < 3) {
@@ -43,6 +66,44 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
+    }
+  }
+
+  Future<void> _submitBooking() async {
+    setState(() => _isLoading = true);
+    try {
+      // 1. Update Profile first (Phone & NIK are required for booking verification)
+      await ApiService.updateProfile({
+        'phone': phoneController.text,
+        'nik': nikController.text,
+      });
+
+      // 2. Create Booking
+      // Note: We're assuming the first room (index 0) for this simplified flow 
+      // or using a fallback kamar_id if your backend requires it.
+      final kamarId = (widget.kost['kamars'] != null && widget.kost['kamars'].isNotEmpty) 
+          ? widget.kost['kamars'][0]['id'] 
+          : 1;
+
+      final bookingResponse = await ApiService.createBooking({
+        'kamar_id': kamarId,
+        'tanggal_mulai': "${selectedDate.year}-${selectedDate.month.toString().padLeft(2,'0')}-${selectedDate.day.toString().padLeft(2,'0')}",
+        'durasi_bulan': durationMonths,
+        'catatan': 'Booking via Mobile App (${widget.kost['nama_kost']})',
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Booking berhasil dibuat! Menunggu pembayaran...")),
+      );
+      
+      // Navigate to payment or success screen (Simplified: back to home)
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Gagal: $e"), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -501,7 +562,7 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
                         children: [
                           const TextSpan(text: "Properti: "),
                           TextSpan(
-                            text: widget.kost['title'] ?? "Kost Pilihan",
+                            text: widget.kost['nama_kost'] ?? "Kost Pilihan",
                             style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
                           ),
                         ],
@@ -520,15 +581,15 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
                 height: 54,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue, // Blue button as per image
+                    backgroundColor: Colors.blue, // Blue button matching theme
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mengarahkan ke Midtrans...")));
-                  },
-                  child: const Text("Bayar Sekarang", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  onPressed: _isLoading ? null : _submitBooking,
+                  child: _isLoading 
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                    : const Text("Konfirmasi & Bayar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
               const SizedBox(height: 24),

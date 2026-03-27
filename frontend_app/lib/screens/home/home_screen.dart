@@ -47,45 +47,11 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
   }
 
-  final _fallbackKostList = const [
-    {
-      "title": "Kost Gg. Melati Indah — dekat MAN 1 Bogor",
-      "price": "Rp 1,8 Juta/bulan",
-      "minRent": "Min. 3 bln (Rp 5,4 Juta)",
-      "location": "Cibogor, Bogor Tengah",
-      "type": "Kost Putri",
-      "roomLeft": "Sisa 2 kamar",
-      "ownerName": "Ibu Siti",
-      "lastUpdated": "2 minggu lalu",
-      "imageCount": 8,
-    },
-    {
-      "title": "Kost Nyaman Jl. Mayor Oking No. 12",
-      "price": "Rp 2,1 Juta/bulan",
-      "minRent": "Min. 6 bln (Rp 12,6 Juta)",
-      "location": "Bogor Tengah, Kota Bogor",
-      "type": "Kost Campur",
-      "roomLeft": "Sisa 4 kamar",
-      "ownerName": "Pak Budi",
-      "lastUpdated": "5 hari lalu",
-      "imageCount": 6,
-    },
-    {
-      "title": "Kost Elite Harmoni — 400 m dari MAN 1",
-      "price": "Rp 2,5 Juta/bulan",
-      "minRent": "Min. 6 bln (Rp 15 Juta)",
-      "location": "Cibogor, Bogor Tengah",
-      "type": "Kost Putra",
-      "roomLeft": "Sisa 1 kamar",
-      "ownerName": "Kost Keluarga Raharjo",
-      "lastUpdated": "1 bulan lalu",
-      "imageCount": 10,
-    },
-  ];
-
   Future<void> _loadKostData() async {
+    setState(() => _kostLoading = true);
     try {
       final rawData = await ApiService.getKost();
+      debugPrint("API Response: $rawData");
       List<dynamic> data = [];
       if (rawData is Map && rawData.containsKey('data')) {
         data = rawData['data'];
@@ -93,12 +59,13 @@ class _HomeScreenState extends State<HomeScreen> {
         data = rawData;
       }
       setState(() {
-        _allKostData = data.isNotEmpty ? data : List.from(_fallbackKostList);
+        _allKostData = data;
         _kostLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint("Error loading kost data: $e");
       setState(() {
-        _allKostData = List.from(_fallbackKostList);
+        _allKostData = [];
         _kostLoading = false;
       });
     }
@@ -606,17 +573,19 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: data.length,
         itemBuilder: (context, index) {
           final kost = data[index];
+          final hasOwner = kost['user'] != null;
+          
           return KostCard(
             kostMap: kost is Map<String, dynamic> ? kost : null,
-            title: kost["title"] ?? kost["nama_kost"] ?? "Kost",
-            price: kost["price"] ?? "Rp ${kost['harga_per_bulan'] ?? '1,8 Juta'}/bulan",
-            minRent: kost["minRent"] ?? "Minimal Sewa 1 Bulan",
-            location: kost["location"] ?? kost["alamat"] ?? "Bogor",
-            type: kost["type"] ?? kost["jenis_kost"] ?? "Campur",
-            roomLeft: kost["roomLeft"] ?? "Sisa kamar",
-            ownerName: kost["ownerName"] ?? "Pemilik Kost",
-            lastUpdated: kost["lastUpdated"] ?? "Baru saja",
-            imageCount: 8,
+            title: kost["nama_kost"] ?? "Kost",
+            price: "Rp ${kost['harga_min'] ?? '0'}/bulan",
+            minRent: "Minimal Sewa 1 Bulan",
+            location: "${kost['kecamatan'] ?? ''}, ${kost['kota'] ?? ''}",
+            type: kost["tipe"]?.toString().toUpperCase() ?? "CAMPUR",
+            roomLeft: "Sisa ${kost['kamars_kosong_count'] ?? '?'} kamar",
+            ownerName: hasOwner ? kost['user']['name'] : "Pemilik",
+            lastUpdated: "Baru saja",
+            imageCount: 1,
             isGrid: true,
           );
         },
@@ -734,42 +703,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRecommendations() {
-    final kostList = [
-      {
-        "title": "Kost Gg. Melati Indah — dekat MAN 1 Bogor",
-        "price": "Rp 1,8 Juta/bulan",
-        "minRent": "Min. 3 bln (Rp 5,4 Juta)",
-        "location": "Cibogor, Bogor Tengah",
-        "type": "Kost Putri",
-        "roomLeft": "Sisa 2 kamar",
-        "ownerName": "Ibu Siti",
-        "lastUpdated": "2 minggu lalu",
-        "imageCount": 8,
-      },
-      {
-        "title": "Kost Nyaman Jl. Mayor Oking No. 12",
-        "price": "Rp 2,1 Juta/bulan",
-        "minRent": "Min. 6 bln (Rp 12,6 Juta)",
-        "location": "Bogor Tengah, Kota Bogor",
-        "type": "Kost Campur",
-        "roomLeft": "Sisa 4 kamar",
-        "ownerName": "Pak Budi",
-        "lastUpdated": "5 hari lalu",
-        "imageCount": 6,
-      },
-      {
-        "title": "Kost Elite Harmoni — 400 m dari MAN 1",
-        "price": "Rp 2,5 Juta/bulan",
-        "minRent": "Min. 6 bln (Rp 15 Juta)",
-        "location": "Cibogor, Bogor Tengah",
-        "type": "Kost Putra",
-        "roomLeft": "Sisa 1 kamar",
-        "ownerName": "Kost Keluarga Raharjo",
-        "lastUpdated": "1 bulan lalu",
-        "imageCount": 10,
-      },
-    ];
-
     return SizedBox(
       height: 520,
       child: FutureBuilder<dynamic>(
@@ -779,8 +712,6 @@ class _HomeScreenState extends State<HomeScreen> {
             return const Center(child: CircularProgressIndicator(color: AppColors.primary));
           }
 
-          // Gunakan API data jika berhasil didapat dan berupa List.
-          // Fallback ke dummy list jika error (misal server belum jalan)
           List<dynamic> data = [];
           if (snapshot.hasData && snapshot.data != null) {
             var rawData = snapshot.data;
@@ -788,36 +719,36 @@ class _HomeScreenState extends State<HomeScreen> {
               data = rawData['data'];
             } else if (rawData is List) {
               data = rawData;
-            } else {
-              data = kostList; // Fallback
             }
-          } else {
-            data = kostList; // Fallback on Error
           }
 
           if (data.isEmpty) {
-            return const Center(child: Text("Kosong"));
+            return const Center(
+              child: Text("Belum ada kost tersedia", style: TextStyle(color: Colors.grey)),
+            );
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
             scrollDirection: Axis.horizontal,
-            itemCount: data.length,
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            itemCount: data.length > 5 ? 5 : data.length, // Show top 5
             itemBuilder: (context, index) {
               final kost = data[index];
+              final hasOwner = kost['user'] != null;
+
               return Padding(
-                padding: const EdgeInsets.only(right: 16),
+                padding: const EdgeInsets.only(right: 20, bottom: 20),
                 child: KostCard(
                   kostMap: kost is Map<String, dynamic> ? kost : null,
-                  title: kost["title"] ?? kost["nama_kost"] ?? "Kost",
-                  price: kost["price"] ?? "Rp ${kost['harga_per_bulan'] ?? '1,8 Juta'}/bulan",
-                  minRent: kost["minRent"] ?? "Minimal Sewa 1 Bulan",
-                  location: kost["location"] ?? kost["alamat"] ?? "Bogor",
-                  type: kost["type"] ?? kost["jenis_kost"] ?? "Campur",
-                  roomLeft: kost["roomLeft"] ?? "Sisa kamar",
-                  ownerName: kost["ownerName"] ?? "Pemilik Kost",
-                  lastUpdated: kost["lastUpdated"] ?? "Baru saja",
-                  imageCount: 8,
+                  title: kost["nama_kost"] ?? "Kost",
+                  price: "Rp ${kost['harga_min'] ?? '0'}/bulan",
+                  minRent: "Minimal sewa 1 bulan",
+                  location: "${kost['kecamatan'] ?? ''}, ${kost['kota'] ?? ''}",
+                  type: kost["tipe"]?.toString().toUpperCase() ?? "CAMPUR",
+                  roomLeft: "Sisa ${kost['kamars_kosong_count'] ?? '?'} kamar",
+                  ownerName: hasOwner ? kost['user']['name'] : "Pemilik",
+                  lastUpdated: "Baru saja",
+                  imageCount: 1,
                 ),
               );
             },
