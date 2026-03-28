@@ -39,16 +39,14 @@ class KostController extends Controller
 
         $query = Kost::with('user')->withCount('kamarsKosong');
 
-        // Pemilik kost: hanya lihat kost milik sendiri
-        if ($user && $user->hasRole('pemilik_kost')) {
+        // Katalog publik (beranda, tamu, karyawan, dll.): semua kost berstatus aktif.
+        // Hanya "Kost Saya" milik pemilik yang memakai ?mine=1 — supaya beranda tidak kosong saat pemilik login.
+        $onlyMine = $request->boolean('mine');
+        if ($user && $user->hasRole('pemilik_kost') && $onlyMine) {
             $query->where('user_id', $user->id);
         } else {
-            // Role lain / Guest: hanya tampilkan kost aktif kecuali Super Admin / HR
-            if (!$user || !$user->hasAnyRole(['super_admin', 'hr'])) {
-                $query->where('status', 'aktif');
-            }
+            $query->where('status', 'aktif');
         }
-
 
         // Filter
         if ($request->filled('kota')) {
@@ -60,7 +58,7 @@ class KostController extends Controller
         if ($request->filled('harga_max')) {
             $query->where('harga_min', '<=', $request->harga_max);
         }
-        if ($request->filled('status') && $user->hasAnyRole(['super_admin', 'hr', 'pemilik_kost'])) {
+        if ($request->filled('status') && $user && $user->hasRole('pemilik_kost') && $onlyMine) {
             $query->where('status', $request->status);
         }
         if ($request->filled('search')) {

@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
 
@@ -20,7 +21,7 @@ class AuthController extends Controller
     // ================================================================
     public function register(Request $request)
     {
-        \Log::info('Register request received from React', $request->all());
+        Log::info('Register request received from React', $request->all());
 
         try {
             $validated = $request->validate([
@@ -52,7 +53,7 @@ class AuthController extends Controller
             'password.symbols' => 'Password harus mengandung minimal satu karakter khusus (!@#$%^&*).',
         ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('Validation Failed in React Registration', $e->errors());
+            Log::error('Validation Failed in React Registration', $e->errors());
             throw $e;
         }
 
@@ -68,10 +69,34 @@ class AuthController extends Controller
                 namaUser: $request->name,
             ));
         } catch (\Exception $e) {
-            // Hapus OTP jika pengiriman gagal
+            Log::error('Register: pengiriman email OTP gagal', [
+                'email' => $request->email,
+                'exception' => $e->getMessage(),
+            ]);
+
+            // User belum disimpan di DB — kegagalan ini hampir selalu konfigurasi SMTP / mailer, bukan "email tidak valid"
+            if (config('app.debug')) {
+                cache()->put('register_data_' . $request->email, [
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'password' => $request->password,
+                    'phone' => $request->phone,
+                    'role_id' => $request->role_id,
+                ], now()->addMinutes(10));
+
+                return response()->json([
+                    'message' => 'Email verifikasi tidak terkirim (SMTP). Mode APP_DEBUG: lanjutkan verifikasi dengan OTP di bawah. Set MAIL_MAILER=smtp dan MAIL_* di .env untuk produksi.',
+                    'email' => $request->email,
+                    'dev_otp' => $otp->kode,
+                    'mail_error' => $e->getMessage(),
+                    'next_step' => 'POST /api/auth/verify-otp dengan { email, kode }',
+                ], 200);
+            }
+
             $otp->delete();
+
             return response()->json([
-                'message' => 'Gagal mengirim email verifikasi. Pastikan email yang dimasukkan valid.',
+                'message' => 'Gagal mengirim email verifikasi. Ini biasanya karena pengaturan pengiriman email (SMTP) di server belum benar — bukan karena alamat email Anda salah. Periksa MAIL_MAILER, MAIL_HOST, MAIL_PORT, MAIL_USERNAME, dan MAIL_PASSWORD di file .env, atau set MAIL_MAILER=log untuk mencoba mencatat email ke storage/logs. Lihat juga storage/logs/laravel.log.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

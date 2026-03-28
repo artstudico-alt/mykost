@@ -85,7 +85,9 @@ class ApiService {
         return decoded;
       } else {
         print("API Error Response: $decoded");
-        throw Exception(decoded['message'] ?? "Terjadi error");
+        final msg = decoded['message']?.toString() ?? "Terjadi error";
+        final detail = decoded['error']?.toString();
+        throw Exception(detail != null && detail.isNotEmpty ? "$msg ($detail)" : msg);
       }
     } catch (e) {
       print("API Catch Error: $e");

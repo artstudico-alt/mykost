@@ -69,26 +69,29 @@ class PembayaranController extends Controller
 
         $nomor_referensi = 'PAY-' . strtoupper(Str::random(10));
 
+        // Midtrans IDR harus bilangan bulat
+        $grossAmount = (int) max(1, round((float) $validated['jumlah']));
+
         // Konfigurasi Midtrans
         Config::$serverKey = config('midtrans.server_key');
-        Config::$isProduction = config('midtrans.is_production');
-        Config::$isSanitized = config('midtrans.is_sanitized');
-        Config::$is3ds = config('midtrans.is_3ds');
+        Config::$isProduction = (bool) config('midtrans.is_production');
+        Config::$isSanitized = (bool) config('midtrans.is_sanitized');
+        Config::$is3ds = (bool) config('midtrans.is_3ds');
 
         $params = array(
             'transaction_details' => array(
                 'order_id' => $nomor_referensi,
-                'gross_amount' => $validated['jumlah'],
+                'gross_amount' => $grossAmount,
             ),
             'customer_details' => array(
-                'first_name' => $user->name,
+                'first_name' => substr((string) $user->name, 0, 50),
                 'email' => $user->email,
                 'phone' => $user->phone ?? '08123456789',
             ),
             'item_details' => array(
                 [
-                    'id' => $booking->kamar_id,
-                    'price' => $validated['jumlah'],
+                    'id' => (string) $booking->kamar_id,
+                    'price' => $grossAmount,
                     'quantity' => 1,
                     'name' => 'Sewa Kost: ' . $booking->kost->nama_kost,
                 ]
@@ -105,7 +108,7 @@ class PembayaranController extends Controller
 
         $pembayaran = Pembayaran::create([
             'booking_id'       => $booking->id,
-            'jumlah'           => $validated['jumlah'],
+            'jumlah'           => $grossAmount,
             'metode'           => 'midtrans', // default untuk sementara
             'nomor_referensi'  => $nomor_referensi,
             'snap_token'       => $snapToken,

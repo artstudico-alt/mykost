@@ -4,7 +4,6 @@ import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/google_logo.dart';
 import '../../api/api_service.dart';
-import '../home/home_screen.dart';
 import 'login_screen.dart';
 import 'otp_verification_screen.dart';
 
@@ -15,6 +14,8 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
+const int _kPasswordMinLen = 8;
+
 class _RegisterScreenState extends State<RegisterScreen> {
   final nameController = TextEditingController();
   final phoneController = TextEditingController();
@@ -23,6 +24,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final confirmPasswordController = TextEditingController();
   bool isTermsAccepted = false;
   bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    passwordController.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   void dispose() {
@@ -62,10 +71,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    final pwdErr = _validatePasswordRules(password);
+    if (pwdErr != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(pwdErr)),
+      );
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
-      await ApiService.register({
+      final result = await ApiService.register({
         'name': name,
         'phone': phone,
         'email': email,
@@ -74,20 +91,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       if (!mounted) return;
+      final devOtp = result['dev_otp']?.toString();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registrasi berhasil! Silakan verifikasi email Anda.'),
+        SnackBar(
+          content: Text(
+            devOtp != null
+                ? 'Email mungkin tidak terkirim (debug). OTP: $devOtp'
+                : 'Registrasi berhasil! Silakan verifikasi email Anda.',
+          ),
           backgroundColor: AppColors.primary,
         ),
       );
-      
-      // Navigate to OTP verification screen
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => OtpVerificationScreen(
             email: email,
             name: name,
+            devOtp: devOtp,
           ),
         ),
       );
@@ -211,6 +233,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         isPassword: true,
                         controller: confirmPasswordController,
                       ),
+                      const SizedBox(height: 16),
+                      _buildPasswordRulesHint(),
                       const SizedBox(height: 20),
 
                       // ── Terms ────────────────────────────────────────────
@@ -296,6 +320,78 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Map<String, bool> _passwordRuleMap(String p) {
+    return {
+      'min': p.length >= _kPasswordMinLen,
+      'upper': RegExp(r'[A-Z]').hasMatch(p),
+      'lower': RegExp(r'[a-z]').hasMatch(p),
+      'number': RegExp(r'\d').hasMatch(p),
+      'special': RegExp(r'[^A-Za-z0-9]').hasMatch(p),
+    };
+  }
+
+  String? _validatePasswordRules(String password) {
+    final m = _passwordRuleMap(password);
+    if (!m['min']!) return 'Password minimal $_kPasswordMinLen karakter.';
+    if (!m['upper']!) return 'Password wajib huruf kapital (A–Z).';
+    if (!m['lower']!) return 'Password wajib huruf kecil (a–z).';
+    if (!m['number']!) return 'Password wajib menyertakan angka.';
+    if (!m['special']!) {
+      return 'Password wajib karakter khusus (mis. ! @ # \$ %).';
+    }
+    return null;
+  }
+
+  Widget _buildPasswordRulesHint() {
+    final p = passwordController.text;
+    final m = _passwordRuleMap(p);
+    Widget row(String label, bool ok) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              ok ? Icons.check_circle_rounded : Icons.circle_outlined,
+              size: 18,
+              color: ok ? const Color(0xFF16A34A) : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: ok ? AppColors.textPrimary : AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Syarat password',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textSecondary.withOpacity(0.9),
+          ),
+        ),
+        const SizedBox(height: 8),
+        row('Minimal $_kPasswordMinLen karakter', m['min']!),
+        row('Huruf kapital dan huruf kecil', m['upper']! && m['lower']!),
+        row('Wajib menyertakan angka', m['number']!),
+        row('Wajib karakter khusus (! @ # ...)', m['special']!),
+      ],
     );
   }
 

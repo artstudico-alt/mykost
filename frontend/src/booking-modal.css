@@ -113,7 +113,8 @@
   transition: all 0.2s;
 }
 
-.booking-form-group input:focus {
+.booking-form-group input:focus,
+.booking-form-group select:focus {
   outline: none;
   border-color: #22c55e;
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
@@ -246,4 +247,63 @@
   color: #6b7280;
   font-size: 14px;
   cursor: pointer;
+}
+
+.booking-form-group-label-text {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.booking-warn {
+  padding: 14px 16px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  color: #9a3412;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.booking-summary-card--minimal {
+  border: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+.booking-midtrans-hint {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.45;
+}
+
+.booking-step--finalize .booking-step-title {
+  margin-top: 8px;
+}
+
+.booking-step-icon-midtrans {
+  color: #059669;
+}
+
+.booking-final-total {
+  margin-top: 12px !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+}
+
+.booking-next-btn:disabled,
+.booking-pay-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.booking-final-summary {
+  color: #374151;
+}
+
+.booking-final-summary strong {
+  color: #111827;
 }

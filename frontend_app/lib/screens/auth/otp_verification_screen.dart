@@ -8,11 +8,14 @@ import 'login_screen.dart';
 class OtpVerificationScreen extends StatefulWidget {
   final String email;
   final String name;
-  
+  /// Hanya diisi saat backend APP_DEBUG + email gagal (OTP tetap valid).
+  final String? devOtp;
+
   const OtpVerificationScreen({
-    super.key, 
+    super.key,
     required this.email,
     required this.name,
+    this.devOtp,
   });
 
   @override
@@ -29,8 +32,14 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   @override
   void initState() {
     super.initState();
-    // Auto focus first field
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final d = widget.devOtp?.trim() ?? '';
+      if (d.length == 6 && RegExp(r'^\d{6}$').hasMatch(d)) {
+        for (var i = 0; i < 6; i++) {
+          _otpControllers[i].text = d[i];
+        }
+        return;
+      }
       _focusNodes[0].requestFocus();
     });
   }
@@ -210,6 +219,28 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           ),
                         ],
                       ),
+
+                      if (widget.devOtp != null &&
+                          widget.devOtp!.trim().length == 6) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFDBA74)),
+                          ),
+                          child: Text(
+                            'Mode pengembangan: email mungkin tidak terkirim. Kode OTP sudah diisi otomatis.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.orange.shade900,
+                            ),
+                          ),
+                        ),
+                      ],
 
                       const SizedBox(height: 32),
 

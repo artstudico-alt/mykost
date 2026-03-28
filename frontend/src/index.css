@@ -942,3 +942,514 @@ h1, h2, h3, h4 {
   .landing-hero-visual { display: none; }
   .landing-main-nav { display: none; }
 }
+
+/* ─── Kost detail + kartu sewa + Midtrans flow ─── */
+.kost-detail-loading {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.kost-detail-loading--error a {
+  color: var(--primary);
+  font-weight: 700;
+}
+.kost-detail-loading-icon {
+  animation: spin 0.9s linear infinite;
+  color: var(--primary);
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.kost-detail-section {
+  padding: 2rem 0 3rem;
+}
+
+.kost-detail-gallery-wrapper { margin-bottom: 1.5rem; }
+.kost-detail-gallery { display: flex; flex-direction: column; gap: 12px; }
+.kost-detail-gallery-main {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--border-color);
+  aspect-ratio: 16 / 10;
+}
+.kost-detail-gallery-main img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.kost-detail-photo-count {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(15, 23, 42, 0.72);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.kost-detail-gallery-thumbs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.kost-detail-thumb-btn {
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  width: 88px;
+  aspect-ratio: 3/2;
+  background: #e2e8f0;
+}
+.kost-detail-thumb-btn--active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.25);
+}
+.kost-detail-thumb-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kost-detail-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 1.25rem;
+  color: var(--text-muted);
+}
+.kost-detail-breadcrumb a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.kost-detail-top-row--layout {
+  display: grid;
+  grid-template-columns: 1fr min(360px, 100%);
+  gap: 1.5rem;
+  align-items: start;
+  margin-bottom: 2rem;
+}
+@media (max-width: 960px) {
+  .kost-detail-top-row--layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kost-detail-summary {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.75rem;
+  box-shadow: var(--shadow-sm);
+}
+.kost-detail-summary-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.kost-detail-category {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary);
+  background: #ecfdf5;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.kost-detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.kost-detail-badge-room {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: #fff7ed;
+  color: #c2410c;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.kost-detail-badge-transaksi {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #0369a1;
+  background: #e0f2fe;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.kost-detail-price {
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+}
+.kost-detail-minstay {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.kost-detail-info-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 1.25rem 0;
+}
+.kost-detail-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0 0 6px;
+  letter-spacing: -0.03em;
+}
+.kost-detail-area {
+  font-size: 15px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin: 0 0 14px;
+}
+.kost-detail-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.kost-detail-feature-pill {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+}
+
+/* Kartu sewa (sidebar) */
+.kost-rent-aside { width: 100%; max-width: 380px; margin-left: auto; }
+.kost-rent-card {
+  background: linear-gradient(165deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid var(--border-color);
+  border-radius: calc(var(--radius) + 4px);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+.kost-rent-card__head {
+  padding-bottom: 4px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.kost-rent-card__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.kost-rent-card__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2);
+}
+.kost-rent-card__brand-text {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.kost-rent-card__tagline {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.kost-rent-card__owner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.kost-rent-card__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #059669, #047857);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+.kost-rent-card__owner-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-main);
+}
+.kost-rent-card__owner-role {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.kost-rent-card__price-block {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.kost-rent-card__price-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #047857;
+}
+.kost-rent-card__price {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #065f46;
+  margin-top: 4px;
+  letter-spacing: -0.02em;
+}
+.kost-rent-card__cta {
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 15px 18px;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #059669, #047857);
+  color: white;
+  box-shadow: 0 10px 24px rgba(5, 150, 105, 0.28);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.kost-rent-card__cta:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(5, 150, 105, 0.35);
+}
+.kost-rent-card__cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.kost-rent-card__footnote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.kost-detail-bottom-section {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+@media (max-width: 1024px) {
+  .kost-detail-bottom-section {
+    grid-template-columns: 1fr;
+  }
+}
+.kost-transaksi-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+.kost-detail-transaksi-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+.kost-detail-transaksi-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0 0 1.25rem;
+  line-height: 1.55;
+}
+.kost-detail-benefits {
+  display: grid;
+  gap: 12px;
+}
+.kost-detail-benefit {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 14px;
+  padding: 14px;
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px solid #f1f5f9;
+}
+.kost-detail-benefit-ico {
+  grid-row: 1 / span 2;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  border: 1px solid var(--border-color);
+}
+.kost-detail-benefit-title {
+  font-weight: 700;
+  font-size: 14px;
+  align-self: end;
+}
+.kost-detail-benefit-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  grid-column: 2;
+}
+
+.kost-detail-location {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+.kost-detail-location-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.kost-detail-location-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 0;
+}
+.kost-detail-location-title span {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.kost-detail-location-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: white;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-main);
+}
+.kost-detail-location-address {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.kost-detail-location-address-icon {
+  flex-shrink: 0;
+  color: var(--primary);
+}
+.kost-detail-location-body {
+  position: relative;
+}
+.kost-detail-location-map {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  min-height: 280px;
+  border: 1px solid var(--border-color);
+}
+.kost-detail-location-map-action {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 500;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  background: white;
+  box-shadow: var(--shadow-md);
+  color: var(--text-main);
+}
+.kost-detail-location-panel {
+  margin-top: 12px;
+}
+.kost-detail-location-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+.kost-detail-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 2rem 0;
+}
+
+.kost-map-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: white;
+  display: flex;
+  flex-direction: column;
+}
+.kost-map-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+}
+.kost-map-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+}
+.kost-map-modal-btn-close {
+  border: none;
+  background: #f1f5f9;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.kost-map-modal-body {
+  flex: 1;
+  min-height: 0;
+}

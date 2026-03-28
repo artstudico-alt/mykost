@@ -1,6 +1,24 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import authService from '../services/authService'
+
+const PASSWORD_MIN_LEN = 8
+
+/** Selaras dengan Laravel Password::min(8)->letters()->mixedCase()->numbers()->symbols() */
+function getPasswordRuleStatus(password) {
+  const p = password ?? ''
+  return {
+    minLen: p.length >= PASSWORD_MIN_LEN,
+    upper: /[A-Z]/.test(p),
+    lower: /[a-z]/.test(p),
+    number: /\d/.test(p),
+    special: /[^A-Za-z0-9]/.test(p),
+  }
+}
+
+function passwordMeetsAllRules(status) {
+  return status.minLen && status.upper && status.lower && status.number && status.special
+}
 
 function GoogleIcon() {
   return (
@@ -62,6 +80,8 @@ function Register() {
     }))
   }
 
+  const pwdRules = useMemo(() => getPasswordRuleStatus(formData.password), [formData.password])
+
   const handleRegister = async (e) => {
     e.preventDefault()
     setError('')
@@ -72,10 +92,20 @@ function Register() {
       return
     }
 
+    if (!passwordMeetsAllRules(pwdRules)) {
+      setError('Password belum memenuhi semua syarat di bawah.')
+      return
+    }
+
+    if (formData.password !== formData.password_confirmation) {
+      setError('Konfirmasi password tidak cocok.')
+      return
+    }
+
     setLoading(true)
     try {
       const name = formData.email.split('@')[0] || 'User'
-      await authService.register({
+      const res = await authService.register({
         name,
         email: formData.email,
         phone: formData.phone,
@@ -85,14 +115,25 @@ function Register() {
       })
 
       setEmailForOtp(formData.email)
+      if (res.dev_otp) {
+        setMessage(
+          `Mode pengembangan: email tidak terkirim. Gunakan OTP: ${res.dev_otp}${res.mail_error ? ` — ${res.mail_error}` : ''}`
+        )
+      } else {
+        setMessage('')
+      }
       setStep('otp')
     } catch (err) {
       const data = err?.response?.data;
       if (data?.errors) {
         const firstError = Object.values(data.errors)[0][0];
-        setError(firstError);
+        let msg = firstError
+        if (data.error) msg = `${msg} (${data.error})`
+        setError(msg);
       } else {
-        setError(data?.message || 'Gagal mendaftar. Coba lagi.');
+        let msg = data?.message || 'Gagal mendaftar. Coba lagi.'
+        if (data?.error) msg = `${msg} — ${data.error}`
+        setError(msg);
       }
     } finally {
       setLoading(false)
@@ -239,7 +280,7 @@ function Register() {
                       </svg>
                     </span>
                     <input id="auth-password-conf" type={showRepeatPassword ? 'text' : 'password'} name="password_confirmation" value={formData.password_confirmation} onChange={handleChange} placeholder="••••••••" required disabled={loading} />
-                    <button type="button" className="auth-input-toggle" onClick={() => setShowRepeatPassword((v) => !v)} aria-label="Toggle password" disabled={loading}>
+                    <button type="button" className="auth-input-toggle" onClick={() => setShowRepeatPassword((v) => !v)} aria-label="Ubah tampilan password" disabled={loading}>
                       {showRepeatPassword ? (
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
                       ) : (
@@ -247,6 +288,43 @@ function Register() {
                       )}
                     </button>
                   </div>
+                </div>
+
+                <div className="auth-field" style={{ marginTop: 4 }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: '#64748b', margin: '0 0 8px', letterSpacing: '0.02em' }}>
+                    Syarat password
+                  </p>
+                  <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6, fontSize: 13, color: '#475569' }}>
+                    {[
+                      { ok: pwdRules.minLen, text: `Minimal ${PASSWORD_MIN_LEN} karakter` },
+                      { ok: pwdRules.upper, text: 'Wajib huruf kapital (A–Z)' },
+                      { ok: pwdRules.lower, text: 'Wajib huruf kecil (a–z)' },
+                      { ok: pwdRules.number, text: 'Wajib menyertakan angka' },
+                      { ok: pwdRules.special, text: 'Wajib karakter khusus (mis. ! @ # $ % & *)' },
+                    ].map((row) => (
+                      <li key={row.text} style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 6,
+                            flexShrink: 0,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 11,
+                            fontWeight: 800,
+                            background: row.ok ? '#dcfce7' : '#f1f5f9',
+                            color: row.ok ? '#166534' : '#94a3b8',
+                          }}
+                        >
+                          {row.ok ? '✓' : '·'}
+                        </span>
+                        {row.text}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
                 <div className="auth-row-options">

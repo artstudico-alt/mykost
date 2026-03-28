@@ -46,7 +46,7 @@ function LandingPage() {
   const fetchKosts = async () => {
     try {
       const response = await api.get('/kost')
-      setKostData(response.data.data)
+      setKostData(Array.isArray(response.data?.data) ? response.data.data : [])
     } catch (error) {
       console.error('Gagal mengambil data kost:', error)
     } finally {

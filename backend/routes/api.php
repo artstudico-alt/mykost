@@ -51,8 +51,12 @@ Route::post('/pembayaran/webhook', [PembayaranController::class, 'webhook']);
 // ============================================================
 // PUBLIC KOST & KAMAR API
 // ============================================================
-Route::get('/kost',             [KostController::class, 'index']);
-Route::get('/kost/{id}',         [KostController::class, 'show']);
+Route::get('/kost', [KostController::class, 'index']);
+
+// Moderasi HARUS ada sebelum /kost/{id}, kalau tidak "moderasi" terbaca sebagai {id}
+Route::middleware(['auth:sanctum', 'role:super_admin'])->get('/kost/moderasi', [KostController::class, 'indexModerasi']);
+
+Route::get('/kost/{id}', [KostController::class, 'show']);
 Route::get('/kost/{kostId}/kamar',      [KamarController::class, 'index']);
 Route::get('/kost/{kostId}/kamar/{id}', [KamarController::class, 'show']);
 
@@ -100,10 +104,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // KOST — Write Protected
     // --------------------------------------------------------
     Route::prefix('kost')->group(function () {
-        // Super Admin: moderasi kost
-        Route::get('/moderasi', [KostController::class, 'indexModerasi'])
-            ->middleware('role:super_admin');
-
         Route::middleware('role:pemilik_kost,super_admin')->group(function () {
             Route::post('/',       [KostController::class, 'store']);
             Route::put('/{id}',    [KostController::class, 'update']);
@@ -135,9 +135,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/',     [BookingController::class, 'index']);
         Route::get('/{id}', [BookingController::class, 'show']);
 
-        // Karyawan buat booking
+        // Karyawan (utama); super_admin & hr boleh untuk uji alur / sandbox
         Route::post('/', [BookingController::class, 'store'])
-            ->middleware('role:karyawan');
+            ->middleware('role:karyawan,super_admin,hr');
 
         // Pemilik kost konfirmasi / Super Admin juga bisa
         Route::patch('/{id}/confirm', [BookingController::class, 'confirm'])
@@ -158,9 +158,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/',     [PembayaranController::class, 'index']);
         Route::get('/{id}', [PembayaranController::class, 'show']);
 
-        // Karyawan submit pembayaran
+        // Karyawan (utama); super_admin & hr untuk uji Midtrans sandbox
         Route::post('/', [PembayaranController::class, 'store'])
-            ->middleware('role:karyawan');
+            ->middleware('role:karyawan,super_admin,hr');
 
         // Pemilik kost / Super Admin verifikasi pembayaran
         Route::patch('/{id}/verify', [PembayaranController::class, 'verify'])

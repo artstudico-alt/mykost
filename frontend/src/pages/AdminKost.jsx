@@ -103,8 +103,8 @@ const AdminKost = () => {
         return;
       }
 
-      // Jika Super Admin, gunakan endpoint moderasi agar bisa lihat semua status (termasuk pending)
-      const endpoint = isAdmin ? '/kost/moderasi' : '/kost';
+      // Super admin: moderasi. Pemilik: hanya properti sendiri (?mine=1). Lainnya: katalog aktif.
+      const endpoint = isAdmin ? '/kost/moderasi' : (isOwner ? '/kost?mine=1' : '/kost');
       const response = await api.get(endpoint);
       setKosts(response.data.data || []);
     } catch (error) {
