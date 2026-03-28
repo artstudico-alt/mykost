@@ -97,16 +97,26 @@ const AdminKost = () => {
   const fetchKosts = async () => {
     setLoading(true);
     try {
-      // Pastikan token ada sebelum request
       const token = localStorage.getItem('token');
       if (!token) {
         console.warn('Token belum tersedia, skip fetch.');
         return;
       }
-      const response = await api.get('/kost');
+
+      // Jika Super Admin, gunakan endpoint moderasi agar bisa lihat semua status (termasuk pending)
+      const endpoint = isAdmin ? '/kost/moderasi' : '/kost';
+      const response = await api.get(endpoint);
       setKosts(response.data.data || []);
     } catch (error) {
       console.error('Gagal mengambil data kost:', error);
+      
+      // Jika error 401, berarti sesi habis (karena server restart dll)
+      if (error.response?.status === 401) {
+        alert('Sesi Anda telah habis. Silakan login kembali.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/#/login';
+      }
     } finally {
       setLoading(false);
     }
@@ -272,7 +282,7 @@ const AdminKost = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
-                {['Properti', 'Lokasi', 'Tipe', 'Harga / Bulan', 'Status', 'Aksi'].map(h => (
+                {['Properti', 'Pemilik', 'Lokasi', 'Tipe', 'Harga / Bulan', 'Status', 'Aksi'].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '16px 32px', color: '#94a3b8', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: '1px solid #f1f5f9' }}>
                     {h}
                   </th>
@@ -312,6 +322,17 @@ const AdminKost = () => {
                           <p style={{ fontWeight: 800, color: '#0f172a', margin: 0, fontSize: 14, letterSpacing: '-0.2px' }}>{k.nama_kost}</p>
                           <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, fontWeight: 700 }}>#{k.id} • Registered</p>
                         </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '20px 32px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                         <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 10, fontWeight: 800 }}>
+                            {(k.user?.name || 'U').charAt(0).toUpperCase()}
+                         </div>
+                         <div>
+                            <p style={{ fontWeight: 700, color: '#334155', margin: 0, fontSize: 13 }}>{k.user?.name || 'Unknown'}</p>
+                            <p style={{ fontSize: 10, color: '#94a3b8', margin: 0, fontWeight: 600 }}>Owner ID #{k.user?.id || '?'}</p>
+                         </div>
                       </div>
                     </td>
                     <td style={{ padding: '20px 32px' }}>
@@ -402,6 +423,18 @@ const AdminKost = () => {
                             {formData.status === s && <CheckCircle size={20} color={s === 'aktif' ? '#22c55e' : (s === 'pending' ? '#f59e0b' : '#ef4444')} />}
                          </div>
                        ))}
+                    </div>
+                    <div style={{ marginTop: 24, padding: 16, background: '#f8fafc', borderRadius: 16, border: '1px solid #e2e8f0' }}>
+                       <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Informasi Pendaftar</p>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 40, height: 40, borderRadius: 14, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#22c55e', border: '1px solid #e2e8f0', fontWeight: 800 }}>
+                             {(currentKost?.user?.name || 'U').charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                             <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{currentKost?.user?.name || 'N/A'}</p>
+                             <p style={{ margin: 0, fontSize: 12, color: '#64748b', fontWeight: 500 }}>{currentKost?.user?.email || 'No email provided'}</p>
+                          </div>
+                       </div>
                     </div>
                   </div>
                 ) : (

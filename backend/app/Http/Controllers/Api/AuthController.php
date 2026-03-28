@@ -20,7 +20,10 @@ class AuthController extends Controller
     // ================================================================
     public function register(Request $request)
     {
-        $request->validate([
+        \Log::info('Register request received from React', $request->all());
+
+        try {
+            $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'phone' => 'nullable|string|max:20',
@@ -33,7 +36,7 @@ class AuthController extends Controller
                     ->mixedCase()      // harus ada huruf kapital & kecil
                     ->numbers()        // harus ada angka
                     ->symbols()        // harus ada karakter khusus (!@#$%^&*)
-                    ->uncompromised(), // tidak boleh ada di database kebocoran
+                    // ->uncompromised(), // tidak boleh ada di database kebocoran
             ],
         ], [
             // Pesan error custom dalam Bahasa Indonesia
@@ -48,6 +51,10 @@ class AuthController extends Controller
             'password.numbers' => 'Password harus mengandung minimal satu angka.',
             'password.symbols' => 'Password harus mengandung minimal satu karakter khusus (!@#$%^&*).',
         ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation Failed in React Registration', $e->errors());
+            throw $e;
+        }
 
         // Simpan data user sementara di cache / session sambil tunggu OTP
         // *** User belum dibuat di DB, baru dibuat setelah OTP verified ***

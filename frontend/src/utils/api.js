@@ -11,7 +11,7 @@ const api = axios.create({
     'Pragma': 'no-cache',
     'Expires': '0'
   },
-  timeout: 10000
+  timeout: 30000
 })
 
 // Request interceptor

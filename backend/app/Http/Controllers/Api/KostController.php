@@ -8,21 +8,47 @@ use Illuminate\Http\Request;
 
 class KostController extends Controller
 {
-    // GET /api/kost — semua role bisa lihat
+    // GET /api/admin/moderasi-kost — KHUSUS ADMIN
+    public function indexModerasi(Request $request)
+    {
+        // Optimasi: Tidak perlu hitung kamarsKosong di tabel moderasi admin agar cepat
+        $query = Kost::with('user');
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $kosts = $query->latest()->get();
+
+        return response()->json([
+            'message' => 'Daftar moderasi kost berhasil diambil',
+            'total'   => $kosts->count(),
+            'data'    => $kosts,
+        ]);
+    }
+
+    // GET /api/kost — semua role bisa lihat (Publik)
     public function index(Request $request)
     {
-        $user  = auth('sanctum')->user();
+        // Gunakan auth('sanctum')->user() untuk deteksi user opsional secara aman
+        $user = auth('sanctum')->user();
+        if ($user) {
+            $user->load('role');
+        }
+
+
         $query = Kost::with('user')->withCount('kamarsKosong');
 
         // Pemilik kost: hanya lihat kost milik sendiri
         if ($user && $user->hasRole('pemilik_kost')) {
             $query->where('user_id', $user->id);
         } else {
-            // Role lain / Guest: hanya tampilkan kost aktif
+            // Role lain / Guest: hanya tampilkan kost aktif kecuali Super Admin / HR
             if (!$user || !$user->hasAnyRole(['super_admin', 'hr'])) {
                 $query->where('status', 'aktif');
             }
         }
+
 
         // Filter
         if ($request->filled('kota')) {

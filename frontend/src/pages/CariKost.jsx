@@ -5,6 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, MapPin, SlidersHorizontal, Navigation, Star, Wifi, Car, Shield, Building2 } from 'lucide-react';
 import api from '../utils/api';
+import './CariKost.css';
 
 // Fix for default marker icons in Leaflet with Vite/Webpack
 delete L.Icon.Default.prototype._getIconUrl;
@@ -120,53 +121,51 @@ export default function CariKost() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden font-sans">
+    <div className="search-page">
       
       {/* HEADER */}
-      <header className="bg-white border-b border-gray-200 h-20 px-6 flex items-center justify-between shadow-sm z-10 shrink-0">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-          <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center">
-            <MapPin color="white" size={24} />
+      <header className="search-header">
+        <div className="search-brand" onClick={() => navigate('/')}>
+          <div className="search-brand-icon">
+            <MapPin size={24} />
           </div>
-          <span className="text-2xl font-black text-gray-900 tracking-tight">MyKost</span>
+          <span className="search-brand-text">MyKost</span>
         </div>
 
-        <form onSubmit={handleSearchSubmit} className="flex-1 max-w-3xl mx-10">
-          <div className="flex items-center bg-gray-50 border border-gray-300 rounded-full px-2 py-2 shadow-inner transition-all focus-within:ring-2 focus-within:ring-green-500 focus-within:border-transparent">
-            <div className="flex-1 px-4 border-r border-gray-300 flex items-center gap-3">
-              <Search className="text-gray-400" size={20} />
+        <form onSubmit={handleSearchSubmit} className="search-form">
+          <div className="search-bar-wrap">
+            <div className="search-input-group">
+              <Search className="search-input-icon" size={20} />
               <input 
                 type="text" 
                 placeholder="Cari nama kost atau area..." 
-                className="w-full bg-transparent border-none focus:outline-none text-sm font-medium text-gray-700"
+                className="search-input"
                 value={searchParams.search}
                 onChange={(e) => setSearchParams({...searchParams, search: e.target.value})}
               />
             </div>
-            <div className="px-4 flex items-center gap-3">
-               <button type="button" onClick={getUserLocation} className="text-green-600 hover:text-green-700 font-semibold text-sm flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-green-50 transition w-max">
-                  <Navigation size={16} /> Sekitar Saya
-               </button>
-            </div>
-            <button type="submit" className="bg-green-600 hover:bg-green-700 text-white p-3 rounded-full transition-colors shadow-md">
-              <Search size={18} />
+            <button type="button" onClick={getUserLocation} className="search-location-btn">
+              <Navigation size={18} /> Sekitar Saya
+            </button>
+            <button type="submit" className="search-submit-btn" aria-label="Cari">
+              <Search size={20} />
             </button>
           </div>
         </form>
 
-        <div className="flex items-center gap-4">
-          <button className="text-gray-600 font-semibold px-4 py-2 hover:bg-gray-100 rounded-lg hidden md:block">Sewakan Kost</button>
+        <div className="search-header-actions">
+          <button className="search-header-btn" onClick={() => navigate('/owner/kamar')}>Sewakan Kost</button>
         </div>
       </header>
 
       {/* FILTER BAR */}
-      <div className="bg-white border-b border-gray-200 h-14 px-8 flex items-center gap-4 shadow-sm z-10 shrink-0 text-sm">
-        <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-full font-medium hover:border-gray-400 transition">
-          <SlidersHorizontal size={16} /> Filter
+      <div className="search-filter-bar">
+        <button className="filter-btn">
+          <SlidersHorizontal size={18} /> Filter
         </button>
         
         <select 
-          className="px-4 py-2 border border-gray-300 rounded-full font-medium focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none bg-white cursor-pointer"
+          className="filter-select"
           value={searchParams.radius_km}
           onChange={(e) => setSearchParams({...searchParams, radius_km: e.target.value})}
         >
@@ -176,97 +175,95 @@ export default function CariKost() {
           <option value="10">Radius: 10 km</option>
         </select>
 
-        <div className="h-6 w-px bg-gray-300 mx-2"></div>
+        <div className="filter-divider"></div>
         
-        <span className="text-gray-500 font-medium">{kosts.length} kost ditemukan</span>
+        <span className="filter-stats">{kosts.length} kost ditemukan</span>
 
         {/* Info titik pusat */}
-        <div className="ml-auto flex items-center gap-1.5 text-xs text-blue-600 font-semibold bg-blue-50 px-3 py-1.5 rounded-full">
-          <Building2 size={13} />
+        <div className="filter-center-badge">
+          <Building2 size={16} />
           Titik Pusat: Kantor Kedung Waringin, Bogor
         </div>
       </div>
 
       {/* MAIN CONTENT SPLIT SCREEN */}
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="search-content">
         
         {/* LEFT PANEL - LIST VIEW */}
-        <div className="w-full lg:w-[55%] xl:w-[60%] h-full overflow-y-auto p-6 md:p-8 relative">
+        <div className="search-sidebar">
            {loading && (
-              <div className="absolute inset-0 bg-white/80 z-20 flex items-center justify-center backdrop-blur-sm">
-                 <div className="animate-spin w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full"></div>
+              <div className="search-loading">
+                 <div className="search-spinner"></div>
               </div>
            )}
 
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+           <div className="kost-grid">
               {kosts.length === 0 && !loading ? (
-                 <div className="col-span-full py-20 text-center">
-                    <img src="/hero-kost-illustration.png" alt="Kosong" className="w-64 h-auto mx-auto opacity-50 mb-6" />
-                    <h3 className="text-xl font-bold text-gray-800">Kost tidak ditemukan</h3>
-                    <p className="text-gray-500 mt-2">Coba perbesar radius atau geser titik lokasi pencarian Anda.</p>
+                 <div className="kost-empty">
+                    <img src="https://cdni.iconscout.com/illustration/premium/thumb/empty-state-2130362-1800926.png" alt="Kosong" />
+                    <h3>Kost tidak ditemukan</h3>
+                    <p>Coba perbesar radius atau geser titik lokasi pencarian Anda untuk melihat lebih banyak pilihan kost yang tersedia.</p>
                  </div>
               ) : (
                 kosts.map((kost) => (
                    <div 
                       key={kost.id} 
-                      className="group bg-white rounded-2xl overflow-hidden border border-gray-200 hover:shadow-xl hover:border-transparent transition-all duration-300 cursor-pointer flex flex-col h-full"
+                      className="kost-card"
                       onClick={() => navigate(`/kost/${kost.id}`)}
                    >
                      {/* Thumbnail */}
-                     <div className="relative h-48 w-full overflow-hidden">
+                     <div className="kost-card-img-wrap">
                         <img 
                            src={kost.foto_utama || `https://picsum.photos/seed/${kost.id * 10}/600/400`} 
                            alt={kost.nama_kost} 
-                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                           className="kost-card-img"
                         />
-                        <div className="absolute top-3 left-3 flex gap-2">
-                           {kost.tipe === 'putri' && <span className="bg-pink-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow">Putri</span>}
-                           {kost.tipe === 'putra' && <span className="bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow">Putra</span>}
-                           {kost.tipe === 'campur' && <span className="bg-purple-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow">Campur</span>}
+                        <div className="kost-card-badges">
+                           {kost.tipe === 'putri' && <span className="badge-tipe badge-putri">Putri</span>}
+                           {kost.tipe === 'putra' && <span className="badge-tipe badge-putra">Putra</span>}
+                           {kost.tipe === 'campur' && <span className="badge-tipe badge-campur">Campur</span>}
                         </div>
                      </div>
 
                      {/* Details */}
-                     <div className="p-5 flex flex-col flex-1">
-                        <div className="flex justify-between items-start mb-2 gap-2">
-                           <h3 className="font-bold text-lg text-gray-900 leading-tight group-hover:text-green-600 transition-colors line-clamp-1">{kost.nama_kost}</h3>
-                           <div className="flex items-center gap-1 text-sm font-bold text-gray-700 bg-yellow-50 px-2 py-0.5 rounded-lg shrink-0">
-                              <Star className="text-yellow-400 fill-yellow-400" size={14} /> 4.8
+                     <div className="kost-card-body">
+                        <div className="kost-card-header">
+                           <h3 className="kost-card-title">{kost.nama_kost}</h3>
+                           <div className="kost-card-rating">
+                              <Star size={14} className="fill-yellow-500 text-yellow-500" /> 4.8
                            </div>
                         </div>
 
-                        <p className="text-gray-500 text-sm mb-4 line-clamp-1">{kost.alamat}</p>
+                        <p className="kost-card-address">{kost.alamat}</p>
                         
                         {/* Facilities */}
-                        <div className="flex items-center gap-4 text-gray-400 text-sm mb-4">
-                           <span className="flex items-center gap-1.5"><Wifi size={16}/> WiFi</span>
-                           <span className="flex items-center gap-1.5"><Car size={16}/> Parkir</span>
-                           <span className="flex items-center gap-1.5"><Shield size={16}/> Aman</span>
+                        <div className="kost-card-facilities">
+                           <span className="facility-item"><Wifi size={16}/> WiFi</span>
+                           <span className="facility-item"><Car size={16}/> Parkir</span>
+                           <span className="facility-item"><Shield size={16}/> Aman</span>
                         </div>
 
-                        <div className="mt-auto pt-4 border-t border-gray-100 space-y-2">
-                           {/* Harga + badge jarak dari radius pencarian */}
-                           <div className="flex items-end justify-between">
+                        <div className="kost-card-footer">
+                           <div className="kost-price-wrap">
                               <div>
-                                 <p className="text-xs text-gray-500 font-medium mb-1">Mulai dari</p>
-                                 <p className="font-black text-lg text-gray-900">
+                                 <span className="kost-price-label">Mulai dari</span>
+                                 <p className="kost-price-amount">
                                     Rp {parseFloat(kost.harga_min || 0).toLocaleString('id-ID')}
-                                    <span className="text-sm font-medium text-gray-500">/bln</span>
+                                    <span className="kost-price-period">/bln</span>
                                  </p>
                               </div>
                               {kost.distance_km !== undefined && (
-                                 <div className="bg-green-50 text-green-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shrink-0">
-                                    <Navigation size={12} className="shrink-0" />
-                                    {parseFloat(kost.distance_km).toFixed(1)} km dari pencarian
+                                 <div className="k-distance-radius">
+                                    <Navigation size={14} />
+                                    {parseFloat(kost.distance_km).toFixed(1)} km
                                  </div>
                               )}
                            </div>
 
-                           {/* Badge jarak dari kantor pusat — SELALU MUNCUL */}
                            {kost.jarak_dari_kantor !== undefined && (
-                              <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs font-semibold px-3 py-2 rounded-lg w-full">
-                                 <Building2 size={13} className="shrink-0" />
-                                 <span>{parseFloat(kost.jarak_dari_kantor).toFixed(1)} km dari Kantor Pusat (Kedung Waringin, Bogor)</span>
+                              <div className="k-distance-office">
+                                 <Building2 size={16} />
+                                 <span>{parseFloat(kost.jarak_dari_kantor).toFixed(1)} km dari Kantor Pusat</span>
                               </div>
                            )}
                         </div>
@@ -278,7 +275,7 @@ export default function CariKost() {
         </div>
 
         {/* RIGHT PANEL - MAP VIEW */}
-        <div className="hidden lg:block w-[45%] xl:w-[40%] h-full relative border-l border-gray-200">
+        <div className="search-map-container">
           <MapContainer 
             center={mapCenter} 
             zoom={14} 
@@ -297,7 +294,7 @@ export default function CariKost() {
                <>
                   <Circle 
                      center={mapCenter} 
-                     pathOptions={{ fillColor: '#22c55e', fillOpacity: 0.1, color: '#16a34a', weight: 2, dashArray: '5, 5' }} 
+                     pathOptions={{ fillColor: '#10b981', fillOpacity: 0.15, color: '#059669', weight: 2, dashArray: '5, 5' }} 
                      radius={searchParams.radius_km * 1000} 
                   />
                   <Marker position={mapCenter}>
@@ -310,18 +307,18 @@ export default function CariKost() {
             {kosts.map(kost => (
                <Marker key={kost.id} position={[kost.latitude, kost.longitude]}>
                   <Popup>
-                     <div className="text-center p-1 w-48">
-                        <img src={kost.foto_utama || `https://picsum.photos/seed/${kost.id * 10}/300/200`} alt="t" className="w-full h-24 object-cover rounded-lg mb-2" />
-                        <h4 className="font-bold text-sm mb-1">{kost.nama_kost}</h4>
-                        <p className="text-green-600 font-bold mb-1">Rp {parseFloat(kost.harga_min || 0).toLocaleString('id-ID')}</p>
+                     <div className="popup-card">
+                        <img src={kost.foto_utama || `https://picsum.photos/seed/${kost.id * 10}/300/200`} alt="k" className="popup-img" />
+                        <h4 className="popup-title">{kost.nama_kost}</h4>
+                        <p className="popup-price">Rp {parseFloat(kost.harga_min || 0).toLocaleString('id-ID')}</p>
                         {kost.jarak_dari_kantor !== undefined && (
-                           <p className="text-blue-600 text-xs font-semibold mb-2">{parseFloat(kost.jarak_dari_kantor).toFixed(1)} km dari kantor</p>
+                           <p className="popup-dist"><Building2 size={12}/> {parseFloat(kost.jarak_dari_kantor).toFixed(1)} km dari kantor</p>
                         )}
                         <button 
                            onClick={() => navigate(`/kost/${kost.id}`)}
-                           className="w-full bg-green-600 text-white text-xs font-bold py-1.5 rounded hover:bg-green-700"
+                           className="popup-btn"
                         >
-                           Lihat Detail
+                           Lihat Detail Kost
                         </button>
                      </div>
                   </Popup>
@@ -331,11 +328,11 @@ export default function CariKost() {
           </MapContainer>
 
           {/* Map Overlay Badge */}
-          <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-white/50 pointer-events-none">
-             <p className="text-xs font-bold text-gray-800 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+          <div className="map-overlay-badge">
+             <span>
+                <div className="map-pulse-dot"></div>
                 Area Pencarian Langsung
-             </p>
+             </span>
           </div>
         </div>
 

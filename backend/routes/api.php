@@ -60,6 +60,7 @@ Route::get('/kost/{kostId}/kamar/{id}', [KamarController::class, 'show']);
 Route::get('/search/kost',           [SearchController::class, 'cariKost']);
 Route::get('/search/kost-by-kantor', [SearchController::class, 'kostByKantor']);
 
+
 // ============================================================
 // SEMUA ROUTE DI BAWAH MEMBUTUHKAN AUTH
 // ============================================================
@@ -99,6 +100,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // KOST — Write Protected
     // --------------------------------------------------------
     Route::prefix('kost')->group(function () {
+        // Super Admin: moderasi kost
+        Route::get('/moderasi', [KostController::class, 'indexModerasi'])
+            ->middleware('role:super_admin');
+
         Route::middleware('role:pemilik_kost,super_admin')->group(function () {
             Route::post('/',       [KostController::class, 'store']);
             Route::put('/{id}',    [KostController::class, 'update']);
