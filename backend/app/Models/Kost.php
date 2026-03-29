@@ -22,6 +22,7 @@ class Kost extends Model
         'fasilitas_umum',
         'harga_min',
         'foto_utama',
+        'foto_tambahan',
         'status',
     ];
 
@@ -30,6 +31,7 @@ class Kost extends Model
         'latitude'       => 'float',
         'longitude'      => 'float',
         'harga_min'      => 'float',
+        'foto_tambahan'  => 'array',
     ];
 
     // === Relasi ===

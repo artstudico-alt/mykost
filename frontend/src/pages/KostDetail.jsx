@@ -90,14 +90,26 @@ function KostDetail() {
     })()
   }, [isAuthenticated, isBookingModalOpen])
 
-  const photoSeeds = useMemo(() => {
+  const dummyPhotoSeeds = useMemo(() => {
     if (!kost) return []
     const base = Number(kost.id) * 17
     return [base, base + 1, base + 2, base + 3, base + 4]
   }, [kost])
 
-  const seeds = photoSeeds
-  const activeSeed = seeds[activePhotoIndex] ?? seeds[0]
+  const displayPhotos = useMemo(() => {
+    if (!kost) return []
+    let photos = []
+    if (kost.foto_utama) photos.push(kost.foto_utama)
+    if (Array.isArray(kost.foto_tambahan)) {
+       photos = [...photos, ...kost.foto_tambahan]
+    }
+    
+    // Fallback ke dummy jika tidak ada foto
+    if (photos.length === 0) {
+       photos = dummyPhotoSeeds.map(s => `https://picsum.photos/seed/${s}/920/540`)
+    }
+    return photos
+  }, [kost, dummyPhotoSeeds])
 
   const handleBookingSubmit = async (formData) => {
     if (!isAuthenticated) {
@@ -208,7 +220,7 @@ function KostDetail() {
   const priceLabel = `Rp ${Number(kost.harga_min || 0).toLocaleString('id-ID')} / bulan`
   const kostBisaDisewa = String(kost.status || '').toLowerCase() === 'aktif'
   const ownerName = kost.user?.name || 'Pemilik'
-  const mainPhoto = kost.foto_utama || `https://picsum.photos/seed/${activeSeed}/920/540`
+  const mainPhoto = displayPhotos[activePhotoIndex] || displayPhotos[0]
   const tipeLabel = kost.tipe ? String(kost.tipe).charAt(0).toUpperCase() + String(kost.tipe).slice(1) : 'Kost'
 
   const fasilitasList =
@@ -219,16 +231,6 @@ function KostDetail() {
   return (
     <div className="min-h-screen">
       <header className="landing-header sticky top-0 z-50">
-        <div className="landing-header-top">
-          <div className="container landing-header-top-inner">
-            <button type="button" className="landing-top-link">
-              <span>MyKost</span>
-            </button>
-            <button type="button" className="landing-top-link">
-              <span>Sewa kos</span>
-            </button>
-          </div>
-        </div>
 
         <div className="landing-header-main">
           <div className="container landing-header-main-inner">
@@ -242,9 +244,6 @@ function KostDetail() {
             </Link>
 
             <div className="landing-main-actions">
-              <nav className="landing-main-nav">
-                <a href="#">Bantuan</a>
-              </nav>
               {isAuthenticated ? (
                 <button
                   type="button"
@@ -304,16 +303,16 @@ function KostDetail() {
                 </div>
               </div>
               <div className="kost-detail-gallery-thumbs" role="list">
-                {seeds.map((s, idx) => (
+                {displayPhotos.map((src, idx) => (
                   <button
-                    key={s}
+                    key={idx}
                     type="button"
                     className={`kost-detail-thumb-btn ${idx === activePhotoIndex ? 'kost-detail-thumb-btn--active' : ''}`}
                     onClick={() => setActivePhotoIndex(idx)}
                   >
                     <img
-                      src={kost.foto_utama && idx === 0 ? kost.foto_utama : `https://picsum.photos/seed/${s}/240/160`}
-                      alt=""
+                      src={src}
+                      alt={`Photo ${idx}`}
                       loading="lazy"
                     />
                   </button>
@@ -357,8 +356,8 @@ function KostDetail() {
               </div>
             </div>
 
-            <aside className="kost-detail-right kost-rent-aside">
-              <div className="kost-rent-card" style={{borderRadius: 20, boxShadow: '0 12px 30px rgba(2,6,23,.08)', overflow: 'hidden', background: 'linear-gradient(180deg,#ffffff 0%,#f8fafc 100%)', border: '1px solid #eef2ff'}}>
+            <aside className="kost-detail-right kost-rent-aside" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="kost-rent-card" style={{flex: 1, borderRadius: 20, boxShadow: '0 12px 30px rgba(2,6,23,.08)', overflow: 'hidden', background: 'linear-gradient(180deg,#ffffff 0%,#f8fafc 100%)', border: '1px solid #eef2ff', display: 'flex', flexDirection: 'column'}}>
                 <div className="kost-rent-card__head" style={{padding: '18px 20px', background: 'linear-gradient(90deg,#eef2ff 0%,#f8fafc 100%)', borderBottom: '1px solid #e5e7eb'}}>
                   <div className="kost-rent-card__brand" style={{display:'flex',alignItems:'center',gap:10,fontWeight:700,color:'#334155'}}>
                     <span className="kost-rent-card__dot" aria-hidden style={{width:8,height:8,background:'#22c55e',borderRadius:'50%'}} />
@@ -381,6 +380,8 @@ function KostDetail() {
                   <span className="kost-rent-card__price-label" style={{fontSize:12,color:'#64748b'}}>Mulai dari</span>
                   <div className="kost-rent-card__price" style={{fontSize:20,fontWeight:800,color:'#0f172a'}}>{priceLabel}</div>
                 </div>
+
+                <div style={{ flex: 1 }} />
 
                 <button
                   type="button"

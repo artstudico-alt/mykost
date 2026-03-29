@@ -13,7 +13,10 @@ import {
   Mail,
   Phone,
   CreditCard as IdCard,
-  Plus
+  Plus,
+  Info,
+  X,
+  MessageCircle
 } from 'lucide-react'
 import api from '../utils/api'
 import { useAuth } from '../hooks/useAuth'
@@ -60,6 +63,8 @@ const Profile = () => {
   const [complaints, setComplaints] = useState([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
+  const [syncingId, setSyncingId] = useState(null)
+  const [isBantuanModalOpen, setIsBantuanModalOpen] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -122,6 +127,23 @@ const Profile = () => {
     }
   }
 
+  const handleSyncPayment = async (orderId) => {
+    if (!orderId) return
+    setSyncingId(orderId)
+    try {
+      const res = await api.post('/pembayaran/sync-status', { order_id: orderId })
+      // Jika berhasil, refresh data
+      await fetchData()
+      alert(res.data.message || 'Status pembayaran berhasil diperbarui.')
+    } catch (err) {
+      console.error('Sync error:', err)
+      const msg = err.response?.data?.message || 'Gagal sinkronisasi. Pastikan Anda sudah membayar atau coba lagi nanti.'
+      alert(msg)
+    } finally {
+      setSyncingId(null)
+    }
+  }
+
   const renderContent = () => {
     switch (activeTab) {
       case 'overview': return (
@@ -133,8 +155,8 @@ const Profile = () => {
           onSelectTab={setActiveTab}
         />
       )
-      case 'bookings': return <BookingsTab bookings={bookings} />
-      case 'payments': return <PaymentsTab payments={payments} />
+      case 'bookings': return <BookingsTab bookings={bookings} onSync={handleSyncPayment} syncingId={syncingId} />
+      case 'payments': return <PaymentsTab payments={payments} onSync={handleSyncPayment} syncingId={syncingId} />
       case 'complaints': return <ComplaintsTab complaints={complaints} />
       case 'settings': return <SettingsTab user={user} />
       default:
@@ -200,7 +222,7 @@ const Profile = () => {
           </div>
 
           <div className="profile-topbar-actions">
-            <button type="button" className="btn-ghost">
+            <button type="button" className="btn-ghost" onClick={() => setIsBantuanModalOpen(true)}>
               Bantuan
             </button>
             <div className="profile-avatar-top" aria-hidden>
@@ -250,6 +272,68 @@ const Profile = () => {
             </>
           )}
         </section>
+
+        {/* Modal Bantuan */}
+        {isBantuanModalOpen && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', padding: '1.5rem' }}>
+             <div style={{ backgroundColor: 'white', borderRadius: '24px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)', overflow: 'hidden', animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)', position: 'relative', padding: '2.5rem' }}>
+                
+                <button 
+                  onClick={() => setIsBantuanModalOpen(false)} 
+                  style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'transparent', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', cursor: 'pointer', transition: 'background 0.2s, color 0.2s' }} 
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }} 
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
+                >
+                   <X size={20} />
+                </button>
+
+                <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+                   <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '20px', background: '#ecfdf5', color: '#059669', marginBottom: '1.25rem' }}>
+                      <Info size={32} />
+                   </div>
+                   <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 900, fontFamily: 'Outfit, sans-serif', color: '#0f172a', letterSpacing: '-0.5px' }}>Pusat Bantuan</h2>
+                   <p style={{ margin: '0.75rem 0 0', color: '#64748b', fontSize: '1rem', lineHeight: 1.5 }}>Ada kendala atau pertanyaan terkait layanan kos? Tim MyKost siap membantu Anda.</p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                   
+                   {/* Bantuan WhatsApp */}
+                   <a href="https://wa.me/6281234567890" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'flex', gap: '1.25rem', alignItems: 'center', padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(5, 150, 105, 0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                         <MessageCircle size={24} />
+                      </div>
+                      <div>
+                         <h4 style={{ margin: '0 0 0.2rem', fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Chat via WhatsApp</h4>
+                         <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>Respon Instan (0812-3456-7890)</p>
+                      </div>
+                   </a>
+
+                   {/* Bantuan Email */}
+                   <a href="mailto:halo@mykost.id" style={{ textDecoration: 'none', display: 'flex', gap: '1.25rem', alignItems: 'center', padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(15, 23, 42, 0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                         <Mail size={24} />
+                      </div>
+                      <div>
+                         <h4 style={{ margin: '0 0 0.2rem', fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Kirim Pesan Email</h4>
+                         <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>halo@mykost.id</p>
+                      </div>
+                   </a>
+
+                   {/* Telepon Cust Care */}
+                   <a href="tel:021123456" style={{ textDecoration: 'none', display: 'flex', gap: '1.25rem', alignItems: 'center', padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(15, 23, 42, 0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                         <Phone size={24} />
+                      </div>
+                      <div>
+                         <h4 style={{ margin: '0 0 0.2rem', fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Telepon Customer Care</h4>
+                         <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>021-123-456 (08:00 - 17:00)</p>
+                      </div>
+                   </a>
+
+                </div>
+             </div>
+          </div>
+        )}
       </main>
     </div>
   )
@@ -331,30 +415,49 @@ const OverviewTab = ({ user, bookings, payments, complaints, onSelectTab }) => {
   )
 }
 
-const BookingsTab = ({ bookings }) => (
+const BookingsTab = ({ bookings, onSync, syncingId }) => (
   <div className="profile-card profile-card--wide">
     <div className="section-header">
       <h2 className="section-title">Booking saya</h2>
     </div>
     <div className="data-list">
       {bookings?.length > 0 ? (
-        bookings.map((b) => (
-          <div key={b.id} className="data-item">
-            <div className="data-icon-box">
-              <Home size={18} strokeWidth={1.75} />
-            </div>
-            <div className="data-detail">
-              <div className="data-title">{b.kost?.nama_kost || `Booking #${b.id}`}</div>
-              <div className="data-subtitle">
-                Mulai {new Date(b.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} · {b.durasi_bulan} bulan
+        bookings.map((b) => {
+          const isPending = b.status === 'pending'
+          const orderId = b.pembayaran?.nomor_referensi
+          
+          return (
+            <div key={b.id} className="data-item">
+              <div className="data-icon-box">
+                <Home size={18} strokeWidth={1.75} />
+              </div>
+              <div className="data-detail">
+                <div className="data-title">{b.kost?.nama_kost || `Booking #${b.id}`}</div>
+                <div className="data-subtitle">
+                  Mulai {new Date(b.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} · {b.durasi_bulan} bulan
+                </div>
+              </div>
+              <div className="data-meta-right">
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                  <StatusBadge status={b.status} />
+                  {isPending && orderId && (
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button 
+                        className="btn-ghost" 
+                        style={{ fontSize: '10px', padding: '4px 6px', height: 'auto' }}
+                        onClick={() => onSync(orderId)}
+                        disabled={syncingId === orderId}
+                      >
+                        {syncingId === orderId ? '...' : 'Cek Status'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="data-price">Rp {(b.total_harga ?? 0).toLocaleString('id-ID')}</div>
               </div>
             </div>
-            <div className="data-meta-right">
-              <StatusBadge status={b.status} />
-              <div className="data-price">Rp {(b.total_harga ?? 0).toLocaleString('id-ID')}</div>
-            </div>
-          </div>
-        ))
+          )
+        })
       ) : (
         <p className="profile-empty">Belum ada booking.</p>
       )}
@@ -362,7 +465,7 @@ const BookingsTab = ({ bookings }) => (
   </div>
 )
 
-const PaymentsTab = ({ payments }) => (
+const PaymentsTab = ({ payments, onSync, syncingId }) => (
   <div className="profile-card profile-card--wide">
     <div className="section-header">
       <h2 className="section-title">Riwayat pembayaran</h2>
@@ -382,8 +485,20 @@ const PaymentsTab = ({ payments }) => (
             </div>
             <div className="data-meta-right">
               <div className="data-price">Rp {(p.jumlah || p.nominal || 0).toLocaleString('id-ID')}</div>
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                 <StatusBadge status={p.status} />
+                {p.status === 'pending' && (
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button 
+                      className="btn-ghost" 
+                      style={{ fontSize: '10px', padding: '4px 6px', height: 'auto' }}
+                      onClick={() => onSync(p.nomor_referensi)}
+                      disabled={syncingId === p.nomor_referensi}
+                    >
+                      {syncingId === p.nomor_referensi ? '...' : 'Cek Status'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

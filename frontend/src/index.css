@@ -396,25 +396,71 @@ h1, h2, h3, h4 {
   background: white;
   border-radius: 30px;
   border: 1px solid var(--border-color);
-  transition: all 0.3s;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.landing-feature-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.4s ease;
 }
 
 .landing-feature-card:hover {
-  border-color: var(--primary);
-  background: var(--bg-main);
-  transform: scale(1.02);
+  transform: translateY(-12px) scale(1.02);
+  border-color: transparent;
+  box-shadow: 0 25px 50px -12px rgba(5, 150, 105, 0.3);
+}
+
+.landing-feature-card:hover::before {
+  opacity: 1;
+}
+
+.landing-feature-card:hover .landing-feature-title,
+.landing-feature-card:hover .landing-feature-desc {
+  color: white;
+  transition: color 0.3s;
+}
+
+.landing-feature-title {
+  margin-bottom: 1rem;
+  font-weight: 800;
+  font-size: 1.35rem;
+  color: var(--text-main);
+  transition: color 0.3s;
+}
+
+.landing-feature-desc {
+  color: var(--text-muted);
+  line-height: 1.6;
+  font-size: 1.05rem;
+  transition: color 0.3s;
 }
 
 .landing-feature-icon {
-  width: 60px;
-  height: 60px;
-  background: #dcfce7;
-  color: var(--primary);
+  width: 65px;
+  height: 65px;
+  background: var(--icon-bg, #dcfce7);
+  color: var(--icon-color, #10b981);
   border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 2rem;
+  transition: all 0.4s ease;
+}
+
+.landing-feature-card:hover .landing-feature-icon {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  transform: rotate(-10deg) scale(1.1);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
 .landing-footer {
@@ -1191,7 +1237,7 @@ h1, h2, h3, h4 {
   display: grid;
   grid-template-columns: 1fr min(360px, 100%);
   gap: 1.5rem;
-  align-items: start;
+  align-items: stretch;
   margin-bottom: 2rem;
 }
 @media (max-width: 960px) {
@@ -1295,7 +1341,13 @@ h1, h2, h3, h4 {
 }
 
 /* Kartu sewa (sidebar) */
-.kost-rent-aside { width: 100%; max-width: 380px; margin-left: auto; }
+.kost-rent-aside { 
+  width: 100%; 
+  max-width: 380px; 
+  margin-left: auto; 
+  display: flex;
+  flex-direction: column;
+}
 .kost-rent-card {
   background: linear-gradient(165deg, #ffffff 0%, #f8fafc 100%);
   border: 1px solid var(--border-color);
@@ -1305,6 +1357,7 @@ h1, h2, h3, h4 {
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
+  flex: 1;
 }
 .kost-rent-card__head {
   padding-bottom: 4px;
@@ -1529,6 +1582,8 @@ h1, h2, h3, h4 {
 }
 .kost-detail-location-address-icon {
   flex-shrink: 0;
+  width: 24px;
+  height: 24px;
   color: var(--primary);
 }
 .kost-detail-location-body {

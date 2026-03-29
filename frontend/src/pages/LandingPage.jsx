@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { Search, MapPin, CreditCard, CheckCircle, X, MessageCircle, Mail, Phone, Info } from 'lucide-react'
 import api from '../utils/api'
 import BookingModal from '../components/BookingModal'
 import {
@@ -34,6 +35,8 @@ function LandingPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchLocation, setSearchLocation] = useState('')
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
+  const [isCaraSewaModalOpen, setIsCaraSewaModalOpen] = useState(false)
+  const [isBantuanModalOpen, setIsBantuanModalOpen] = useState(false)
   const [selectedBookingKost, setSelectedBookingKost] = useState(null)
   const [userData, setUserData] = useState(null)
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false)
@@ -226,6 +229,14 @@ function LandingPage() {
     return R * c
   }
 
+  const fallbackImages = [
+    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80',
+    'https://images.unsplash.com/photo-1502672260266-1c1de2d9d00c?w=800&q=80',
+    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80',
+    'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80',
+    'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&q=80'
+  ]
+
   const filteredKosts = useRadar 
     ? kostData.filter(k => {
         if (!k.latitude || !k.longitude) return false
@@ -248,8 +259,8 @@ function LandingPage() {
 
           <nav className="landing-main-nav">
             <span onClick={() => navigate('/cari')}>Temukan Kos</span>
-            <span>Cara Sewa</span>
-            <span>Bantuan</span>
+            <span onClick={() => setIsCaraSewaModalOpen(true)}>Cara Sewa</span>
+            <span onClick={() => setIsBantuanModalOpen(true)}>Bantuan</span>
             {isAuthenticated ? (
               <button
                 className="landing-profile-btn"
@@ -313,6 +324,51 @@ function LandingPage() {
                 className="landing-hero-image"
               />
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section - Dipindah Ke Atas */}
+      <section className="py-20" style={{ background: '#f8fafc' }}>
+        <div className="container">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4" style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 900, letterSpacing: '-1px' }}>Mengapa Memilih MyKost?</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto" style={{ fontSize: '1.1rem' }}>Platform pencarian kos terlengkap untuk kemudahan dan keamanan masa depan Anda.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <article className="landing-feature-card">
+              <div className="landing-feature-icon" style={{ '--icon-bg': '#dcfce7', '--icon-color': '#16a34a' }}>
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.5">
+                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                   <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+              </div>
+              <h3 className="landing-feature-title">100% Terverifikasi</h3>
+              <p className="landing-feature-desc">Properti kami diverifikasi langsung oleh tim lapangan untuk menjamin keaslian data.</p>
+            </article>
+
+            <article className="landing-feature-card">
+              <div className="landing-feature-icon" style={{ '--icon-bg': '#fef3c7', '--icon-color': '#d97706' }}>
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.5">
+                   <line x1="12" y1="1" x2="12" y2="23"></line>
+                   <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+              </div>
+              <h3 className="landing-feature-title">Harga Transparan</h3>
+              <p className="landing-feature-desc">Tidak ada biaya tersembunyi. Semua harga ditampilkan secara jujur sesuai kontrak.</p>
+            </article>
+
+            <article className="landing-feature-card">
+              <div className="landing-feature-icon" style={{ '--icon-bg': '#e0e7ff', '--icon-color': '#4f46e5' }}>
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.5">
+                   <circle cx="12" cy="12" r="10"></circle>
+                   <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <h3 className="landing-feature-title">Proses Cepat</h3>
+              <p className="landing-feature-desc">Mulai dari pencarian hingga akad sewa, semuanya bisa dilakukan dalam satu aplikasi.</p>
+            </article>
           </div>
         </div>
       </section>
@@ -397,65 +453,98 @@ function LandingPage() {
                   className="recommend-kost-card"
                   onClick={() => handleSelectKost(k)}
                   style={{
-                    borderRadius: 24,
+                    borderRadius: '24px',
                     overflow: 'hidden',
-                    boxShadow: '0 16px 40px rgba(2,6,23,.08)',
+                    boxShadow: '0 10px 40px -10px rgba(0,0,0,0.08)',
                     background: '#ffffff',
-                    border: '1px solid #eef2ff',
-                    transition: 'transform .2s ease, box-shadow .2s ease',
+                    border: '1px solid #f1f5f9',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    cursor: 'pointer',
+                    position: 'relative',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 22px 50px rgba(2,6,23,.12)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(2,6,23,.08)'; }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.transform = 'translateY(-8px)'; 
+                    e.currentTarget.style.boxShadow = '0 20px 40px -5px rgba(5, 150, 105, 0.15)'; 
+                    e.currentTarget.style.borderColor = '#a7f3d0';
+                    const img = e.currentTarget.querySelector('.recommend-kost-image');
+                    if (img) img.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.transform = 'none'; 
+                    e.currentTarget.style.boxShadow = '0 10px 40px -10px rgba(0,0,0,0.08)'; 
+                    e.currentTarget.style.borderColor = '#f1f5f9';
+                    const img = e.currentTarget.querySelector('.recommend-kost-image');
+                    if (img) img.style.transform = 'scale(1)';
+                  }}
                 >
-                  <div className="recommend-kost-gallery" style={{position:'relative'}}>
+                  <div style={{ position: 'relative', height: '240px', overflow: 'hidden' }}>
                     <img
-                      src={k.foto_utama || `https://picsum.photos/seed/${k.id}/640/480`}
+                      src={k.foto_utama || fallbackImages[parseInt(k.id, 10) % 5 || 0]}
                       alt={k.nama_kost}
                       loading="lazy"
-                      style={{width:'100%',height:240,objectFit:'cover'}}
+                      className="recommend-kost-image"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease' }}
                     />
-                    <span className="recommend-kost-type-badge" style={{position:'absolute',top:14,left:14,background:'#dcfce7',color:'#16a34a',padding:'6px 10px',borderRadius:999,fontWeight:700,fontSize:12}}>
-                      {k.tipe}
-                    </span>
-                    <span className="recommend-kost-photo-count" style={{position:'absolute',bottom:12,right:12,background:'rgba(15,23,42,.7)',color:'#fff',padding:'6px 10px',borderRadius:999,fontSize:12}}>
-                      Lihat Detail
-                    </span>
-                  </div>
-
-                  <div className="recommend-kost-body" style={{padding:18}}>
-                    <p className="recommend-kost-price" style={{margin:0,color:'#0f172a',fontWeight:900,fontSize:24}}>
-                       Rp {new Intl.NumberFormat('id-ID').format(k.harga_min)}<span style={{fontWeight:500,fontSize:14}}>/bulan</span>
-                    </p>
-                    <h3 className="recommend-kost-name" style={{marginTop:6,marginBottom:10,fontSize:18,color:'#0f172a'}}>{k.nama_kost}</h3>
-                    <div className="recommend-kost-loc" style={{display:'flex',alignItems:'center',gap:6,color:'#64748b'}}>
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                        <circle cx="12" cy="10" r="3"></circle>
-                      </svg>
-                      {k.kecamatan}, {k.kota}
-                    </div>
                     
-                    <div className="recommend-kost-features" style={{display:'flex',gap:10,marginTop:10,flexWrap:'wrap'}}>
-                      {(k.fasilitas_umum || ['WiFi', 'Parkir']).slice(0, 3).map((f, idx) => (
-                        <div key={idx} className="feature-item" style={{display:'flex',alignItems:'center',gap:8,color:'#0f172a',background:'#f1f5f9',borderRadius:999,padding:'6px 10px',fontSize:13}}>
-                           <div style={{width: 6, height: 6, background: '#22c55e', borderRadius: '50%'}} />
-                           {f}
-                        </div>
-                      ))}
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 50%)' }} />
+
+                    <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)', color: '#059669', padding: '6px 14px', borderRadius: '12px', fontWeight: 800, fontSize: '0.75rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+                      {String(k.tipe).toUpperCase()}
+                    </div>
+
+                    <div style={{ position: 'absolute', bottom: '16px', right: '16px', background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', color: 'white', padding: '6px 12px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Search size={14} /> Lihat Detail
                     </div>
                   </div>
 
-                  <div className="recommend-kost-footer" style={{padding:'0 18px 18px'}}>
+                  <div style={{ padding: '24px 24px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '12px' }}>
+                        <div>
+                           <h3 style={{ margin: '0 0 6px', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {k.nama_kost}
+                           </h3>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b', fontSize: '0.9rem' }}>
+                              <MapPin size={16} color="#059669" /> {k.kecamatan}, {k.kota}
+                           </div>
+                        </div>
+                     </div>
+
+                     <div style={{ marginBottom: '16px' }}>
+                        <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#059669', letterSpacing: '-0.02em' }}>
+                            Rp {new Intl.NumberFormat('id-ID').format(k.harga_min)}
+                        </span>
+                        <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500, marginLeft: '4px' }}>/bulan</span>
+                     </div>
+
+                     <div style={{ height: '1px', background: '#f1f5f9', margin: '0 0 16px 0' }} />
+
+                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '24px', marginTop: 'auto' }}>
+                        {(k.fasilitas_umum || ['WiFi', 'Parkir', 'CCTV']).slice(0, 3).map((f, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600 }}>
+                             {f}
+                          </div>
+                        ))}
+                        {(k.fasilitas_umum?.length > 3) && (
+                          <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', padding: '4px 8px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700 }}>
+                             +{k.fasilitas_umum.length - 3}
+                          </div>
+                        )}
+                     </div>
+                  </div>
+
+                  <div style={{ padding: '0 24px 24px' }}>
                      <button
                        type="button"
-                       className="ajukan-btn"
                        onClick={(e) => handleAjukanSewa(e, k)}
-                       style={{width:'100%',height:56,borderRadius:16,background:'#ffffff',color:'#16a34a',border:'2px solid #16a34a',fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',gap:10,cursor:'pointer'}}
+                       style={{ width: '100%', padding: '14px', borderRadius: '16px', background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: 'white', border: 'none', fontWeight: 800, fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(5, 150, 105, 0.25)', transition: 'background 0.3s, box-shadow 0.3s' }}
+                       onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(5, 150, 105, 0.4)' }}
+                       onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(5, 150, 105, 0.25)' }}
                      >
-                       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
-                         <path d="M12 2v20m10-10H2"></path>
-                       </svg>
-                       Ajukan Sewa
+                       <CreditCard size={18} />
+                       Booking Cepat
                      </button>
                   </div>
                 </article>
@@ -469,50 +558,7 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 bg-white">
-        <div className="container">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Mengapa Memilih MyKost?</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">Platform pencarian kos terlengkap untuk kemudahan dan keamanan masa depan Anda.</p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            <article className="landing-feature-card">
-              <div className="landing-feature-icon">
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
-                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                   <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-              </div>
-              <h3 className="mb-4 font-bold text-xl">100% Terverifikasi</h3>
-              <p className="text-gray-600">Properti kami diverifikasi langsung oleh tim lapangan untuk menjamin keaslian data.</p>
-            </article>
-
-            <article className="landing-feature-card">
-              <div className="landing-feature-icon" style={{background: '#fef3c7', color: '#f59e0b'}}>
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
-                   <line x1="12" y1="1" x2="12" y2="23"></line>
-                   <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                </svg>
-              </div>
-              <h3 className="mb-4 font-bold text-xl">Harga Transparan</h3>
-              <p className="text-gray-600">Tidak ada biaya tersembunyi. Semua harga ditampilkan secara jujur sesuai kontrak.</p>
-            </article>
-
-            <article className="landing-feature-card">
-              <div className="landing-feature-icon" style={{background: '#dcfce7', color: '#22c55e'}}>
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
-                   <circle cx="12" cy="12" r="10"></circle>
-                   <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-              </div>
-              <h3 className="mb-4 font-bold text-xl">Proses Cepat</h3>
-              <p className="text-gray-600">Mulai dari pencarian hingga akad sewa, semuanya bisa dilakukan dalam satu aplikasi.</p>
-            </article>
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="landing-footer">
@@ -560,6 +606,141 @@ function LandingPage() {
           user={userData}
           onSubmit={handleBookingSubmit}
         />
+      )}
+
+      {/* Modal Cara Sewa */}
+      {isCaraSewaModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', padding: '1.5rem' }}>
+           <div style={{ backgroundColor: 'white', borderRadius: '24px', width: '100%', maxWidth: '650px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+              
+              <div style={{ background: 'linear-gradient(135deg, #059669, #10b981)', padding: '2rem', color: 'white', position: 'relative' }}>
+                 <button onClick={() => setIsCaraSewaModalOpen(false)} style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'} onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}>
+                    <X size={20} />
+                 </button>
+                 <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 900, fontFamily: 'Outfit, sans-serif' }}>Cara Pesan di MyKost 🚀</h2>
+                 <p style={{ margin: '0.5rem 0 0', opacity: 0.9, fontSize: '1.05rem' }}>Ikuti 4 langkah mudah untuk mendapatkan hunian impianmu.</p>
+              </div>
+
+              <div style={{ padding: '2rem' }}>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    
+                    {/* Langkah 1 */}
+                    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
+                       <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #a7f3d0' }}>
+                          <Search size={24} />
+                       </div>
+                       <div>
+                          <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>1. Temukan Kos Pilihanmu</h4>
+                          <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>Gunakan fitur pencarian atau peta radar untuk menelusuri kos di sekitar kampus atau stasiun terdekat.</p>
+                       </div>
+                    </div>
+
+                    {/* Langkah 2 */}
+                    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
+                       <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#fff7ed', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #fed7aa' }}>
+                          <MapPin size={24} />
+                       </div>
+                       <div>
+                          <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>2. Cek Detail & Fasilitas</h4>
+                          <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>Lihat galeri foto lengkap, daftar fasilitas, hingga jarak lokasi asli di peta terintegrasi.</p>
+                       </div>
+                    </div>
+
+                    {/* Langkah 3 */}
+                    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
+                       <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #bfdbfe' }}>
+                          <CreditCard size={24} />
+                       </div>
+                       <div>
+                          <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>3. Ajukan Sewa & Bayar</h4>
+                          <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>Klik tombol "Ajukan Sewa", lengkapi profil, dan selesaikan pembayaran aman via Midtrans (Gopay/QRIS/Virtual Account).</p>
+                       </div>
+                    </div>
+
+                    {/* Langkah 4 */}
+                    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
+                       <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #e2e8f0' }}>
+                          <CheckCircle size={24} color="#059669" />
+                       </div>
+                       <div>
+                          <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>4. Siap Ditempati</h4>
+                          <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>Selamat! Kos kini resmi milikmu. Pemilik kos akan segera memberikan kunci setibanya kamu di lokasi.</p>
+                       </div>
+                    </div>
+
+                 </div>
+
+                 <button 
+                   onClick={() => { setIsCaraSewaModalOpen(false); navigate('/cari'); }} 
+                   style={{ marginTop: '2.5rem', width: '100%', padding: '1rem', background: '#0f172a', color: 'white', border: 'none', borderRadius: '16px', fontSize: '1.05rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(15, 23, 42, 0.2)' }}
+                 >
+                    Mulai Cari Kos Sekarang
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Modal Bantuan */}
+      {isBantuanModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', padding: '1.5rem' }}>
+           <div style={{ backgroundColor: 'white', borderRadius: '24px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)', overflow: 'hidden', animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)', position: 'relative', padding: '2.5rem' }}>
+              
+              <button 
+                onClick={() => setIsBantuanModalOpen(false)} 
+                style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'transparent', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', cursor: 'pointer', transition: 'background 0.2s, color 0.2s' }} 
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }} 
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
+              >
+                 <X size={20} />
+              </button>
+
+              <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+                 <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '20px', background: '#ecfdf5', color: '#059669', marginBottom: '1.25rem' }}>
+                    <Info size={32} />
+                 </div>
+                 <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 900, fontFamily: 'Outfit, sans-serif', color: '#0f172a', letterSpacing: '-0.5px' }}>Pusat Bantuan</h2>
+                 <p style={{ margin: '0.75rem 0 0', color: '#64748b', fontSize: '1rem', lineHeight: 1.5 }}>Ada kendala atau pertanyaan terkait layanan kos? Tim MyKost siap membantu Anda.</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                 
+                 {/* Bantuan WhatsApp */}
+                 <a href="https://wa.me/6281234567890" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'flex', gap: '1.25rem', alignItems: 'center', padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(5, 150, 105, 0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                       <MessageCircle size={24} />
+                    </div>
+                    <div>
+                       <h4 style={{ margin: '0 0 0.2rem', fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Chat via WhatsApp</h4>
+                       <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>Respon Instan (0812-3456-7890)</p>
+                    </div>
+                 </a>
+
+                 {/* Bantuan Email */}
+                 <a href="mailto:halo@mykost.id" style={{ textDecoration: 'none', display: 'flex', gap: '1.25rem', alignItems: 'center', padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(15, 23, 42, 0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                       <Mail size={24} />
+                    </div>
+                    <div>
+                       <h4 style={{ margin: '0 0 0.2rem', fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Kirim Pesan Email</h4>
+                       <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>halo@mykost.id</p>
+                    </div>
+                 </a>
+
+                 {/* Telepon Cust Care */}
+                 <a href="tel:021123456" style={{ textDecoration: 'none', display: 'flex', gap: '1.25rem', alignItems: 'center', padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(15, 23, 42, 0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                       <Phone size={24} />
+                    </div>
+                    <div>
+                       <h4 style={{ margin: '0 0 0.2rem', fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Telepon Customer Care</h4>
+                       <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>021-123-456 (08:00 - 17:00)</p>
+                    </div>
+                 </a>
+
+              </div>
+           </div>
+        </div>
       )}
     </div>
   )

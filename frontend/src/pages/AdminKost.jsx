@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Edit2, Trash2, Search, MapPin, CheckCircle, XCircle, Clock, Loader2, Plus } from 'lucide-react';
+import { Home, Edit2, Trash2, Search, MapPin, CheckCircle, XCircle, Clock, Loader2, Plus, Image as ImageIcon, Star, X } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -69,6 +69,12 @@ const AdminKost = () => {
   const [showModal, setShowModal] = useState(false);
   const [currentKost, setCurrentKost] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Gallery States
+  const [photos, setPhotos] = useState([]);
+  const [thumbnailIndex, setThumbnailIndex] = useState(0);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   const [formData, setFormData] = useState({
     nama_kost: '', alamat: '', kota: '', provinsi: 'Jawa Barat', tipe: 'campur', harga_min: '', status: 'pending', deskripsi: '', latitude: -6.1751, longitude: 106.8650
   });
@@ -125,6 +131,15 @@ const AdminKost = () => {
   const handleOpenModal = (kost = null) => {
     if (kost) {
       setCurrentKost(kost);
+
+      let initialPhotos = [];
+      if (kost.foto_utama) initialPhotos.push(kost.foto_utama);
+      if (kost.foto_tambahan && Array.isArray(kost.foto_tambahan)) {
+          initialPhotos = [...initialPhotos, ...kost.foto_tambahan];
+      }
+      setPhotos(initialPhotos);
+      setThumbnailIndex(0);
+
       setFormData({
         nama_kost: kost.nama_kost || '',
         alamat: kost.alamat || '',
@@ -139,6 +154,8 @@ const AdminKost = () => {
       });
     } else {
       setCurrentKost(null);
+      setPhotos([]);
+      setThumbnailIndex(0);
       setFormData({
         nama_kost: '', alamat: '', kota: '', provinsi: 'Jawa Barat', tipe: 'campur', harga_min: '', status: 'pending', deskripsi: '', latitude: -6.1751, longitude: 106.8650
       });
@@ -146,18 +163,77 @@ const AdminKost = () => {
     setShowModal(true);
   };
 
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files || files.length === 0) return;
+
+    if (photos.length + files.length > 10) {
+       alert('Maksimal 10 gambar yang diizinkan!');
+       return;
+    }
+
+    setUploadingImage(true);
+    let newPhotos = [...photos];
+
+    try {
+       for (let file of files) {
+          const formDataObj = new FormData();
+          formDataObj.append('image', file);
+          
+          const res = await api.post('/upload', formDataObj, {
+             headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          
+          if (res.data && res.data.url) {
+             newPhotos.push(res.data.url);
+          }
+       }
+       setPhotos(newPhotos);
+    } catch (err) {
+       alert('Gagal mengupload gambar. Pastikan format jpeg/png/jpg/webp dan ukuran maksimal 5MB.');
+    } finally {
+       setUploadingImage(false);
+       e.target.value = ''; // Reset input
+    }
+  };
+
+  const handleRemovePhoto = (idxToRemove) => {
+      setPhotos(prev => prev.filter((_, idx) => idx !== idxToRemove));
+      if (thumbnailIndex === idxToRemove) {
+          setThumbnailIndex(0);
+      } else if (thumbnailIndex > idxToRemove) {
+          setThumbnailIndex(prev => prev - 1);
+      }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+
+    let foto_utama = null;
+    let foto_tambahan = [];
+
+    if (photos.length > 0) {
+        if (thumbnailIndex >= 0 && thumbnailIndex < photos.length) {
+            foto_utama = photos[thumbnailIndex];
+            foto_tambahan = photos.filter((_, idx) => idx !== thumbnailIndex);
+        } else {
+            foto_utama = photos[0];
+            foto_tambahan = photos.slice(1);
+        }
+    }
+
+    const payload = { ...formData, foto_utama, foto_tambahan };
+
     try {
       if (isAdmin && currentKost) {
         // Super Admin hanya update status
-        await api.patch(`/kost/${currentKost.id}/status`, { status: formData.status });
+        await api.patch(`/kost/${currentKost.id}/status`, { status: payload.status });
       } else if (isOwner) {
         if (currentKost) {
-          await api.put(`/kost/${currentKost.id}`, formData);
+          await api.put(`/kost/${currentKost.id}`, payload);
         } else {
-          await api.post('/kost', formData);
+          await api.post('/kost', payload);
         }
       }
       setShowModal(false);
@@ -511,6 +587,49 @@ const AdminKost = () => {
                         onFocus={e => e.target.style.borderColor = '#22c55e'}
                         onBlur={e => e.target.style.borderColor = '#e2e8f0'}
                       />
+                    </div>
+
+                    {/* Galeri Foto */}
+                    <div style={{ gridColumn: 'span 2', background: '#f8fafc', padding: 20, borderRadius: 16, border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                        <div>
+                          <label style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', display: 'block' }}>Galeri Foto Properti</label>
+                          <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>Upload hingga 10 foto. Pilih salah satu untuk dijadikan Thumbnail utama.</p>
+                        </div>
+                        <label style={{ background: 'white', color: '#10b981', border: '1px solid #a7f3d0', padding: '10px 20px', borderRadius: 12, fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 4px rgba(16, 185, 129, 0.1)', opacity: uploadingImage ? 0.6 : 1 }}>
+                          {uploadingImage ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <ImageIcon size={16} strokeWidth={3} />}
+                          {uploadingImage ? 'Mengupload...' : 'Tambah Foto'}
+                          <input type="file" multiple accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} disabled={uploadingImage} />
+                        </label>
+                      </div>
+
+                      {photos.length > 0 ? (
+                         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                             {photos.map((src, idx) => (
+                                <div key={idx} style={{ position: 'relative', width: 120, height: 120, borderRadius: 14, overflow: 'hidden', border: thumbnailIndex === idx ? '3px solid #10b981' : '1px solid #e2e8f0', cursor: 'pointer', background: '#e2e8f0' }} onClick={() => setThumbnailIndex(idx)}>
+                                   <img src={src} alt={`Kost photo ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                   
+                                   {/* Badge Thumbnail */}
+                                   {thumbnailIndex === idx && (
+                                     <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(16, 185, 129, 0.9)', padding: '4px 0', textAlign: 'center', color: 'white', fontSize: 10, fontWeight: 800, backdropFilter: 'blur(2px)' }}>
+                                        <Star size={10} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} fill="white" />
+                                        THUMBNAIL
+                                     </div>
+                                   )}
+
+                                   {/* Delete Button */}
+                                   <button type="button" onClick={(e) => { e.stopPropagation(); handleRemovePhoto(idx); }} style={{ position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.9)', color: 'white', border: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}>
+                                      <X size={14} />
+                                   </button>
+                                </div>
+                             ))}
+                         </div>
+                      ) : (
+                         <div style={{ textAlign: 'center', padding: '32px 0', border: '2px dashed #cbd5e1', borderRadius: 14, background: 'white' }}>
+                            <ImageIcon size={32} color="#94a3b8" style={{ marginBottom: 12 }} />
+                            <p style={{ margin: 0, fontSize: 13, color: '#64748b', fontWeight: 600 }}>Belum ada foto. Upload sekarang!</p>
+                         </div>
+                      )}
                     </div>
 
                     {/* Container Koordinat */}

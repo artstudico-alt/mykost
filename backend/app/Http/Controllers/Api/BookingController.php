@@ -55,14 +55,40 @@ class BookingController extends Controller
             ], 422);
         }
 
+        // Hapus atau anggap kadaluarsa booking 'pending' yang sudah lebih dari 60 menit
+        // agar tidak mengunci kost selamanya jika orang tidak jadi bayar.
+        $expiredThreshold = now()->subMinutes(60);
+
         $conflict = Booking::where('kost_id', $kost->id)
-            ->whereIn('status', ['pending', 'confirmed', 'aktif'])
+            ->where(function ($q) use ($expiredThreshold, $request) {
+                $q->where('status', 'aktif')
+                  ->orWhere('status', 'confirmed')
+                  ->orWhere(function ($sq) use ($expiredThreshold, $request) {
+                      $sq->where('status', 'pending')
+                         ->where('created_at', '>=', $expiredThreshold)
+                         ->where('user_id', '!=', $request->user()->id);
+                  });
+            })
             ->exists();
 
         if ($conflict) {
             return response()->json([
-                'message' => 'Kost ini sedang dalam proses sewa atau sudah aktif. Coba kost lain atau hubungi pemilik.',
+                'message' => 'Kost ini sedang dalam proses sewa oleh orang lain atau sudah aktif. Coba kost lain atau hubungi pemilik.',
             ], 422);
+        }
+
+        // Jika user yang sama sudah punya booking pending yang belum expired, kembalikan itu saja (re-use)
+        $existingPending = Booking::where('kost_id', $kost->id)
+            ->where('user_id', $request->user()->id)
+            ->where('status', 'pending')
+            ->where('created_at', '>=', $expiredThreshold)
+            ->first();
+
+        if ($existingPending) {
+            return response()->json([
+                'message' => 'Melanjutkan pesanan Anda yang sudah ada.',
+                'data'    => $existingPending->load(['kost', 'user']),
+            ], 200);
         }
 
         $tanggalMulai   = Carbon::parse($validated['tanggal_mulai']);

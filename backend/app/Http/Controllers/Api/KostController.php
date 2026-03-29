@@ -96,6 +96,8 @@ class KostController extends Controller
             'fasilitas_umum' => 'nullable|array',
             'harga_min'      => 'required|numeric|min:0',
             'foto_utama'     => 'nullable|string',
+            'foto_tambahan'  => 'nullable|array',
+            'foto_tambahan.*'=> 'string',
         ]);
 
         $validated['user_id'] = $request->user()->id;
@@ -155,6 +157,8 @@ class KostController extends Controller
             'fasilitas_umum' => 'nullable|array',
             'harga_min'      => 'sometimes|numeric|min:0',
             'foto_utama'     => 'nullable|string',
+            'foto_tambahan'  => 'nullable|array',
+            'foto_tambahan.*'=> 'string',
             'status'         => 'sometimes|in:aktif,nonaktif,pending',
         ]);
 

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\TrackingController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\KeluhanController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\UploadController;
 
 /*
 |--------------------------------------------------------------------------
@@ -61,8 +62,9 @@ Route::get('/search/kost-sekitar',   [SearchController::class, 'kostSekitar']);
 // SEMUA ROUTE DI BAWAH MEMBUTUHKAN AUTH
 // ============================================================
 Route::middleware('auth:sanctum')->group(function () {
-
     Route::get('/dashboard', [DashboardController::class, 'index']);
+
+    Route::post('/upload', [UploadController::class, 'store']);
 
     Route::prefix('karyawan')->middleware('role:hr,super_admin')->group(function () {
         Route::get('/',       [KaryawanController::class, 'index']);

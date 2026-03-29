@@ -98,13 +98,13 @@ class PembayaranController extends Controller
 
         if (! $updated) {
             return response()->json([
-                'message' => 'Tidak dapat mengambil status dari Midtrans (cek server key & order_id).',
-            ], 502);
+                'message' => 'Sinkronisasi gagal atau data belum tersedia di Midtrans.',
+            ], 404);
         }
 
         return response()->json([
-            'message' => 'Status disinkronkan',
-            'data'    => $updated->load(['booking.kost']),
+            'message' => 'Status berhasil disinkronkan.',
+            'data'    => $updated,
         ]);
     }
 
