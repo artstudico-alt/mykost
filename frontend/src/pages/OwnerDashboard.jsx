@@ -18,7 +18,7 @@ const OwnerDashboard = () => {
   const fetchOwnerStats = async () => {
     try {
       const [kostRes, bookRes, payRes] = await Promise.allSettled([
-        api.get('/kost'),
+        api.get('/kost?mine=1'),
         api.get('/booking'),
         api.get('/pembayaran?status=lunas'),
       ]);

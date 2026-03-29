@@ -85,21 +85,29 @@ class ApiService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return decoded;
       } else {
-        print("API Error Response: $decoded");
-        
-        // Tangani pesan error validasi spesifik dari Laravel (jika ada)
-        if (decoded['errors'] != null && decoded['errors'] is Map) {
-          final errors = decoded['errors'] as Map;
-          if (errors.isNotEmpty) {
-            final firstErrorList = errors.values.first;
-            if (firstErrorList is List && firstErrorList.isNotEmpty) {
-              throw Exception(firstErrorList.first);
-            }
-          }
-        }
+ print("API Error Response: $decoded");
 
-        throw Exception(decoded['message'] ?? "Terjadi error (${response.statusCode})");
-      }
+// Ambil message utama
+final msg = decoded['message']?.toString() ?? "Terjadi error";
+
+// Ambil detail error (jika ada)
+final detail = decoded['error']?.toString();
+
+// Tangani validasi Laravel (errors array)
+if (decoded['errors'] != null && decoded['errors'] is Map) {
+  final errors = decoded['errors'] as Map;
+  if (errors.isNotEmpty) {
+    final firstErrorList = errors.values.first;
+    if (firstErrorList is List && firstErrorList.isNotEmpty) {
+      throw Exception(firstErrorList.first);
+    }
+  }
+}
+
+// Gabungkan message + detail
+throw Exception(
+  detail != null && detail.isNotEmpty ? "$msg ($detail)" : msg
+);
     } catch (e) {
       print("API Catch Error: $e");
       

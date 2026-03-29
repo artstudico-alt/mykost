@@ -18,7 +18,7 @@ const AdminDashboard = () => {
   const fetchStats = async () => {
     try {
       const [k, p, b] = await Promise.allSettled([
-        api.get('/kost'),
+        api.get('/kost/moderasi'),
         api.get('/pembayaran?status=lunas'),
         api.get('/booking'),
       ]);
