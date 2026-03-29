@@ -1,6 +1,7 @@
 /**
- * Midtrans Snap.js — pakai Client Key di frontend (aman untuk Snap).
- * Set VITE_MIDTRANS_CLIENT_KEY dan opsional VITE_MIDTRANS_IS_PRODUCTION=true di .env
+ * Midtrans Snap — Client Key di frontend (aman untuk Snap).
+ * VITE_MIDTRANS_CLIENT_KEY, VITE_MIDTRANS_IS_PRODUCTION
+ * VITE_MIDTRANS_SNAP_MODE: "redirect" (halaman pembayaran Midtrans penuh) | "popup" (snap.pay)
  */
 
 const SNAP_SRC_SANDBOX = 'https://app.sandbox.midtrans.com/snap/snap.js'
@@ -10,10 +11,29 @@ export function getMidtransClientKey() {
   return import.meta.env.VITE_MIDTRANS_CLIENT_KEY || ''
 }
 
+/** @returns {'redirect' | 'popup'} */
+export function getSnapPaymentMode() {
+  const m = (import.meta.env.VITE_MIDTRANS_SNAP_MODE || 'redirect').toLowerCase()
+  return m === 'popup' ? 'popup' : 'redirect'
+}
+
+/**
+ * Buka halaman pembayaran Snap penuh (sandbox: app.sandbox.midtrans.com).
+ * @param {string} redirectUrl dari API (createTransaction.redirect_url)
+ */
+export function openSnapRedirect(redirectUrl) {
+  if (!redirectUrl || typeof redirectUrl !== 'string') {
+    throw new Error('redirect_url dari server tidak valid')
+  }
+  window.location.href = redirectUrl
+}
+
 export function loadMidtransSnap() {
   const clientKey = getMidtransClientKey()
   if (!clientKey) {
-    return Promise.reject(new Error('VITE_MIDTRANS_CLIENT_KEY belum diisi di frontend (.env). Salin dari MIDTRANS_CLIENT_KEY backend.'))
+    return Promise.reject(
+      new Error('VITE_MIDTRANS_CLIENT_KEY belum diisi di frontend (.env). Salin dari MIDTRANS_CLIENT_KEY backend.')
+    )
   }
 
   if (typeof window !== 'undefined' && window.snap) {

@@ -39,16 +39,6 @@ class Kost extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function kamars()
-    {
-        return $this->hasMany(Kamar::class);
-    }
-
-    public function kamarsKosong()
-    {
-        return $this->hasMany(Kamar::class)->where('status', 'kosong');
-    }
-
     public function bookings()
     {
         return $this->hasMany(Booking::class);

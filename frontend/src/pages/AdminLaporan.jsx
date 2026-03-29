@@ -92,9 +92,9 @@ const AdminLaporan = () => {
                 {/* Card Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                   <div>
-                    <p style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: 0 }}>{l.kantor?.nama_kantor || 'Kantor'}</p>
+                    <p style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: 0 }}>{l.kota || 'Wilayah'}</p>
                     <p style={{ fontSize: 12, color: '#94a3b8', margin: '3px 0 0', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      📍 {l.kantor?.kota || '-'}
+                      Hunian aktif: {l.hunian_aktif ?? 0}
                     </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>

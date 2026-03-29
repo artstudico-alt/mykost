@@ -29,7 +29,6 @@ function LandingPage() {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
   const [selectedBookingKost, setSelectedBookingKost] = useState(null)
   const [userData, setUserData] = useState(null)
-  const [selectedKostKamars, setSelectedKostKamars] = useState([])
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false)
   
   // Radar & Location States
@@ -79,31 +78,7 @@ function LandingPage() {
     }
     setSelectedBookingKost(kost)
     fetchUserData()
-    try {
-      // 1) Coba ambil kamar kosong eksplisit
-      const res = await api.get(`/kost/${kost.id}/kamar`, { params: { status: 'kosong' } })
-      let rows = Array.isArray(res.data?.data) ? res.data.data : []
-      let normalized = rows.filter((r) => String(r?.status || '').toLowerCase().trim() === 'kosong')
-
-      // 2) Jika tetap kosong, ambil semua kamar lalu anggap "tersedia" jika status bukan 'terisi' atau status tidak ada
-      if (normalized.length === 0) {
-        try {
-          const allRes = await api.get(`/kost/${kost.id}/kamar`)
-          rows = Array.isArray(allRes.data?.data) ? allRes.data.data : []
-          normalized = rows.filter((r) => {
-            const s = String(r?.status || '').toLowerCase().trim()
-            return s === '' || s === 'kosong' || s === 'booking' // anggap tidak 'terisi' sebagai tersedia
-          })
-        } catch {}
-      }
-
-      setSelectedKostKamars(normalized)
-    } catch (err) {
-      console.error('Gagal mengambil daftar kamar:', err)
-      setSelectedKostKamars([])
-    } finally {
-      setIsBookingModalOpen(true)
-    }
+    setIsBookingModalOpen(true)
   }
 
   const handleBookingSubmit = async (formData) => {
@@ -123,9 +98,9 @@ function LandingPage() {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       await api.post('/booking', {
-        kamar_id: 1, // Defaulting for simple booking from landing
+        kost_id: selectedBookingKost.id,
         tanggal_mulai: formData.tanggal_mulai,
-        durasi_bulan: formData.durasi_bulan,
+        durasi_bulan: parseInt(formData.durasi_bulan, 10) || 1,
         catatan: 'Booking dari Landing Page (' + selectedBookingKost?.nama_kost + ')'
       })
       alert('Booking berhasil dibuat! Menuju halaman pembayaran...')
@@ -527,7 +502,6 @@ function LandingPage() {
           isOpen={isBookingModalOpen}
           onClose={() => setIsBookingModalOpen(false)}
           kost={selectedBookingKost}
-          kamars={selectedKostKamars}
           user={userData}
           onSubmit={handleBookingSubmit}
         />

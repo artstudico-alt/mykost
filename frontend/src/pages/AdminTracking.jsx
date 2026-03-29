@@ -140,7 +140,7 @@ const AdminTracking = () => {
                       </div>
                     </td>
                     <td style={{ padding: '20px 32px', fontSize: 13, color: '#64748b', fontWeight: 600 }}>
-                      {h.karyawan?.kantor?.nama_kantor || '-'}
+                      {h.karyawan?.divisi || h.karyawan?.nama || '-'}
                     </td>
                     <td style={{ padding: '20px 32px' }}>
                       <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.2px' }}>{h.kost?.nama_kost || '-'}</p>

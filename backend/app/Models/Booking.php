@@ -9,7 +9,6 @@ class Booking extends Model
 {
     protected $fillable = [
         'user_id',
-        'kamar_id',
         'kost_id',
         'tanggal_mulai',
         'durasi_bulan',
@@ -31,11 +30,6 @@ class Booking extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function kamar()
-    {
-        return $this->belongsTo(Kamar::class);
     }
 
     public function kost()

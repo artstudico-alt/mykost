@@ -154,7 +154,7 @@ export default function CariKost() {
         </form>
 
         <div className="search-header-actions">
-          <button className="search-header-btn" onClick={() => navigate('/owner/kamar')}>Sewakan Kost</button>
+          <button className="search-header-btn" onClick={() => navigate('/owner/kost')}>Sewakan Kost</button>
         </div>
       </header>
 
@@ -260,10 +260,10 @@ export default function CariKost() {
                               )}
                            </div>
 
-                           {kost.jarak_dari_kantor !== undefined && (
+                           {kost.jarak_dari_referensi !== undefined && (
                               <div className="k-distance-office">
                                  <Building2 size={16} />
-                                 <span>{parseFloat(kost.jarak_dari_kantor).toFixed(1)} km dari Kantor Pusat</span>
+                                 <span>{parseFloat(kost.jarak_dari_referensi).toFixed(1)} km dari titik referensi</span>
                               </div>
                            )}
                         </div>
@@ -311,8 +311,8 @@ export default function CariKost() {
                         <img src={kost.foto_utama || `https://picsum.photos/seed/${kost.id * 10}/300/200`} alt="k" className="popup-img" />
                         <h4 className="popup-title">{kost.nama_kost}</h4>
                         <p className="popup-price">Rp {parseFloat(kost.harga_min || 0).toLocaleString('id-ID')}</p>
-                        {kost.jarak_dari_kantor !== undefined && (
-                           <p className="popup-dist"><Building2 size={12}/> {parseFloat(kost.jarak_dari_kantor).toFixed(1)} km dari kantor</p>
+                        {kost.jarak_dari_referensi !== undefined && (
+                           <p className="popup-dist"><Building2 size={12}/> {parseFloat(kost.jarak_dari_referensi).toFixed(1)} km dari titik referensi</p>
                         )}
                         <button 
                            onClick={() => navigate(`/kost/${kost.id}`)}

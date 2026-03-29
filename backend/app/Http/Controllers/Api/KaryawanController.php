@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Karyawan;
-use App\Models\Kantor;
 use Illuminate\Http\Request;
 
 class KaryawanController extends Controller
@@ -14,17 +13,8 @@ class KaryawanController extends Controller
     {
         $user = $request->user();
 
-        $query = Karyawan::with(['user', 'kantor', 'hunianAktif.kost']);
+        $query = Karyawan::with(['user', 'hunianAktif.kost']);
 
-        // HR hanya bisa lihat karyawan di kantornya
-        if ($user->hasRole('hr')) {
-            $kantor = Kantor::where('user_id', $user->id)->first();
-            if ($kantor) {
-                $query->where('kantor_id', $kantor->id);
-            }
-        }
-
-        // Filter opsional
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -53,7 +43,6 @@ class KaryawanController extends Controller
     {
         $validated = $request->validate([
             'user_id'           => 'nullable|exists:users,id',
-            'kantor_id'         => 'required|exists:kantor,id',
             'nik'               => 'required|string|max:50|unique:karyawan,nik',
             'nama'              => 'required|string|max:255',
             'email'             => 'nullable|email|max:255',
@@ -68,14 +57,14 @@ class KaryawanController extends Controller
 
         return response()->json([
             'message' => 'Data karyawan berhasil ditambahkan',
-            'data'    => $karyawan->load(['kantor', 'user']),
+            'data'    => $karyawan->load(['user']),
         ], 201);
     }
 
     // GET /api/karyawan/{id}
     public function show(Request $request, $id)
     {
-        $karyawan = Karyawan::with(['user', 'kantor', 'hunians.kost', 'hunians.kamar'])->find($id);
+        $karyawan = Karyawan::with(['user', 'hunians.kost'])->find($id);
 
         if (!$karyawan) {
             return response()->json(['message' => 'Data karyawan tidak ditemukan'], 404);
@@ -98,7 +87,6 @@ class KaryawanController extends Controller
 
         $validated = $request->validate([
             'user_id'           => 'nullable|exists:users,id',
-            'kantor_id'         => 'sometimes|exists:kantor,id',
             'nik'               => 'sometimes|string|max:50|unique:karyawan,nik,' . $id,
             'nama'              => 'sometimes|string|max:255',
             'email'             => 'nullable|email|max:255',
@@ -113,7 +101,7 @@ class KaryawanController extends Controller
 
         return response()->json([
             'message' => 'Data karyawan berhasil diperbarui',
-            'data'    => $karyawan->load(['kantor', 'user']),
+            'data'    => $karyawan->load(['user']),
         ]);
     }
 

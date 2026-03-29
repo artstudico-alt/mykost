@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Hunian;
 use App\Models\Karyawan;
-use App\Models\Kantor;
 use Illuminate\Http\Request;
 
 class HunianController extends Controller
@@ -22,7 +21,7 @@ class HunianController extends Controller
             ], 404);
         }
 
-        $hunian = Hunian::with(['kost', 'kamar', 'booking'])
+        $hunian = Hunian::with(['kost', 'booking'])
             ->where('karyawan_id', $karyawan->id)
             ->where('status', 'aktif')
             ->latest()
@@ -44,7 +43,7 @@ class HunianController extends Controller
             return response()->json(['message' => 'Data karyawan tidak ditemukan'], 404);
         }
 
-        $hunians = Hunian::with(['kost', 'kamar', 'booking'])
+        $hunians = Hunian::with(['kost', 'booking'])
             ->where('karyawan_id', $karyawan->id)
             ->latest()
             ->get();
@@ -62,14 +61,12 @@ class HunianController extends Controller
         $validated = $request->validate([
             'karyawan_id'    => 'required|exists:karyawan,id',
             'kost_id'        => 'required|exists:kosts,id',
-            'kamar_id'       => 'required|exists:kamars,id',
             'booking_id'     => 'nullable|exists:bookings,id',
             'tanggal_masuk'  => 'required|date',
             'tanggal_keluar' => 'nullable|date|after:tanggal_masuk',
             'catatan'        => 'nullable|string',
         ]);
 
-        // Nonaktifkan hunian aktif sebelumnya
         Hunian::where('karyawan_id', $validated['karyawan_id'])
             ->where('status', 'aktif')
             ->update(['status' => 'selesai', 'tanggal_keluar' => now()]);
@@ -77,12 +74,12 @@ class HunianController extends Controller
         $hunian = Hunian::create([
             ...$validated,
             'status'      => 'aktif',
-            'is_verified' => true, // input manual oleh HR → langsung verified
+            'is_verified' => true,
         ]);
 
         return response()->json([
             'message' => 'Data hunian berhasil ditambahkan',
-            'data'    => $hunian->load(['karyawan', 'kost', 'kamar']),
+            'data'    => $hunian->load(['karyawan', 'kost']),
         ], 201);
     }
 
@@ -109,7 +106,7 @@ class HunianController extends Controller
 
         return response()->json([
             'message' => 'Status verifikasi hunian berhasil diperbarui',
-            'data'    => $hunian->load(['karyawan', 'kost', 'kamar']),
+            'data'    => $hunian->load(['karyawan', 'kost']),
         ]);
     }
 

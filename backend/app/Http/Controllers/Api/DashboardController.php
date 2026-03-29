@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Hunian;
-use App\Models\Kantor;
-use App\Models\Kamar;
 use App\Models\Karyawan;
 use App\Models\Kost;
 use App\Models\Pembayaran;
@@ -34,7 +32,6 @@ class DashboardController extends Controller
             'message' => 'Dashboard Super Admin',
             'data'    => [
                 'total_user'       => User::count(),
-                'total_kantor'     => Kantor::count(),
                 'total_kost'       => Kost::count(),
                 'kost_pending'     => Kost::where('status', 'pending')->count(),
                 'kost_aktif'       => Kost::where('status', 'aktif')->count(),
@@ -51,26 +48,16 @@ class DashboardController extends Controller
 
     private function dashboardHr(User $user)
     {
-        $kantor = Kantor::where('user_id', $user->id)->first();
-
-        if (!$kantor) {
-            return response()->json([
-                'message' => 'Dashboard HR',
-                'data'    => ['info' => 'Belum ada kantor yang terdaftar'],
-            ]);
-        }
-
-        $karyawanIds = Karyawan::where('kantor_id', $kantor->id)->pluck('id');
-        $hunians     = Hunian::whereIn('karyawan_id', $karyawanIds)->get();
+        $totalKaryawan = Karyawan::count();
+        $hunians       = Hunian::all();
 
         return response()->json([
             'message' => 'Dashboard HR',
-            'kantor'  => $kantor->only(['id', 'nama_kantor', 'kota']),
             'data'    => [
-                'total_karyawan'      => $karyawanIds->count(),
-                'karyawan_aktif'      => Karyawan::where('kantor_id', $kantor->id)->where('status', 'aktif')->count(),
+                'total_karyawan'      => $totalKaryawan,
+                'karyawan_aktif'      => Karyawan::where('status', 'aktif')->count(),
                 'punya_hunian'        => $hunians->where('status', 'aktif')->count(),
-                'belum_ada_hunian'    => $karyawanIds->count() - $hunians->where('status', 'aktif')->count(),
+                'belum_ada_hunian'    => max(0, $totalKaryawan - $hunians->where('status', 'aktif')->count()),
                 'hunian_verified'     => $hunians->where('is_verified', true)->count(),
                 'hunian_belum_verify' => $hunians->where('is_verified', false)->where('status', 'aktif')->count(),
             ],
@@ -87,13 +74,9 @@ class DashboardController extends Controller
                 'total_kost'    => $kostIds->count(),
                 'kost_aktif'    => Kost::where('user_id', $user->id)->where('status', 'aktif')->count(),
                 'kost_pending'  => Kost::where('user_id', $user->id)->where('status', 'pending')->count(),
-                'total_kamar'   => Kamar::whereIn('kost_id', $kostIds)->count(),
-                'kamar_kosong'  => Kamar::whereIn('kost_id', $kostIds)->where('status', 'kosong')->count(),
-                'kamar_terisi'  => Kamar::whereIn('kost_id', $kostIds)->where('status', 'terisi')->count(),
-                'kamar_booking' => Kamar::whereIn('kost_id', $kostIds)->where('status', 'booking')->count(),
                 'booking_pending'    => Booking::whereIn('kost_id', $kostIds)->where('status', 'pending')->count(),
                 'booking_aktif'      => Booking::whereIn('kost_id', $kostIds)->where('status', 'aktif')->count(),
-                'total_pendapatan'   => Pembayaran::whereHas('booking', fn($q) => $q->whereIn('kost_id', $kostIds))
+                'total_pendapatan'   => Pembayaran::whereHas('booking', fn ($q) => $q->whereIn('kost_id', $kostIds))
                     ->where('status', 'berhasil')->sum('jumlah'),
             ],
         ]);
@@ -101,18 +84,18 @@ class DashboardController extends Controller
 
     private function dashboardKaryawan(User $user)
     {
-        $karyawan   = Karyawan::where('user_id', $user->id)->with('kantor')->first();
+        $karyawan   = Karyawan::where('user_id', $user->id)->first();
         $hunianAktif = null;
         $bookingAktif = null;
 
         if ($karyawan) {
-            $hunianAktif  = Hunian::with(['kost', 'kamar'])
+            $hunianAktif = Hunian::with(['kost'])
                 ->where('karyawan_id', $karyawan->id)
                 ->where('status', 'aktif')
                 ->latest()->first();
         }
 
-        $bookingAktif = Booking::with(['kost', 'kamar'])
+        $bookingAktif = Booking::with(['kost'])
             ->where('user_id', $user->id)
             ->whereIn('status', ['pending', 'confirmed', 'aktif'])
             ->latest()->first();

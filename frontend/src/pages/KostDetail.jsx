@@ -4,7 +4,13 @@ import { Activity, MessageCircle, Ruler, Send, ShowerHead, Snowflake, Loader2 } 
 import { useAuth } from '../hooks/useAuth'
 import api from '../utils/api'
 import BookingModal from '../components/BookingModal'
-import { loadMidtransSnap, payWithSnap, getMidtransClientKey } from '../utils/midtrans'
+import {
+  loadMidtransSnap,
+  payWithSnap,
+  getMidtransClientKey,
+  getSnapPaymentMode,
+  openSnapRedirect,
+} from '../utils/midtrans'
 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -29,7 +35,6 @@ function KostDetail() {
   const userDisplayName = user?.name || user?.email || localStorage.getItem('userEmail') || 'User'
 
   const [kost, setKost] = useState(null)
-  const [kamarsKosong, setKamarsKosong] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
 
@@ -54,23 +59,6 @@ function KostDetail() {
           return
         }
         setKost(k)
-        let rows = Array.isArray(k.kamars) ? k.kamars : []
-        // Jika relasi kamars kosong, fallback panggil endpoint kamar khusus
-        if (!rows || rows.length === 0) {
-          try {
-            const kmRes = await api.get(`/kost/${kostId}/kamar`, { params: { status: 'kosong' } })
-            rows = kmRes.data?.data || []
-          } catch {}
-        }
-        // Jika masih kosong, ambil semua dan treat non-'terisi' sebagai tersedia
-        let available = (rows || []).filter((r) => String(r?.status || '').toLowerCase().trim() === 'kosong')
-        if (available.length === 0 && rows && rows.length > 0) {
-          available = rows.filter((r) => {
-            const s = String(r?.status || '').toLowerCase().trim()
-            return s === '' || s === 'kosong' || s === 'booking'
-          })
-        }
-        setKamarsKosong(available)
       } catch (e) {
         if (!cancelled) {
           setLoadError(e.response?.data?.message || 'Gagal memuat data kost.')
@@ -136,7 +124,7 @@ function KostDetail() {
       })
 
       const bookingRes = await api.post('/booking', {
-        kamar_id: parseInt(formData.kamar_id, 10),
+        kost_id: kost.id,
         tanggal_mulai: formData.tanggal_mulai,
         durasi_bulan: parseInt(formData.durasi_bulan, 10),
         catatan: `Web — ${kost.nama_kost}`,
@@ -154,8 +142,19 @@ function KostDetail() {
       })
 
       const snapToken = payRes.data?.snap_token
+      const redirectUrl = payRes.data?.redirect_url
       if (!snapToken) {
         throw new Error('Snap token tidak diterima dari server')
+      }
+
+      const mode = getSnapPaymentMode()
+      if (mode === 'redirect' && redirectUrl) {
+        setIsBookingModalOpen(false)
+        openSnapRedirect(redirectUrl)
+        return
+      }
+      if (mode === 'redirect' && !redirectUrl) {
+        console.warn('Midtrans: redirect_url kosong, fallback ke popup Snap')
       }
 
       await loadMidtransSnap()
@@ -210,7 +209,7 @@ function KostDetail() {
   }
 
   const priceLabel = `Rp ${Number(kost.harga_min || 0).toLocaleString('id-ID')} / bulan`
-  const roomsLeft = kamarsKosong.length
+  const kostBisaDisewa = String(kost.status || '').toLowerCase() === 'aktif'
   const ownerName = kost.user?.name || 'Pemilik'
   const mainPhoto = kost.foto_utama || `https://picsum.photos/seed/${activeSeed}/920/540`
   const tipeLabel = kost.tipe ? String(kost.tipe).charAt(0).toUpperCase() + String(kost.tipe).slice(1) : 'Kost'
@@ -332,7 +331,7 @@ function KostDetail() {
                 <span className="kost-detail-category">{tipeLabel}</span>
                 <div className="kost-detail-badges">
                   <span className="kost-detail-badge-room">
-                    {roomsLeft > 0 ? `${roomsLeft} kamar kosong` : 'Penuh — cek lagi nanti'}
+                    {kostBisaDisewa ? 'Tersedia untuk sewa' : 'Belum aktif / tidak tersedia'}
                   </span>
                   <span className="kost-detail-badge-transaksi">
                     <Activity className="kost-detail-badge-transaksi-icon" aria-hidden />
@@ -389,7 +388,7 @@ function KostDetail() {
                 <button
                   type="button"
                   className="kost-rent-card__cta"
-                  disabled={roomsLeft === 0}
+                  disabled={!kostBisaDisewa}
                   onClick={() => {
                     if (!isAuthenticated) {
                       navigate('/login')
@@ -397,15 +396,15 @@ function KostDetail() {
                     }
                     setIsBookingModalOpen(true)
                   }}
-                  style={{margin:'0 20px 14px',height:48,borderRadius:14,border:'none',cursor: roomsLeft===0?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:10,background: roomsLeft===0?'#e2e8f0':'#22c55e',color: roomsLeft===0?'#64748b':'#fff',fontWeight:700,boxShadow: roomsLeft===0?'none':'0 8px 20px rgba(34,197,94,.25)'}}
+                  style={{margin:'0 20px 14px',height:48,borderRadius:14,border:'none',cursor: !kostBisaDisewa?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:10,background: !kostBisaDisewa?'#e2e8f0':'#22c55e',color: !kostBisaDisewa?'#64748b':'#fff',fontWeight:700,boxShadow: !kostBisaDisewa?'none':'0 8px 20px rgba(34,197,94,.25)'}}
                 >
                   <Send size={20} aria-hidden />
-                  {roomsLeft === 0 ? 'Kamar habis' : 'Ajukan sewa sekarang'}
+                  {!kostBisaDisewa ? 'Sewa tidak tersedia' : 'Ajukan sewa sekarang'}
                 </button>
 
                 <p className="kost-rent-card__footnote" style={{padding:'0 20px 18px',fontSize:12,color:'#64748b'}}>
-                  {roomsLeft === 0
-                    ? 'Tidak ada kamar kosong saat ini.'
+                  {!kostBisaDisewa
+                    ? 'Kost harus berstatus aktif agar bisa di-booking.'
                     : 'Popup Midtrans akan terbuka untuk menyelesaikan pembayaran (sandbox mendukung kartu & QRIS tes).'}
                 </p>
               </div>
@@ -440,7 +439,7 @@ function KostDetail() {
                     <Activity size={18} strokeWidth={1.75} />
                   </div>
                   <div className="kost-detail-benefit-title">Booking</div>
-                  <div className="kost-detail-benefit-desc">Kamar direservasi saat booking dibuat; lunas lewat Midtrans mengaktifkan sewa.</div>
+                  <div className="kost-detail-benefit-desc">Sewa per kost; lunas lewat Midtrans mengaktifkan booking.</div>
                 </div>
               </div>
             </div>
@@ -534,7 +533,6 @@ function KostDetail() {
         isOpen={isBookingModalOpen}
         onClose={() => setIsBookingModalOpen(false)}
         kost={kost}
-        kamars={kamarsKosong}
         user={userData}
         onSubmit={handleBookingSubmit}
         isSubmitting={isSubmittingBooking}

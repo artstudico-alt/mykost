@@ -12,7 +12,6 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             UserSeeder::class,
             KostSeeder::class,
-            KamarSeeder::class,
         ]);
     }
 }

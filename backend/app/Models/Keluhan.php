@@ -9,7 +9,6 @@ class Keluhan extends Model
     protected $fillable = [
         'user_id',
         'kost_id',
-        'kamar_id',
         'judul',
         'isi',
         'status',
@@ -31,10 +30,5 @@ class Keluhan extends Model
     public function kost()
     {
         return $this->belongsTo(Kost::class);
-    }
-
-    public function kamar()
-    {
-        return $this->belongsTo(Kamar::class);
     }
 }

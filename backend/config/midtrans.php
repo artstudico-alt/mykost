@@ -7,4 +7,6 @@ return [
     'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
     'is_sanitized'  => env('MIDTRANS_IS_SANITIZED', true),
     'is_3ds'        => env('MIDTRANS_IS_3DS', true),
+    /** URL frontend (Snap redirect / callback). Contoh: http://localhost:5173 */
+    'frontend_url'  => env('FRONTEND_URL', 'http://localhost:5173'),
 ];

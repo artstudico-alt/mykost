@@ -12,7 +12,7 @@ class KeluhanController extends Controller
     public function index(Request $request)
     {
         $user  = $request->user();
-        $query = Keluhan::with(['user', 'kost', 'kamar']);
+        $query = Keluhan::with(['user', 'kost']);
 
         if ($user->hasRole('karyawan')) {
             $query->where('user_id', $user->id);
@@ -38,7 +38,6 @@ class KeluhanController extends Controller
     {
         $validated = $request->validate([
             'kost_id'  => 'required|exists:kosts,id',
-            'kamar_id' => 'nullable|exists:kamars,id',
             'judul'    => 'required|string|max:255',
             'isi'      => 'required|string',
         ]);
@@ -50,14 +49,14 @@ class KeluhanController extends Controller
 
         return response()->json([
             'message' => 'Keluhan berhasil dikirim',
-            'data'    => $keluhan->load(['kost', 'kamar']),
+            'data'    => $keluhan->load(['kost']),
         ], 201);
     }
 
     // GET /api/keluhan/{id}
     public function show(Request $request, $id)
     {
-        $keluhan = Keluhan::with(['user', 'kost', 'kamar'])->find($id);
+        $keluhan = Keluhan::with(['user', 'kost'])->find($id);
 
         if (!$keluhan) {
             return response()->json(['message' => 'Keluhan tidak ditemukan'], 404);

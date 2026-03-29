@@ -37,7 +37,7 @@ class KostController extends Controller
         }
 
 
-        $query = Kost::with('user')->withCount('kamarsKosong');
+        $query = Kost::with('user');
 
         // Katalog publik (beranda, tamu, karyawan, dll.): semua kost berstatus aktif.
         // Hanya "Kost Saya" milik pemilik yang memakai ?mine=1 — supaya beranda tidak kosong saat pemilik login.
@@ -112,7 +112,7 @@ class KostController extends Controller
     // GET /api/kost/{id}
     public function show($id)
     {
-        $kost = Kost::with(['user', 'kamars'])->find($id);
+        $kost = Kost::with(['user'])->find($id);
 
         if (!$kost) {
             return response()->json(['message' => 'Kost tidak ditemukan'], 404);

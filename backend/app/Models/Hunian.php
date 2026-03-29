@@ -9,7 +9,6 @@ class Hunian extends Model
     protected $fillable = [
         'karyawan_id',
         'kost_id',
-        'kamar_id',
         'booking_id',
         'tanggal_masuk',
         'tanggal_keluar',
@@ -36,11 +35,6 @@ class Hunian extends Model
     public function kost()
     {
         return $this->belongsTo(Kost::class);
-    }
-
-    public function kamar()
-    {
-        return $this->belongsTo(Kamar::class);
     }
 
     public function booking()

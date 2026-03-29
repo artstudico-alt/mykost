@@ -6,7 +6,6 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
 import Dashboard from './pages/Dashboard'
-import Kamar from './pages/Kamar'
 import Penyewa from './pages/Penyewa'
 import KostDetail from './pages/KostDetail'
 import AdminDashboard from './pages/AdminDashboard'
@@ -20,6 +19,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import HRDashboard from './pages/HRDashboard'
 import OwnerDashboard from './pages/OwnerDashboard'
 import Profile from './pages/Profile'
+import PaymentReturn from './pages/PaymentReturn'
 
 import { AuthProvider } from './context/AuthContext'
 
@@ -82,9 +82,16 @@ function App() {
               <DashboardNavigator />
             </ProtectedRoute>
           } />
-          <Route path="/kamar" element={<ProtectedRoute><Kamar /></ProtectedRoute>} />
           <Route path="/penyewa" element={<ProtectedRoute><Penyewa /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route
+            path="/pembayaran/:step"
+            element={
+              <ProtectedRoute>
+                <PaymentReturn />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </div>
       </Router>
@@ -100,7 +107,7 @@ function DashboardNavigator() {
   if (role === 'pemilik_kost') return <Navigate to="/owner/dashboard" replace />
   if (role === 'super_admin' || role === 'admin') return <Navigate to="/admin/dashboard" replace />
   
-  return <Navigate to="/kamar" replace />
+  return <Navigate to="/profile" replace />
 }
 
 export default App

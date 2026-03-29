@@ -10,7 +10,6 @@ class Karyawan extends Model
 
     protected $fillable = [
         'user_id',
-        'kantor_id',
         'nik',
         'nama',
         'email',
@@ -30,11 +29,6 @@ class Karyawan extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function kantor()
-    {
-        return $this->belongsTo(Kantor::class);
     }
 
     public function hunians()

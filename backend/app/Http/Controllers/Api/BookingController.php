@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Hunian;
-use App\Models\Kamar;
 use App\Models\Karyawan;
+use App\Models\Kost;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -16,7 +16,7 @@ class BookingController extends Controller
     public function index(Request $request)
     {
         $user  = $request->user();
-        $query = Booking::with(['user', 'kamar', 'kost', 'pembayarans']);
+        $query = Booking::with(['user', 'kost', 'pembayarans']);
 
         if ($user->hasRole('karyawan')) {
             $query->where('user_id', $user->id);
@@ -37,43 +37,41 @@ class BookingController extends Controller
         ]);
     }
 
-    // POST /api/booking — karyawan membuat booking
+    // POST /api/booking — sewa per kost (bukan per kamar)
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'kamar_id'      => 'required|exists:kamars,id',
+            'kost_id'       => 'required|exists:kosts,id',
             'tanggal_mulai' => 'required|date|after_or_equal:today',
             'durasi_bulan'  => 'required|integer|min:1|max:24',
             'catatan'       => 'nullable|string',
         ]);
 
-        $kamar = Kamar::with('kost')->find($validated['kamar_id']);
+        $kost = Kost::find($validated['kost_id']);
 
-        if (!$kamar) {
-            return response()->json(['message' => 'Kamar tidak ditemukan'], 404);
-        }
-
-        if ($kamar->status !== 'kosong') {
-            return response()->json([
-                'message' => 'Kamar tidak tersedia (status: ' . $kamar->status . ')',
-            ], 422);
-        }
-
-        if ($kamar->kost->status !== 'aktif') {
+        if ($kost->status !== 'aktif') {
             return response()->json([
                 'message' => 'Kost tidak aktif, tidak bisa melakukan booking',
             ], 422);
         }
 
-        // Hitung tanggal selesai & total harga
+        $conflict = Booking::where('kost_id', $kost->id)
+            ->whereIn('status', ['pending', 'confirmed', 'aktif'])
+            ->exists();
+
+        if ($conflict) {
+            return response()->json([
+                'message' => 'Kost ini sedang dalam proses sewa atau sudah aktif. Coba kost lain atau hubungi pemilik.',
+            ], 422);
+        }
+
         $tanggalMulai   = Carbon::parse($validated['tanggal_mulai']);
         $tanggalSelesai = $tanggalMulai->copy()->addMonths($validated['durasi_bulan']);
-        $totalHarga     = $kamar->harga_bulanan * $validated['durasi_bulan'];
+        $totalHarga     = $kost->harga_min * $validated['durasi_bulan'];
 
         $booking = Booking::create([
             'user_id'         => $request->user()->id,
-            'kamar_id'        => $kamar->id,
-            'kost_id'         => $kamar->kost->id,
+            'kost_id'         => $kost->id,
             'tanggal_mulai'   => $tanggalMulai,
             'durasi_bulan'    => $validated['durasi_bulan'],
             'tanggal_selesai' => $tanggalSelesai,
@@ -82,19 +80,16 @@ class BookingController extends Controller
             'catatan'         => $validated['catatan'] ?? null,
         ]);
 
-        // Update status kamar menjadi booking
-        $kamar->update(['status' => 'booking']);
-
         return response()->json([
             'message' => 'Booking berhasil dibuat, menunggu konfirmasi pemilik kost',
-            'data'    => $booking->load(['kamar', 'kost', 'user']),
+            'data'    => $booking->load(['kost', 'user']),
         ], 201);
     }
 
     // GET /api/booking/{id}
     public function show(Request $request, $id)
     {
-        $booking = Booking::with(['user', 'kamar', 'kost', 'pembayarans', 'hunian'])->find($id);
+        $booking = Booking::with(['user', 'kost', 'pembayarans', 'hunian'])->find($id);
 
         if (!$booking) {
             return response()->json(['message' => 'Booking tidak ditemukan'], 404);
@@ -102,7 +97,6 @@ class BookingController extends Controller
 
         $user = $request->user();
 
-        // Pastikan hanya yang berhak bisa lihat
         $isOwner       = $booking->user_id === $user->id;
         $isPemilikKost = $user->hasRole('pemilik_kost') && $booking->kost->user_id === $user->id;
         $isAdmin       = $user->hasAnyRole(['super_admin', 'hr']);
@@ -120,7 +114,7 @@ class BookingController extends Controller
     // PATCH /api/booking/{id}/confirm — pemilik kost konfirmasi booking
     public function confirm(Request $request, $id)
     {
-        $booking = Booking::with(['kamar', 'kost'])->find($id);
+        $booking = Booking::with(['kost'])->find($id);
 
         if (!$booking) {
             return response()->json(['message' => 'Booking tidak ditemukan'], 404);
@@ -149,7 +143,7 @@ class BookingController extends Controller
     // PATCH /api/booking/{id}/cancel — karyawan atau pemilik kost batalkan booking
     public function cancel(Request $request, $id)
     {
-        $booking = Booking::with(['kamar', 'kost'])->find($id);
+        $booking = Booking::with(['kost'])->find($id);
 
         if (!$booking) {
             return response()->json(['message' => 'Booking tidak ditemukan'], 404);
@@ -171,9 +165,6 @@ class BookingController extends Controller
 
         $booking->update(['status' => 'dibatalkan']);
 
-        // Kembalikan status kamar ke kosong
-        $booking->kamar->update(['status' => 'kosong']);
-
         return response()->json([
             'message' => 'Booking berhasil dibatalkan',
             'data'    => $booking,
@@ -183,7 +174,7 @@ class BookingController extends Controller
     // PATCH /api/booking/{id}/aktif — aktifkan booking setelah pembayaran berhasil + buat data hunian
     public function aktivasi(Request $request, $id)
     {
-        $booking = Booking::with(['kamar.kost', 'kost'])->find($id);
+        $booking = Booking::with(['kost'])->find($id);
 
         if (!$booking) {
             return response()->json(['message' => 'Booking tidak ditemukan'], 404);
@@ -196,13 +187,10 @@ class BookingController extends Controller
         }
 
         $booking->update(['status' => 'aktif']);
-        $booking->kamar->update(['status' => 'terisi']);
 
-        // Buat data hunian otomatis jika user adalah karyawan
         $karyawan = Karyawan::where('user_id', $booking->user_id)->first();
 
         if ($karyawan) {
-            // Nonaktifkan hunian lama jika ada
             Hunian::where('karyawan_id', $karyawan->id)
                 ->where('status', 'aktif')
                 ->update(['status' => 'selesai', 'tanggal_keluar' => now()]);
@@ -210,7 +198,6 @@ class BookingController extends Controller
             Hunian::create([
                 'karyawan_id'    => $karyawan->id,
                 'kost_id'        => $booking->kost_id,
-                'kamar_id'       => $booking->kamar_id,
                 'booking_id'     => $booking->id,
                 'tanggal_masuk'  => $booking->tanggal_mulai,
                 'tanggal_keluar' => $booking->tanggal_selesai,

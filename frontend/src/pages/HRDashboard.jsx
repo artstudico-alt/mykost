@@ -53,7 +53,6 @@ const HRDashboard = () => {
   const [tab, setTab] = useState('dashboard');
   const [karyawanList, setKaryawanList] = useState([]);
   const [hunianList, setHunianList] = useState([]);
-  const [kantor, setKantor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchKary, setSearchKary] = useState('');
@@ -62,27 +61,25 @@ const HRDashboard = () => {
   const fetchAll = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
-      const [karyRes, trackRes, kantorRes] = await Promise.allSettled([
+      const REF_LAT = -6.5637499;
+      const REF_LNG = 106.7810624;
+
+      const [karyRes, trackRes] = await Promise.allSettled([
         api.get('/karyawan'),
         api.get('/tracking/hunian'),
-        api.get('/kantor'),
       ]);
 
       const karyawan = karyRes.status === 'fulfilled' ? karyRes.value?.data?.data || [] : [];
       const hunianData = trackRes.status === 'fulfilled' ? trackRes.value?.data?.data || [] : [];
-      const kantorList = kantorRes.status === 'fulfilled' ? kantorRes.value?.data?.data || [] : [];
 
-      // Ambil kantor milik HR ini (user_id match atau pertama jika satu)
-      const myKantor = kantorList.find(k => k.user_id === user?.id) || kantorList[0] || null;
-      setKantor(myKantor);
-
-      // Enrich hunian dengan jarak jika kantor koordinatnya ada
       const enriched = hunianData.map(h => {
         let jarak = h.jarak_ke_kantor ?? null;
-        if (!jarak && myKantor?.latitude && h.kost?.latitude) {
+        if (jarak == null && h.kost?.latitude != null && h.kost?.longitude != null) {
           jarak = haversineKm(
-            parseFloat(myKantor.latitude), parseFloat(myKantor.longitude),
-            parseFloat(h.kost.latitude), parseFloat(h.kost.longitude)
+            REF_LAT,
+            REF_LNG,
+            parseFloat(h.kost.latitude),
+            parseFloat(h.kost.longitude)
           );
         }
         return { ...h, jarakKm: jarak };
@@ -173,29 +170,23 @@ const HRDashboard = () => {
           <p style={{ color: GD, fontSize: 12, fontWeight: 800, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '1.5px' }}>{greet()}, 👋</p>
           <h1 style={{ fontSize: 30, fontWeight: 900, color: '#0f172a', margin: '0 0 8px', letterSpacing: '-1px' }}>{user?.name}</h1>
           <p style={{ color: '#475569', fontSize: 14, margin: '0 0 20px', fontWeight: 500 }}>
-            {kantor ? `Mengelola karyawan ${kantor.nama_kantor}` : 'HR Portal — Manajemen Hunian Karyawan'}
+            HR Portal — manajemen hunian karyawan (jarak ke titik referensi Bogor)
           </p>
-          {kantor && (
-            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'white', padding: '10px 16px', borderRadius: 14, border: '1px solid #dcfce7', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
-                <Building2 size={16} color={G} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{kantor.nama_kantor}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'white', padding: '10px 16px', borderRadius: 14, border: '1px solid #dcfce7', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
-                <MapPin size={16} color={G} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{kantor.kota}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'white', padding: '10px 16px', borderRadius: 14, border: '1px solid #dcfce7', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
-                <Target size={16} color={G} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{pctDekat}% karyawan dalam radius aman</span>
-              </div>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'white', padding: '10px 16px', borderRadius: 14, border: '1px solid #dcfce7', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+              <Building2 size={16} color={G} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Referensi jarak: Bogor</span>
             </div>
-          )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'white', padding: '10px 16px', borderRadius: 14, border: '1px solid #dcfce7', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+              <Target size={16} color={G} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{pctDekat}% hunian dalam radius aman</span>
+            </div>
+          </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, flexShrink: 0 }}>
           {[
             { v: totalKaryawan, l: 'Karyawan', c: G },
-            { v: `${pctDekat}%`, l: 'Dekat Kantor', c: '#2563eb' },
+            { v: `${pctDekat}%`, l: 'Dekat ref.', c: '#2563eb' },
             { v: verified, l: 'Terverifikasi', c: GD },
             { v: belumInput > 0 ? belumInput : 0, l: 'Belum Input', c: '#f59e0b' },
           ].map(s => (
@@ -375,7 +366,7 @@ const HRDashboard = () => {
           <div style={{ marginBottom: 24 }}>
             <h2 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>HR Radius Tracker</h2>
             <p style={{ color: '#64748b', fontSize: 14, margin: '6px 0 0', fontWeight: 500 }}>
-              Persentase karyawan yang tinggal dalam radius aman dari kantor {kantor?.nama_kantor || ''}.
+              Persentase hunian dalam radius aman dari titik referensi (Bogor).
             </p>
           </div>
 
@@ -480,7 +471,7 @@ const HRDashboard = () => {
             <div>
               <h2 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>Data Karyawan</h2>
               <p style={{ color: '#64748b', fontSize: 14, margin: '6px 0 0', fontWeight: 500 }}>
-                Karyawan yang terdaftar di kantor Anda ({totalKaryawan} orang).
+                Daftar karyawan ({totalKaryawan} orang).
               </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, padding: '10px 18px', minWidth: 300 }}>
@@ -504,7 +495,7 @@ const HRDashboard = () => {
               <tbody>
                 {filteredKary.length === 0 ? (
                   <tr><td colSpan={5} style={{ padding: 60, textAlign: 'center', color: '#94a3b8', fontSize: 14, fontWeight: 500 }}>
-                    {searchKary ? 'Karyawan tidak ditemukan.' : 'Belum ada data karyawan di kantor ini.'}
+                    {searchKary ? 'Karyawan tidak ditemukan.' : 'Belum ada data karyawan.'}
                   </td></tr>
                 ) : filteredKary.map(k => {
                   const nama = k.user?.name || k.nama || '-';
@@ -595,7 +586,7 @@ const HRDashboard = () => {
                       </td>
                       <td style={{ padding: '18px 24px' }}>
                         <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0f172a' }}>{h.kost?.nama_kost || '-'}</p>
-                        <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{h.kamar ? `Kamar ${h.kamar.nomor_kamar}` : '-'}</p>
+                        <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{h.kost?.nama_kost || '-'}</p>
                       </td>
                       <td style={{ padding: '18px 24px', fontSize: 12, color: '#64748b', fontWeight: 600 }}>
                         {h.tanggal_masuk ? new Date(h.tanggal_masuk).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}

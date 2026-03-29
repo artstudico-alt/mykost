@@ -52,11 +52,6 @@ class User extends Authenticatable
         return $this->hasMany(Kost::class);
     }
 
-    public function kantor()
-    {
-        return $this->hasOne(Kantor::class);
-    }
-
     public function bookings()
     {
         return $this->hasMany(Booking::class);

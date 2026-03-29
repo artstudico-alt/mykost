@@ -3,10 +3,10 @@ import { X, ArrowLeft, Upload, CreditCard } from 'lucide-react'
 import '../booking-modal.css'
 
 /**
+ * Sewa per kost (tanpa pilihan kamar).
  * @param {object} kost — dari API: { id, nama_kost, harga_min, ... }
- * @param {Array} kamars — kamar tersedia (status kosong), punya id, nomor_kamar, harga_bulanan
  */
-const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSubmitting = false }) => {
+const BookingModal = ({ isOpen, onClose, kost, user, onSubmit, isSubmitting = false }) => {
   const [step, setStep] = useState(1)
 
   const [formData, setFormData] = useState({
@@ -17,25 +17,17 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
     ktp_photo: null,
     tanggal_mulai: '',
     durasi_bulan: 1,
-    kamar_id: '',
   })
 
-  // Reset ke langkah awal HANYA saat modal berubah dari tertutup -> terbuka
   const wasOpenRef = useRef(false)
   useEffect(() => {
     const wasOpen = wasOpenRef.current
     if (isOpen && !wasOpen) {
       setStep(1)
-      const kid = kamars[0]?.id != null ? String(kamars[0].id) : ''
-      setFormData((prev) => ({
-        ...prev,
-        kamar_id: kid || prev.kamar_id,
-      }))
     }
     wasOpenRef.current = isOpen
-  }, [isOpen, kamars])
+  }, [isOpen])
 
-  // Sinkronkan data user ke form tanpa mereset step saat user berubah
   useEffect(() => {
     if (!isOpen) return
     setFormData((prev) => ({
@@ -49,12 +41,12 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
 
   if (!isOpen || !kost) return null
 
-  const selectedKamar = kamars.find((k) => String(k.id) === String(formData.kamar_id))
-  const hargaBulan = selectedKamar
-    ? Number(selectedKamar.harga_bulanan)
-    : Number(kost.harga_min || 0)
+  const hargaBulan = Number(kost.harga_min || 0)
   const totalEstimasi = hargaBulan * Number(formData.durasi_bulan || 1)
-  const isProd = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_MIDTRANS_IS_PRODUCTION === 'true'
+  const isProd =
+    typeof import.meta !== 'undefined' &&
+    import.meta.env &&
+    import.meta.env.VITE_MIDTRANS_IS_PRODUCTION === 'true'
 
   const handleNext = () => setStep((s) => Math.min(s + 1, 4))
   const handleBack = () => setStep((s) => Math.max(s - 1, 1))
@@ -65,16 +57,14 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
       setFormData((prev) => ({ ...prev, [name]: parseInt(value, 10) || 1 }))
       return
     }
-    if (name === 'kamar_id') {
-      setFormData((prev) => ({ ...prev, kamar_id: value }))
-      return
-    }
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleFileChange = (e) => {
     setFormData((prev) => ({ ...prev, ktp_photo: e.target.files[0] }))
   }
+
+  const kostSiapBooking = String(kost.status || '').toLowerCase() === 'aktif'
 
   const renderStep = () => {
     switch (step) {
@@ -119,9 +109,11 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
                 autoComplete="email"
               />
             </div>
-            <button type="button" className="booking-next-btn" onClick={handleNext}>
-              Lanjut
-            </button>
+            <div className="booking-actions">
+              <button type="button" className="booking-next-btn" onClick={handleNext}>
+                Lanjut
+              </button>
+            </div>
           </div>
         )
       case 2:
@@ -130,25 +122,24 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
             <h3 className="booking-step-title">Verifikasi identitas</h3>
             <p className="booking-step-desc">Digunakan sesuai ketentuan penyewaan.</p>
             <div className="booking-form-group">
-              <label htmlFor="bm-nik">NIK (16 digit)</label>
+              <label htmlFor="bm-nik">NIK</label>
               <input
                 id="bm-nik"
                 type="text"
                 name="nik"
                 value={formData.nik}
                 onChange={handleChange}
-                placeholder="3201xxxxxxxxxxxx"
+                placeholder="Nomor Induk Kependudukan"
                 maxLength={16}
               />
             </div>
             <div className="booking-form-group">
               <span className="booking-form-group-label-text">Foto KTP</span>
               <div className="booking-upload-area">
-                <input type="file" id="ktp_upload" onChange={handleFileChange} accept="image/*" hidden />
                 <label htmlFor="ktp_upload" className="booking-upload-label">
-                  <Upload size={24} strokeWidth={1.75} />
-                  <span>{formData.ktp_photo ? formData.ktp_photo.name : 'Unggah foto KTP'}</span>
+                  <Upload size={18} /> {formData.ktp_photo ? formData.ktp_photo.name : 'Unggah file'}
                 </label>
+                <input id="ktp_upload" type="file" accept="image/*" className="sr-only" onChange={handleFileChange} />
               </div>
             </div>
             <div className="booking-actions">
@@ -164,59 +155,41 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
       case 3:
         return (
           <div className="booking-step">
-            <h3 className="booking-step-title">Kamar & durasi</h3>
-            <p className="booking-step-desc">Pilih kamar kosong dan tanggal mulai sewa.</p>
-            {kamars.length === 0 ? (
-              <p className="booking-warn">Saat ini tidak ada kamar kosong untuk kost ini.</p>
-            ) : (
-              <div className="booking-form-group">
-                <label htmlFor="bm-kamar">Kamar</label>
-                <select id="bm-kamar" name="kamar_id" value={formData.kamar_id} onChange={handleChange}>
-                  {kamars.map((k) => (
-                    <option key={k.id} value={String(k.id)}>
-                      {k.nomor_kamar || `Kamar ${k.id}`} — Rp {Number(k.harga_bulanan).toLocaleString('id-ID')}/bln
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <h3 className="booking-step-title">Durasi sewa kost</h3>
+            <p className="booking-step-desc">Harga mengikuti tarif kost ({kost.nama_kost}).</p>
+            {!kostSiapBooking && (
+              <p className="booking-warn">Kost ini belum aktif untuk booking online.</p>
             )}
             <div className="booking-form-group">
-              <label htmlFor="bm-start">Mulai sewa</label>
+              <label htmlFor="bm-mulai">Tanggal mulai sewa</label>
               <input
-                id="bm-start"
+                id="bm-mulai"
                 type="date"
                 name="tanggal_mulai"
                 value={formData.tanggal_mulai}
                 onChange={handleChange}
-                min={new Date().toISOString().slice(0, 10)}
               />
             </div>
             <div className="booking-form-group">
               <label htmlFor="bm-durasi">Durasi (bulan)</label>
-              <select id="bm-durasi" name="durasi_bulan" value={formData.durasi_bulan} onChange={handleChange}>
-                {[1, 2, 3, 6, 12].map((m) => (
-                  <option key={m} value={m}>
-                    {m} bulan
+              <select
+                id="bm-durasi"
+                name="durasi_bulan"
+                value={formData.durasi_bulan}
+                onChange={handleChange}
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+                  <option key={n} value={n}>
+                    {n} bulan
                   </option>
                 ))}
               </select>
             </div>
             <div className="booking-summary-card booking-summary-card--minimal">
-              <div className="summary-row">
-                <span>Harga / bulan</span>
-                <span>Rp {hargaBulan.toLocaleString('id-ID')}</span>
-              </div>
-              <div className="summary-row">
-                <span>Durasi</span>
-                <span>{formData.durasi_bulan} bulan</span>
-              </div>
-              <div className="summary-row total">
-                <span>Total pembayaran</span>
-                <span>Rp {totalEstimasi.toLocaleString('id-ID')}</span>
-              </div>
-              <p className="booking-midtrans-hint">
-                Pembayaran aman via Midtrans (kartu, QRIS, e-wallet {isProd ? 'production' : 'sandbox'}).
+              <p>
+                Perkiraan total: <strong>Rp {totalEstimasi.toLocaleString('id-ID')}</strong>
               </p>
+              <p className="booking-midtrans-hint">Rp {hargaBulan.toLocaleString('id-ID')} × {formData.durasi_bulan} bulan</p>
             </div>
             <div className="booking-actions">
               <button type="button" className="booking-back-btn" onClick={handleBack}>
@@ -226,7 +199,7 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
                 type="button"
                 className="booking-next-btn"
                 onClick={handleNext}
-                disabled={kamars.length === 0 || !formData.tanggal_mulai}
+                disabled={!formData.tanggal_mulai || !kostSiapBooking}
               >
                 Lanjut
               </button>
@@ -249,11 +222,6 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
               <p>
                 <strong>{kost.nama_kost}</strong>
               </p>
-              {selectedKamar && (
-                <p>
-                  Kamar: <strong>{selectedKamar.nomor_kamar || selectedKamar.id}</strong>
-                </p>
-              )}
               <p>
                 Mulai: <strong>{formData.tanggal_mulai || '—'}</strong> · {formData.durasi_bulan} bulan
               </p>
@@ -262,7 +230,7 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
             <button
               type="button"
               className="booking-pay-btn"
-              disabled={isSubmitting || kamars.length === 0}
+              disabled={isSubmitting || !kostSiapBooking}
               onClick={() => onSubmit(formData)}
             >
               {isSubmitting ? 'Memproses…' : 'Buka pembayaran'}
@@ -295,4 +263,3 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
 }
 
 export default BookingModal
-

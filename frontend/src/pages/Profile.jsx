@@ -224,7 +224,7 @@ const OverviewTab = ({ user, bookings, payments, complaints, onSelectTab }) => {
               <div key={b.id} className="data-item">
                 <div className="data-icon-box"><Calendar size={20} /></div>
                 <div className="data-detail">
-                  <div className="data-title">{b.kamar?.kost?.nama || 'Kost MyKost'}</div>
+                  <div className="data-title">{b.kost?.nama_kost || 'Kost MyKost'}</div>
                   <div className="data-subtitle">{new Date(b.tanggal_mulai).toLocaleDateString()}</div>
                 </div>
                 <StatusBadge status={b.status} />
@@ -250,14 +250,14 @@ const BookingsTab = ({ bookings }) => (
               <Home size={18} strokeWidth={1.75} />
             </div>
             <div className="data-detail">
-              <div className="data-title">{b.kamar?.kost?.nama || b.kamar?.nomor_kamar || `Booking #${b.id}`}</div>
+              <div className="data-title">{b.kost?.nama_kost || `Booking #${b.id}`}</div>
               <div className="data-subtitle">
                 Mulai {new Date(b.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} · {b.durasi_bulan} bulan
               </div>
             </div>
             <div className="data-meta-right">
               <StatusBadge status={b.status} />
-              <div className="data-price">Rp {(b.kamar?.harga || 0).toLocaleString('id-ID')}</div>
+              <div className="data-price">Rp {(b.total_harga ?? 0).toLocaleString('id-ID')}</div>
             </div>
           </div>
         ))

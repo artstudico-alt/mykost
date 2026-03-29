@@ -152,7 +152,7 @@ const AdminPembayaran = () => {
                     </td>
                     <td style={{ padding: '14px 20px', fontSize: 13, color: '#64748b' }}>
                       <p style={{ margin: 0, fontWeight: 600 }}>{p.booking?.kost?.nama_kost || '-'}</p>
-                      <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>Kamar #{p.booking?.kamar_id}</p>
+                      <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>{p.booking?.kost?.nama_kost || 'Kost'}</p>
                     </td>
                     <td style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: 14 }}>
                       Rp {parseFloat(p.jumlah || 0).toLocaleString('id-ID')}
