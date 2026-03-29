@@ -2,9 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // Gunakan IP Laptop Anda agar HP Infinix bisa mengakses (Satu WiFi)
-  static const String baseUrl = "http://192.168.18.214:8000/api"; 
-  // static const String baseUrl = "http://127.0.0.1:8000/api";
+  // Gunakan localhost jika dijalankan langsung di laptop (Windows/Chrome)
+  static const String baseUrl = "http://127.0.0.1:8000/api";
+  // static const String baseUrl = "http://192.168.0.111:8000/api"; 
+
   
   static String? token;
 
@@ -85,11 +86,37 @@ class ApiService {
         return decoded;
       } else {
         print("API Error Response: $decoded");
-        throw Exception(decoded['message'] ?? "Terjadi error");
+        
+        // Tangani pesan error validasi spesifik dari Laravel (jika ada)
+        if (decoded['errors'] != null && decoded['errors'] is Map) {
+          final errors = decoded['errors'] as Map;
+          if (errors.isNotEmpty) {
+            final firstErrorList = errors.values.first;
+            if (firstErrorList is List && firstErrorList.isNotEmpty) {
+              throw Exception(firstErrorList.first);
+            }
+          }
+        }
+
+        throw Exception(decoded['message'] ?? "Terjadi error (${response.statusCode})");
       }
     } catch (e) {
       print("API Catch Error: $e");
-      throw Exception("Invalid response dari server");
+      
+      if (e is Exception && e.toString().contains("Exception:")) {
+        rethrow;
+      }
+
+      // Jika body bukan JSON (misal HTML error page dari Laravel)
+      if (response.statusCode >= 500) {
+        throw Exception("Server Error (500). Silakan cek koneksi database atau log server.");
+      } else if (response.statusCode == 404) {
+        throw Exception("Endpoint tidak ditemukan (404).");
+      } else if (response.statusCode == 405) {
+        throw Exception("Method tidak diizinkan (405).");
+      }
+
+      throw Exception("Respon server tidak valid. Pastikan server sudah berjalan dengan benar.");
     }
   }
 
@@ -146,7 +173,15 @@ class ApiService {
 
   // GET PROFILE
   static Future<dynamic> me() async {
-    return await get("/auth/me");
+    final response = await get("/auth/me");
+    // Karena backend kirim field 'user' tapi frontend cari field 'data', kita map di sini agar ngga perlu ngerubah backend
+    if (response is Map && response.containsKey('user')) {
+      return {
+        ...response,
+        'data': response['user'],
+      };
+    }
+    return response;
   }
 
   // UPDATE PROFILE
