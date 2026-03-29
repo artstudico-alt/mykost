@@ -19,6 +19,29 @@ import api from '../utils/api'
 import { useAuth } from '../hooks/useAuth'
 import '../profile.css'
 
+/** Respons Laravel { data: [...] } — selalu kembalikan array (hindari .map crash). */
+function normalizeList(result) {
+  if (!result || result.status !== 'fulfilled') return []
+  const body = result.value?.data
+  if (Array.isArray(body)) return body
+  if (body && Array.isArray(body.data)) return body.data
+  return []
+}
+
+/** Role dari API bisa { name } atau string; jangan panggil .replace pada object. */
+function formatRoleLabel(user) {
+  const r = user?.role
+  const raw = typeof r === 'string' ? r : r?.name
+  return String(raw || 'Pengguna').replace(/_/g, ' ')
+}
+
+function formatRolePlain(user) {
+  const r = user?.role
+  if (typeof r === 'string') return r
+  if (r && typeof r === 'object' && r.name) return r.name
+  return '—'
+}
+
 const TABS = [
   { id: 'overview', label: 'Ringkasan', icon: User },
   { id: 'bookings', label: 'Booking', icon: Calendar },
@@ -36,6 +59,7 @@ const Profile = () => {
   const [payments, setPayments] = useState([])
   const [complaints, setComplaints] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
 
   useEffect(() => {
     fetchData()
@@ -43,23 +67,52 @@ const Profile = () => {
 
   const fetchData = async () => {
     setLoading(true)
-    try {
-      const [uRes, bRes, pRes, cRes] = await Promise.all([
-        api.get('/auth/me'),
-        api.get('/booking'),
-        api.get('/pembayaran'),
-        api.get('/keluhan')
-      ])
-      
-      setUser(uRes.data.user)
-      setBookings(bRes.data.data || bRes.data || [])
-      setPayments(pRes.data.data || pRes.data || [])
-      setComplaints(cRes.data.data || cRes.data || [])
-    } catch (err) {
-      console.error('Error fetching profile data:', err)
-    } finally {
-      setLoading(false)
+    setFetchError('')
+    const results = await Promise.allSettled([
+      api.get('/auth/me'),
+      api.get('/booking'),
+      api.get('/pembayaran'),
+      api.get('/keluhan'),
+    ])
+
+    const [meRes, bookingRes, payRes, keluhanRes] = results
+
+    if (meRes.status === 'fulfilled' && meRes.value?.data?.user) {
+      setUser(meRes.value.data.user)
+    } else {
+      setUser(authUser ?? null)
+      if (meRes.status === 'rejected') {
+        console.error('auth/me:', meRes.reason)
+        setFetchError((prev) => prev || 'Data profil tidak bisa dimuat. ')
+      }
     }
+
+    setBookings(normalizeList(bookingRes))
+    setPayments(normalizeList(payRes))
+    setComplaints(normalizeList(keluhanRes))
+
+    const parts = []
+    if (bookingRes.status === 'rejected') {
+      console.error('booking:', bookingRes.reason)
+      parts.push('booking')
+    }
+    if (payRes.status === 'rejected') {
+      console.error('pembayaran:', payRes.reason)
+      parts.push('pembayaran')
+    }
+    if (keluhanRes.status === 'rejected') {
+      console.error('keluhan:', keluhanRes.reason)
+      parts.push('keluhan')
+    }
+    if (parts.length) {
+      setFetchError(
+        (prev) =>
+          prev +
+          `Gagal memuat: ${parts.join(', ')}. Tab terkait mungkin kosong.`
+      )
+    }
+
+    setLoading(false)
   }
 
   const handleLogout = async () => {
@@ -84,7 +137,16 @@ const Profile = () => {
       case 'payments': return <PaymentsTab payments={payments} />
       case 'complaints': return <ComplaintsTab complaints={complaints} />
       case 'settings': return <SettingsTab user={user} />
-      default: return <OverviewTab user={user} onSelectTab={setActiveTab} />
+      default:
+        return (
+          <OverviewTab
+            user={user}
+            bookings={bookings}
+            payments={payments}
+            complaints={complaints}
+            onSelectTab={setActiveTab}
+          />
+        )
     }
   }
 
@@ -153,7 +215,39 @@ const Profile = () => {
               <div className="profile-spinner" role="status" aria-label="Memuat" />
             </div>
           ) : (
-            renderContent()
+            <>
+              {fetchError ? (
+                <div
+                  className="profile-fetch-banner"
+                  role="status"
+                  style={{
+                    marginBottom: '1rem',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    background: '#fff7ed',
+                    border: '1px solid #fed7aa',
+                    color: '#9a3412',
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span>{fetchError}</span>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    style={{ fontSize: '0.8125rem' }}
+                    onClick={() => fetchData()}
+                  >
+                    Coba lagi
+                  </button>
+                </div>
+              ) : null}
+              {renderContent()}
+            </>
           )}
         </section>
       </main>
@@ -165,7 +259,7 @@ const Profile = () => {
 
 const OverviewTab = ({ user, bookings, payments, complaints, onSelectTab }) => {
   const initial = (user?.name || user?.email || 'U').charAt(0).toUpperCase()
-  const roleLabel = (user?.role?.name || user?.role || 'Pengguna').replace(/_/g, ' ')
+  const roleLabel = formatRoleLabel(user)
   return (
     <>
       <div className="profile-hero">
@@ -208,7 +302,7 @@ const OverviewTab = ({ user, bookings, payments, complaints, onSelectTab }) => {
             <InfoItem icon={Mail} label="Email" value={user?.email} />
             <InfoItem icon={Phone} label="Nomor HP" value={user?.phone || '-'} />
             <InfoItem icon={IdCard} label="NIK" value={user?.nik || '-'} />
-            <InfoItem icon={User} label="Role" value={user?.role?.name || user?.role || 'Karyawan'} />
+            <InfoItem icon={User} label="Role" value={formatRolePlain(user)} />
           </div>
         </div>
 
@@ -283,7 +377,7 @@ const PaymentsTab = ({ payments }) => (
             <div className="data-detail">
               <div className="data-title">Pembayaran sewa</div>
               <div className="data-subtitle">
-                {new Date(p.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} · {p.metode_bayar || 'Manual'}
+                {new Date(p.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} · {p.metode || p.metode_bayar || 'Transfer'}
               </div>
             </div>
             <div className="data-meta-right">
@@ -382,9 +476,26 @@ const StatusBadge = ({ status }) => {
   let cls = 'p-badge--yellow'
   let label = status
 
-  if (s === 'aktif' || s === 'lunas' || s === 'selesai' || s === 'dikonfirmasi') {
+  if (
+    s === 'aktif' ||
+    s === 'lunas' ||
+    s === 'selesai' ||
+    s === 'dikonfirmasi' ||
+    s === 'berhasil' ||
+    s === 'confirmed'
+  ) {
     cls = 'p-badge--green'
-    label = s === 'lunas' ? 'Lunas' : (s === 'aktif' ? 'Aktif' : 'Selesai')
+    if (s === 'lunas') label = 'Lunas'
+    else if (s === 'aktif') label = 'Aktif'
+    else if (s === 'berhasil') label = 'Berhasil'
+    else if (s === 'confirmed') label = 'Terkonfirmasi'
+    else label = s === 'selesai' ? 'Selesai' : 'Selesai'
+  } else if (s === 'pending' || s === 'menunggu' || s === 'open' || s === 'diproses') {
+    cls = 'p-badge--yellow'
+    if (s === 'pending') label = 'Pending'
+    else if (s === 'open') label = 'Terbuka'
+    else if (s === 'diproses') label = 'Diproses'
+    else label = 'Menunggu'
   } else if (s === 'dibatalkan' || s === 'gagal' || s === 'ditolak') {
     cls = 'p-badge--red'
     label = s === 'dibatalkan' ? 'Dibatalkan' : (s === 'gagal' ? 'Gagal' : 'Ditolak')

@@ -18,14 +18,42 @@ export function getSnapPaymentMode() {
 }
 
 /**
- * Buka halaman pembayaran Snap penuh (sandbox: app.sandbox.midtrans.com).
- * @param {string} redirectUrl dari API (createTransaction.redirect_url)
+ * Hanya terima URL checkout Snap resmi (bukan callback / URL app kita).
+ * Jika backend/API salah mengembalikan localhost atau domain sendiri, fallback vtweb.
  */
-export function openSnapRedirect(redirectUrl) {
-  if (!redirectUrl || typeof redirectUrl !== 'string') {
-    throw new Error('redirect_url dari server tidak valid')
+function isMidtransSnapCheckoutUrl(url) {
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) return false
+  try {
+    const u = new URL(url)
+    const h = u.hostname.toLowerCase()
+    return (
+      h.endsWith('midtrans.com') ||
+      h.endsWith('veritrans.co.id') ||
+      h.endsWith('midtrans.io')
+    )
+  } catch {
+    return false
   }
-  window.location.href = redirectUrl
+}
+
+/**
+ * Buka halaman pembayaran Snap penuh (sandbox / production).
+ * Jika redirect_url tidak ada atau bukan host Midtrans, pakai pola vtweb resmi.
+ *
+ * @param {string|null|undefined} redirectUrl dari API (createTransaction.redirect_url)
+ * @param {string|null|undefined} snapToken token Snap (wajib jika redirectUrl kosong)
+ */
+export function openSnapRedirect(redirectUrl, snapToken) {
+  const isProd = import.meta.env.VITE_MIDTRANS_IS_PRODUCTION === 'true'
+  const host = isProd ? 'https://app.midtrans.com' : 'https://app.sandbox.midtrans.com'
+  const fromApi = isMidtransSnapCheckoutUrl(redirectUrl) ? redirectUrl : null
+  const url =
+    fromApi ||
+    (snapToken ? `${host}/snap/v2/vtweb/${encodeURIComponent(snapToken)}` : null)
+  if (!url) {
+    throw new Error('Tidak ada redirect_url atau snap_token untuk halaman pembayaran Midtrans')
+  }
+  window.location.replace(url)
 }
 
 export function loadMidtransSnap() {

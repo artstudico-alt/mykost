@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import api from '../utils/api'
 import BookingModal from '../components/BookingModal'
+import {
+  loadMidtransSnap,
+  payWithSnap,
+  getMidtransClientKey,
+  getSnapPaymentMode,
+  openSnapRedirect,
+} from '../utils/midtrans'
 import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
@@ -86,6 +93,13 @@ function LandingPage() {
       navigate('/login')
       return
     }
+    if (!getMidtransClientKey()) {
+      alert(
+        'Midtrans: tambahkan VITE_MIDTRANS_CLIENT_KEY di file .env frontend (nilai sama dengan MIDTRANS_CLIENT_KEY di backend), lalu restart npm run dev.'
+      )
+      return
+    }
+
     setIsSubmittingBooking(true)
     try {
       const profileData = new FormData()
@@ -95,19 +109,60 @@ function LandingPage() {
         profileData.append('ktp_photo', formData.ktp_photo)
       }
       await api.post('/auth/update-profile', profileData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
       })
-      await api.post('/booking', {
+
+      const bookingRes = await api.post('/booking', {
         kost_id: selectedBookingKost.id,
         tanggal_mulai: formData.tanggal_mulai,
         durasi_bulan: parseInt(formData.durasi_bulan, 10) || 1,
-        catatan: 'Booking dari Landing Page (' + selectedBookingKost?.nama_kost + ')'
+        catatan: 'Booking dari Landing Page (' + selectedBookingKost?.nama_kost + ')',
       })
-      alert('Booking berhasil dibuat! Menuju halaman pembayaran...')
-      setIsBookingModalOpen(false)
+
+      const booking = bookingRes.data?.data
+      if (!booking?.id) {
+        throw new Error('Respons booking tidak valid')
+      }
+
+      const jumlah = Math.round(Number(booking.total_harga))
+      const payRes = await api.post('/pembayaran', {
+        booking_id: booking.id,
+        jumlah,
+      })
+
+      const snapToken = payRes.data?.snap_token
+      const redirectUrl = payRes.data?.redirect_url
+      if (!snapToken) {
+        throw new Error('Snap token tidak diterima dari server')
+      }
+
+      const mode = getSnapPaymentMode()
+      if (mode === 'redirect') {
+        setIsBookingModalOpen(false)
+        openSnapRedirect(redirectUrl, snapToken)
+        return
+      }
+
+      await loadMidtransSnap()
+      payWithSnap(snapToken, {
+        onSuccess: () => {
+          setIsBookingModalOpen(false)
+          navigate('/profile')
+        },
+        onPending: () => {
+          setIsBookingModalOpen(false)
+          navigate('/profile')
+        },
+        onError: () => {
+          alert('Pembayaran gagal atau dibatalkan di Midtrans.')
+        },
+        onClose: () => {
+          setIsBookingModalOpen(false)
+        },
+      })
     } catch (error) {
       console.error('Error saat booking:', error)
-      alert(error.response?.data?.message || 'Terjadi kesalahan saat memproses booking.')
+      alert(error.response?.data?.message || error.message || 'Terjadi kesalahan saat memproses booking.')
     } finally {
       setIsSubmittingBooking(false)
     }

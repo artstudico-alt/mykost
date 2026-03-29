@@ -148,13 +148,10 @@ function KostDetail() {
       }
 
       const mode = getSnapPaymentMode()
-      if (mode === 'redirect' && redirectUrl) {
+      if (mode === 'redirect') {
         setIsBookingModalOpen(false)
-        openSnapRedirect(redirectUrl)
+        openSnapRedirect(redirectUrl, snapToken)
         return
-      }
-      if (mode === 'redirect' && !redirectUrl) {
-        console.warn('Midtrans: redirect_url kosong, fallback ke popup Snap')
       }
 
       await loadMidtransSnap()

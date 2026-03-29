@@ -6,6 +6,7 @@ import api from '../utils/api'
 /**
  * Callback setelah Snap redirect (finish / unfinish / error).
  * Sinkron status dari Midtrans (otomatis) lalu tampilkan hasil.
+ * Tampilan memakai palette global (--primary) selaras landing & Midtrans redirect.
  */
 function PaymentReturn() {
   const { step } = useParams()
@@ -48,13 +49,13 @@ function PaymentReturn() {
 
   if (variant === 'unfinish') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-slate-50">
-        <AlertCircle className="text-amber-500 mb-4" size={48} strokeWidth={1.5} />
-        <h1 className="text-xl font-bold text-slate-900 mb-2">Pembayaran belum selesai</h1>
-        <p className="text-slate-600 text-center max-w-md mb-6">
+      <div className="payment-return-shell">
+        <AlertCircle className="payment-return-icon payment-return-icon--warn" size={48} strokeWidth={1.5} />
+        <h1 className="payment-return-title">Pembayaran belum selesai</h1>
+        <p className="payment-return-text">
           Anda dapat melanjutkan nanti dari profil atau halaman booking.
         </p>
-        <Link to="/profile" className="text-green-600 font-semibold hover:underline">
+        <Link to="/profile" className="payment-return-link">
           Ke profil
         </Link>
       </div>
@@ -63,14 +64,29 @@ function PaymentReturn() {
 
   if (variant === 'error') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-slate-50">
-        <XCircle className="text-red-500 mb-4" size={48} strokeWidth={1.5} />
-        <h1 className="text-xl font-bold text-slate-900 mb-2">Terjadi kesalahan</h1>
-        <p className="text-slate-600 text-center max-w-md mb-6">
+      <div className="payment-return-shell">
+        <XCircle className="payment-return-icon payment-return-icon--danger" size={48} strokeWidth={1.5} />
+        <h1 className="payment-return-title">Terjadi kesalahan</h1>
+        <p className="payment-return-text">
           Pembayaran dibatalkan atau gagal di Midtrans. Coba lagi dari detail kost.
         </p>
-        <Link to="/cari" className="text-green-600 font-semibold hover:underline">
+        <Link to="/cari" className="payment-return-link">
           Cari kost
+        </Link>
+      </div>
+    )
+  }
+
+  if (variant === 'selesai' && !orderId) {
+    return (
+      <div className="payment-return-shell">
+        <AlertCircle className="payment-return-icon payment-return-icon--warn" size={48} strokeWidth={1.5} />
+        <h1 className="payment-return-title">Parameter pembayaran tidak lengkap</h1>
+        <p className="payment-return-text">
+          Tidak ada nomor order dari Midtrans. Jika Anda sudah membayar, cek status di profil.
+        </p>
+        <Link to="/profile" className="payment-return-btn">
+          Ke profil
         </Link>
       </div>
     )
@@ -78,18 +94,18 @@ function PaymentReturn() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
-        <Loader2 className="animate-spin text-green-600" size={40} />
-        <p className="text-slate-600 font-medium">Memverifikasi pembayaran…</p>
+      <div className="app-loading-shell">
+        <Loader2 className="payment-return-spinner" size={40} strokeWidth={2} aria-hidden />
+        <p className="app-loading-text">Memverifikasi pembayaran…</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-slate-50">
-        <p className="text-red-600 mb-4 text-center">{error}</p>
-        <Link to="/profile" className="text-green-600 font-semibold">
+      <div className="payment-return-shell">
+        <p className="payment-return-error">{error}</p>
+        <Link to="/profile" className="payment-return-link">
           Ke profil
         </Link>
       </div>
@@ -100,30 +116,27 @@ function PaymentReturn() {
   const pending = pembayaran?.status === 'pending'
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-slate-50">
+    <div className="payment-return-shell">
       {ok ? (
-        <CheckCircle2 className="text-green-500 mb-4" size={56} strokeWidth={1.5} />
+        <CheckCircle2 className="payment-return-icon payment-return-icon--accent" size={56} strokeWidth={1.5} />
       ) : (
-        <AlertCircle className="text-amber-500 mb-4" size={56} strokeWidth={1.5} />
+        <AlertCircle className="payment-return-icon payment-return-icon--warn" size={56} strokeWidth={1.5} />
       )}
-      <h1 className="text-xl font-bold text-slate-900 mb-2">
+      <h1 className="payment-return-title">
         {ok ? 'Pembayaran berhasil' : pending ? 'Menunggu pembayaran' : 'Status pembayaran'}
       </h1>
-      <p className="text-slate-600 text-center max-w-md mb-2">
-        Order: <code className="bg-slate-100 px-2 py-0.5 rounded text-sm">{orderId}</code>
+      <p className="payment-return-meta">
+        Order: <code className="payment-return-code">{orderId}</code>
       </p>
       {pembayaran && (
-        <p className="text-slate-700 mb-6">
+        <p className="payment-return-status">
           Status: <strong>{pembayaran.status}</strong>
           {pembayaran.jumlah != null && (
             <span> · Rp {Number(pembayaran.jumlah).toLocaleString('id-ID')}</span>
           )}
         </p>
       )}
-      <Link
-        to="/profile"
-        className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700"
-      >
+      <Link to="/profile" className="payment-return-btn">
         Ke profil & booking
       </Link>
     </div>

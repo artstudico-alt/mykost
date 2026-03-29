@@ -29,14 +29,22 @@ api.interceptors.request.use(
   }
 )
 
-// Response interceptor
+// Response interceptor — jangan hapus token pada 401 dari login/register (password salah, dll.)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized
-      localStorage.removeItem('token')
-      window.location.href = '/#/login'
+      const url = String(error.config?.url || '')
+      const isAuthForm =
+        url.includes('/auth/login') ||
+        url.includes('/auth/register') ||
+        url.includes('/auth/verify-otp') ||
+        url.includes('/auth/forgot-password') ||
+        url.includes('/auth/reset-password')
+      if (!isAuthForm) {
+        localStorage.removeItem('token')
+        window.location.href = '/#/login'
+      }
     }
     return Promise.reject(error)
   }

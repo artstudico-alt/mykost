@@ -28,7 +28,7 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="min-h-screen">
-        <Routes>
+          <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/cari" element={<CariKost />} />
           <Route path="/login" element={<Login />} />
@@ -92,8 +92,8 @@ function App() {
               </ProtectedRoute>
             }
           />
-        </Routes>
-      </div>
+          </Routes>
+        </div>
       </Router>
     </AuthProvider>
   )

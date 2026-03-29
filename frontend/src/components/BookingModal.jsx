@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { X, ArrowLeft, Upload, CreditCard } from 'lucide-react'
+import { getSnapPaymentMode } from '../utils/midtrans'
 import '../booking-modal.css'
 
 /**
@@ -214,9 +215,13 @@ const BookingModal = ({ isOpen, onClose, kost, user, onSubmit, isSubmitting = fa
             </div>
             <h3 className="booking-step-title">Bayar dengan Midtrans</h3>
             <p className="booking-step-desc">
-              {isProd
-                ? 'Setelah konfirmasi, popup pembayaran Midtrans (production) akan terbuka.'
-                : 'Setelah konfirmasi, popup pembayaran sandbox akan terbuka. Gunakan kartu / metode tes Midtrans.'}
+              {getSnapPaymentMode() === 'redirect'
+                ? isProd
+                  ? 'Anda akan diarahkan ke halaman pembayaran Midtrans (production).'
+                  : 'Anda akan diarahkan ke halaman pembayaran sandbox Midtrans. Gunakan kartu / metode uji dari dashboard Midtrans.'
+                : isProd
+                  ? 'Setelah konfirmasi, jendela pembayaran Midtrans (production) akan terbuka.'
+                  : 'Setelah konfirmasi, jendela pembayaran sandbox akan terbuka. Gunakan kartu / metode tes Midtrans.'}
             </p>
             <div className="booking-final-summary">
               <p>

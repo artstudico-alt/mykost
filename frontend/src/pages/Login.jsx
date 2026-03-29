@@ -74,10 +74,10 @@ function Login() {
           navigate('/owner/dashboard')
           break
         case 'karyawan':
-          navigate('/')
+          navigate('/profile')
           break
         default:
-          navigate('/')
+          navigate('/profile')
       }
     } catch (err) {
       setError(err?.message || 'Login gagal. Periksa email dan password Anda.')
