@@ -109,7 +109,9 @@ class PembayaranController extends Controller
         $pembayaran = Pembayaran::create([
             'booking_id'       => $booking->id,
             'jumlah'           => $grossAmount,
-            'metode'           => 'midtrans', // default untuk sementara
+            // Gunakan nilai yang diizinkan oleh enum: transfer | cash | virtual_account | qris
+            // Saat inisiasi (belum tahu metode pasti), set ke 'transfer' sebagai default aman
+            'metode'           => 'transfer',
             'nomor_referensi'  => $nomor_referensi,
             'snap_token'       => $snapToken,
             'status'           => 'pending',
@@ -182,10 +184,18 @@ class PembayaranController extends Controller
                 $pembayaran = Pembayaran::with('booking.kamar')->where('nomor_referensi', $request->order_id)->first();
                 
                 if ($pembayaran && $pembayaran->status != 'berhasil') {
+                    // Normalisasi payment_type Midtrans ke enum yang diizinkan DB
+                    $paymentType = strtolower((string) $request->payment_type);
+                    $metodeAllowed = match ($paymentType) {
+                        'qris' => 'qris',
+                        'bank_transfer', 'echannel', 'credit_card', 'gopay', 'shopeepay', 'akulaku', 'permata_va', 'bca_va', 'bni_va', 'bri_va' => 'transfer',
+                        'virtual_account' => 'virtual_account',
+                        default => 'transfer',
+                    };
                     $pembayaran->update([
                         'status' => 'berhasil',
                         'tanggal_bayar' => Carbon::now(),
-                        'metode' => $request->payment_type, // Misal: bank_transfer, qris, dll
+                        'metode' => $metodeAllowed,
                     ]);
 
                     $booking = $pembayaran->booking;

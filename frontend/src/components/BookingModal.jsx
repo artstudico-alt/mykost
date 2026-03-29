@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { X, ArrowLeft, Upload, CreditCard } from 'lucide-react'
 import '../booking-modal.css'
 
@@ -20,19 +20,32 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
     kamar_id: '',
   })
 
+  // Reset ke langkah awal HANYA saat modal berubah dari tertutup -> terbuka
+  const wasOpenRef = useRef(false)
+  useEffect(() => {
+    const wasOpen = wasOpenRef.current
+    if (isOpen && !wasOpen) {
+      setStep(1)
+      const kid = kamars[0]?.id != null ? String(kamars[0].id) : ''
+      setFormData((prev) => ({
+        ...prev,
+        kamar_id: kid || prev.kamar_id,
+      }))
+    }
+    wasOpenRef.current = isOpen
+  }, [isOpen, kamars])
+
+  // Sinkronkan data user ke form tanpa mereset step saat user berubah
   useEffect(() => {
     if (!isOpen) return
-    setStep(1)
-    const kid = kamars[0]?.id != null ? String(kamars[0].id) : ''
     setFormData((prev) => ({
       ...prev,
-      kamar_id: kid,
-      name: user?.name || prev.name,
-      email: user?.email || prev.email,
-      phone: user?.phone || prev.phone,
-      nik: user?.nik || prev.nik,
+      name: user?.name ?? prev.name,
+      email: user?.email ?? prev.email,
+      phone: user?.phone ?? prev.phone,
+      nik: user?.nik ?? prev.nik,
     }))
-  }, [isOpen, user, kamars])
+  }, [isOpen, user])
 
   if (!isOpen || !kost) return null
 
@@ -41,6 +54,7 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
     ? Number(selectedKamar.harga_bulanan)
     : Number(kost.harga_min || 0)
   const totalEstimasi = hargaBulan * Number(formData.durasi_bulan || 1)
+  const isProd = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_MIDTRANS_IS_PRODUCTION === 'true'
 
   const handleNext = () => setStep((s) => Math.min(s + 1, 4))
   const handleBack = () => setStep((s) => Math.max(s - 1, 1))
@@ -200,7 +214,9 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
                 <span>Total pembayaran</span>
                 <span>Rp {totalEstimasi.toLocaleString('id-ID')}</span>
               </div>
-              <p className="booking-midtrans-hint">Pembayaran aman via Midtrans (kartu, QRIS, e-wallet sandbox).</p>
+              <p className="booking-midtrans-hint">
+                Pembayaran aman via Midtrans (kartu, QRIS, e-wallet {isProd ? 'production' : 'sandbox'}).
+              </p>
             </div>
             <div className="booking-actions">
               <button type="button" className="booking-back-btn" onClick={handleBack}>
@@ -225,7 +241,9 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
             </div>
             <h3 className="booking-step-title">Bayar dengan Midtrans</h3>
             <p className="booking-step-desc">
-              Setelah konfirmasi, popup pembayaran sandbox akan terbuka. Gunakan kartu / metode tes Midtrans.
+              {isProd
+                ? 'Setelah konfirmasi, popup pembayaran Midtrans (production) akan terbuka.'
+                : 'Setelah konfirmasi, popup pembayaran sandbox akan terbuka. Gunakan kartu / metode tes Midtrans.'}
             </p>
             <div className="booking-final-summary">
               <p>
@@ -277,3 +295,4 @@ const BookingModal = ({ isOpen, onClose, kost, kamars = [], user, onSubmit, isSu
 }
 
 export default BookingModal
+

@@ -45,10 +45,7 @@ function KostDetail() {
       setLoading(true)
       setLoadError(null)
       try {
-        const [kRes, kmRes] = await Promise.all([
-          api.get(`/kost/${kostId}`),
-          api.get(`/kost/${kostId}/kamar`),
-        ])
+        const kRes = await api.get(`/kost/${kostId}`)
         if (cancelled) return
         const k = kRes.data?.data
         if (!k) {
@@ -57,8 +54,23 @@ function KostDetail() {
           return
         }
         setKost(k)
-        const rows = kmRes.data?.data || []
-        setKamarsKosong(rows.filter((r) => r.status === 'kosong'))
+        let rows = Array.isArray(k.kamars) ? k.kamars : []
+        // Jika relasi kamars kosong, fallback panggil endpoint kamar khusus
+        if (!rows || rows.length === 0) {
+          try {
+            const kmRes = await api.get(`/kost/${kostId}/kamar`, { params: { status: 'kosong' } })
+            rows = kmRes.data?.data || []
+          } catch {}
+        }
+        // Jika masih kosong, ambil semua dan treat non-'terisi' sebagai tersedia
+        let available = (rows || []).filter((r) => String(r?.status || '').toLowerCase().trim() === 'kosong')
+        if (available.length === 0 && rows && rows.length > 0) {
+          available = rows.filter((r) => {
+            const s = String(r?.status || '').toLowerCase().trim()
+            return s === '' || s === 'kosong' || s === 'booking'
+          })
+        }
+        setKamarsKosong(available)
       } catch (e) {
         if (!cancelled) {
           setLoadError(e.response?.data?.message || 'Gagal memuat data kost.')
@@ -350,28 +362,28 @@ function KostDetail() {
             </div>
 
             <aside className="kost-detail-right kost-rent-aside">
-              <div className="kost-rent-card">
-                <div className="kost-rent-card__head">
-                  <div className="kost-rent-card__brand">
-                    <span className="kost-rent-card__dot" aria-hidden />
+              <div className="kost-rent-card" style={{borderRadius: 20, boxShadow: '0 12px 30px rgba(2,6,23,.08)', overflow: 'hidden', background: 'linear-gradient(180deg,#ffffff 0%,#f8fafc 100%)', border: '1px solid #eef2ff'}}>
+                <div className="kost-rent-card__head" style={{padding: '18px 20px', background: 'linear-gradient(90deg,#eef2ff 0%,#f8fafc 100%)', borderBottom: '1px solid #e5e7eb'}}>
+                  <div className="kost-rent-card__brand" style={{display:'flex',alignItems:'center',gap:10,fontWeight:700,color:'#334155'}}>
+                    <span className="kost-rent-card__dot" aria-hidden style={{width:8,height:8,background:'#22c55e',borderRadius:'50%'}} />
                     <span className="kost-rent-card__brand-text">Sewa langsung</span>
                   </div>
-                  <p className="kost-rent-card__tagline">Proses booking & pembayaran terintegrasi</p>
+                  <p className="kost-rent-card__tagline" style={{margin:8,color:'#64748b',fontSize:13}}>Proses booking & pembayaran terintegrasi</p>
                 </div>
 
-                <div className="kost-rent-card__owner">
-                  <div className="kost-rent-card__avatar" aria-hidden>
+                <div className="kost-rent-card__owner" style={{display:'flex',alignItems:'center',gap:12,padding:'16px 20px'}}>
+                  <div className="kost-rent-card__avatar" aria-hidden style={{width:40,height:40,borderRadius:'50%',background:'#22c55e',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>
                     {ownerName.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div className="kost-rent-card__owner-name">{ownerName}</div>
-                    <div className="kost-rent-card__owner-role">Pemilik properti</div>
+                    <div className="kost-rent-card__owner-name" style={{fontWeight:600,color:'#0f172a'}}>{ownerName}</div>
+                    <div className="kost-rent-card__owner-role" style={{fontSize:12,color:'#64748b'}}>Pemilik properti</div>
                   </div>
                 </div>
 
-                <div className="kost-rent-card__price-block">
-                  <span className="kost-rent-card__price-label">Mulai dari</span>
-                  <div className="kost-rent-card__price">{priceLabel}</div>
+                <div className="kost-rent-card__price-block" style={{padding:'6px 20px 16px'}}>
+                  <span className="kost-rent-card__price-label" style={{fontSize:12,color:'#64748b'}}>Mulai dari</span>
+                  <div className="kost-rent-card__price" style={{fontSize:20,fontWeight:800,color:'#0f172a'}}>{priceLabel}</div>
                 </div>
 
                 <button
@@ -385,12 +397,13 @@ function KostDetail() {
                     }
                     setIsBookingModalOpen(true)
                   }}
+                  style={{margin:'0 20px 14px',height:48,borderRadius:14,border:'none',cursor: roomsLeft===0?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:10,background: roomsLeft===0?'#e2e8f0':'#22c55e',color: roomsLeft===0?'#64748b':'#fff',fontWeight:700,boxShadow: roomsLeft===0?'none':'0 8px 20px rgba(34,197,94,.25)'}}
                 >
                   <Send size={20} aria-hidden />
-                  {roomsLeft === 0 ? 'Kamar habis' : 'Ajukan sewa & bayar'}
+                  {roomsLeft === 0 ? 'Kamar habis' : 'Ajukan sewa sekarang'}
                 </button>
 
-                <p className="kost-rent-card__footnote">
+                <p className="kost-rent-card__footnote" style={{padding:'0 20px 18px',fontSize:12,color:'#64748b'}}>
                   {roomsLeft === 0
                     ? 'Tidak ada kamar kosong saat ini.'
                     : 'Popup Midtrans akan terbuka untuk menyelesaikan pembayaran (sandbox mendukung kartu & QRIS tes).'}

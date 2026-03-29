@@ -29,6 +29,7 @@ function LandingPage() {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
   const [selectedBookingKost, setSelectedBookingKost] = useState(null)
   const [userData, setUserData] = useState(null)
+  const [selectedKostKamars, setSelectedKostKamars] = useState([])
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false)
   
   // Radar & Location States
@@ -70,7 +71,7 @@ function LandingPage() {
     }
   }
 
-  const handleAjukanSewa = (e, kost) => {
+  const handleAjukanSewa = async (e, kost) => {
     e.stopPropagation()
     if (!isAuthenticated) {
       navigate('/login')
@@ -78,7 +79,31 @@ function LandingPage() {
     }
     setSelectedBookingKost(kost)
     fetchUserData()
-    setIsBookingModalOpen(true)
+    try {
+      // 1) Coba ambil kamar kosong eksplisit
+      const res = await api.get(`/kost/${kost.id}/kamar`, { params: { status: 'kosong' } })
+      let rows = Array.isArray(res.data?.data) ? res.data.data : []
+      let normalized = rows.filter((r) => String(r?.status || '').toLowerCase().trim() === 'kosong')
+
+      // 2) Jika tetap kosong, ambil semua kamar lalu anggap "tersedia" jika status bukan 'terisi' atau status tidak ada
+      if (normalized.length === 0) {
+        try {
+          const allRes = await api.get(`/kost/${kost.id}/kamar`)
+          rows = Array.isArray(allRes.data?.data) ? allRes.data.data : []
+          normalized = rows.filter((r) => {
+            const s = String(r?.status || '').toLowerCase().trim()
+            return s === '' || s === 'kosong' || s === 'booking' // anggap tidak 'terisi' sebagai tersedia
+          })
+        } catch {}
+      }
+
+      setSelectedKostKamars(normalized)
+    } catch (err) {
+      console.error('Gagal mengambil daftar kamar:', err)
+      setSelectedKostKamars([])
+    } finally {
+      setIsBookingModalOpen(true)
+    }
   }
 
   const handleBookingSubmit = async (formData) => {
@@ -337,23 +362,42 @@ function LandingPage() {
               ))
             ) : filteredKosts.length > 0 ? (
               filteredKosts.map((k) => (
-                <article key={k.id} className="recommend-kost-card" onClick={() => handleSelectKost(k)}>
-                  <div className="recommend-kost-gallery">
+                <article
+                  key={k.id}
+                  className="recommend-kost-card"
+                  onClick={() => handleSelectKost(k)}
+                  style={{
+                    borderRadius: 24,
+                    overflow: 'hidden',
+                    boxShadow: '0 16px 40px rgba(2,6,23,.08)',
+                    background: '#ffffff',
+                    border: '1px solid #eef2ff',
+                    transition: 'transform .2s ease, box-shadow .2s ease',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 22px 50px rgba(2,6,23,.12)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(2,6,23,.08)'; }}
+                >
+                  <div className="recommend-kost-gallery" style={{position:'relative'}}>
                     <img
                       src={k.foto_utama || `https://picsum.photos/seed/${k.id}/640/480`}
                       alt={k.nama_kost}
                       loading="lazy"
+                      style={{width:'100%',height:240,objectFit:'cover'}}
                     />
-                    <span className="recommend-kost-type-badge">{k.tipe}</span>
-                    <span className="recommend-kost-photo-count">Lihat Detail</span>
+                    <span className="recommend-kost-type-badge" style={{position:'absolute',top:14,left:14,background:'#dcfce7',color:'#16a34a',padding:'6px 10px',borderRadius:999,fontWeight:700,fontSize:12}}>
+                      {k.tipe}
+                    </span>
+                    <span className="recommend-kost-photo-count" style={{position:'absolute',bottom:12,right:12,background:'rgba(15,23,42,.7)',color:'#fff',padding:'6px 10px',borderRadius:999,fontSize:12}}>
+                      Lihat Detail
+                    </span>
                   </div>
 
-                  <div className="recommend-kost-body">
-                    <p className="recommend-kost-price">
-                       Rp {new Intl.NumberFormat('id-ID').format(k.harga_min)}<span>/bulan</span>
+                  <div className="recommend-kost-body" style={{padding:18}}>
+                    <p className="recommend-kost-price" style={{margin:0,color:'#0f172a',fontWeight:900,fontSize:24}}>
+                       Rp {new Intl.NumberFormat('id-ID').format(k.harga_min)}<span style={{fontWeight:500,fontSize:14}}>/bulan</span>
                     </p>
-                    <h3 className="recommend-kost-name">{k.nama_kost}</h3>
-                    <div className="recommend-kost-loc">
+                    <h3 className="recommend-kost-name" style={{marginTop:6,marginBottom:10,fontSize:18,color:'#0f172a'}}>{k.nama_kost}</h3>
+                    <div className="recommend-kost-loc" style={{display:'flex',alignItems:'center',gap:6,color:'#64748b'}}>
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                         <circle cx="12" cy="10" r="3"></circle>
@@ -361,9 +405,9 @@ function LandingPage() {
                       {k.kecamatan}, {k.kota}
                     </div>
                     
-                    <div className="recommend-kost-features">
+                    <div className="recommend-kost-features" style={{display:'flex',gap:10,marginTop:10,flexWrap:'wrap'}}>
                       {(k.fasilitas_umum || ['WiFi', 'Parkir']).slice(0, 3).map((f, idx) => (
-                        <div key={idx} className="feature-item">
+                        <div key={idx} className="feature-item" style={{display:'flex',alignItems:'center',gap:8,color:'#0f172a',background:'#f1f5f9',borderRadius:999,padding:'6px 10px',fontSize:13}}>
                            <div style={{width: 6, height: 6, background: '#22c55e', borderRadius: '50%'}} />
                            {f}
                         </div>
@@ -371,11 +415,12 @@ function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="recommend-kost-footer">
+                  <div className="recommend-kost-footer" style={{padding:'0 18px 18px'}}>
                      <button
                        type="button"
                        className="ajukan-btn"
                        onClick={(e) => handleAjukanSewa(e, k)}
+                       style={{width:'100%',height:56,borderRadius:16,background:'#ffffff',color:'#16a34a',border:'2px solid #16a34a',fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',gap:10,cursor:'pointer'}}
                      >
                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
                          <path d="M12 2v20m10-10H2"></path>
@@ -482,6 +527,7 @@ function LandingPage() {
           isOpen={isBookingModalOpen}
           onClose={() => setIsBookingModalOpen(false)}
           kost={selectedBookingKost}
+          kamars={selectedKostKamars}
           user={userData}
           onSubmit={handleBookingSubmit}
         />
