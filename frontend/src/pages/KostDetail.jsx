@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Activity, MessageCircle, Ruler, Send, ShowerHead, Snowflake, Loader2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import api from '../utils/api'
+import Footer from '../components/Footer'
 import BookingModal from '../components/BookingModal'
 import {
   loadMidtransSnap,
@@ -694,13 +695,8 @@ function KostDetail() {
         </div>
       </section>
 
-      <footer className="landing-footer">
-        <div className="container">
-          <div className="landing-footer-bottom">
-            <p>© 2026 MyKost</p>
-          </div>
-        </div>
-      </footer>
+      {/* Footer */}
+      <Footer />
 
       {isMapModalOpen && (
         <div className="kost-map-modal-overlay">
