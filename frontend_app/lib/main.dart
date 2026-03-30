@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/splash/splash_screen.dart';
-import 'api/api_service.dart';
+import 'package:frontend_app/screens/splash/splash_screen.dart';
+import 'package:frontend_app/api/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

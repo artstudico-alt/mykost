@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../utils/colors.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/custom_text_field.dart';
-import '../../api/api_service.dart';
+import 'package:frontend_app/utils/colors.dart';
+import 'package:frontend_app/widgets/custom_button.dart';
+import 'package:frontend_app/widgets/custom_text_field.dart';
+import 'package:frontend_app/api/api_service.dart';
 
 class RentalApplicationScreen extends StatefulWidget {
   final Map<String, dynamic> kost;

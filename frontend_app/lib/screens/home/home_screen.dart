@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../utils/colors.dart';
-import '../../widgets/kost_card.dart';
-import '../../api/api_service.dart';
-import '../kost/kost_detail_screen.dart';
-import '../search/search_screen.dart';
-import '../notification/notification_screen.dart';
-import '../profile/profile_screen.dart';
+import 'package:frontend_app/utils/colors.dart';
+import 'package:frontend_app/widgets/kost_card.dart';
+import 'package:frontend_app/api/api_service.dart';
+import 'package:frontend_app/screens/kost/kost_detail_screen.dart';
+import 'package:frontend_app/screens/search/search_screen.dart';
+import 'package:frontend_app/screens/notification/notification_screen.dart';
+import 'package:frontend_app/screens/profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

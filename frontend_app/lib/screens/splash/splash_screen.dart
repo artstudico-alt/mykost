@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../utils/colors.dart';
-import '../auth/welcome_screen.dart';
+import 'package:frontend_app/utils/colors.dart';
+import 'package:frontend_app/screens/auth/welcome_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -79,4 +79,4 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
-}
+}

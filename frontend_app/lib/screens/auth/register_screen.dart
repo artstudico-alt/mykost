@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../utils/colors.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/custom_text_field.dart';
-import '../../widgets/google_logo.dart';
-import '../../api/api_service.dart';
-import 'login_screen.dart';
-import 'otp_verification_screen.dart';
+import 'package:frontend_app/utils/colors.dart';
+import 'package:frontend_app/widgets/custom_button.dart';
+import 'package:frontend_app/widgets/custom_text_field.dart';
+import 'package:frontend_app/widgets/google_logo.dart';
+import 'package:frontend_app/api/api_service.dart';
+import 'package:frontend_app/screens/auth/login_screen.dart';
+import 'package:frontend_app/screens/auth/otp_verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});

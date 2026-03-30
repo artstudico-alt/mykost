@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../utils/colors.dart';
-import '../screens/kost/kost_detail_screen.dart';
-import '../screens/kost/rental_application_screen.dart';
-import 'custom_button.dart';
+import 'package:frontend_app/utils/colors.dart';
+import 'package:frontend_app/screens/kost/kost_detail_screen.dart';
+import 'package:frontend_app/screens/kost/rental_application_screen.dart';
+import 'package:frontend_app/widgets/custom_button.dart';
 
 class KostCard extends StatelessWidget {
   final Map<String, dynamic>? kostMap;

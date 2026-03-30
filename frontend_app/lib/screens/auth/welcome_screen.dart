@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../utils/colors.dart';
-import 'login_screen.dart';
-import 'register_screen.dart';
+import 'package:frontend_app/utils/colors.dart';
+import 'package:frontend_app/screens/auth/login_screen.dart';
+import 'package:frontend_app/screens/auth/register_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});

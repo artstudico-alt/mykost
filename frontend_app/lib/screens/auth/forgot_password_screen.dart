@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../utils/colors.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/custom_text_field.dart';
-import '../../api/api_service.dart';
-import 'reset_password_screen.dart';
+import 'package:frontend_app/utils/colors.dart';
+import 'package:frontend_app/widgets/custom_button.dart';
+import 'package:frontend_app/widgets/custom_text_field.dart';
+import 'package:frontend_app/api/api_service.dart';
+import 'package:frontend_app/screens/auth/password_otp_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -39,11 +39,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           const SnackBar(content: Text("Kode reset telah dikirim ke email Anda.")),
         );
         
-        // Navigasi ke screen reset password
+        // Navigasi ke screen OTP password
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ResetPasswordScreen(email: emailController.text),
+            builder: (context) => PasswordOtpScreen(email: emailController.text),
           ),
         );
       }

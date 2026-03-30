@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../utils/colors.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/custom_text_field.dart';
-import '../../widgets/google_logo.dart';
-import '../../api/api_service.dart';
-import '../home/home_screen.dart';
-import 'register_screen.dart';
-import 'forgot_password_screen.dart';
+import 'package:frontend_app/utils/colors.dart';
+import 'package:frontend_app/widgets/custom_button.dart';
+import 'package:frontend_app/widgets/custom_text_field.dart';
+import 'package:frontend_app/widgets/google_logo.dart';
+import 'package:frontend_app/api/api_service.dart';
+import 'package:frontend_app/screens/home/home_screen.dart';
+import 'package:frontend_app/screens/auth/register_screen.dart';
+import 'package:frontend_app/screens/auth/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

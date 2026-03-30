@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../utils/colors.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/custom_text_field.dart';
-import '../../api/api_service.dart';
-import 'login_screen.dart';
+import 'package:frontend_app/utils/colors.dart';
+import 'package:frontend_app/widgets/custom_button.dart';
+import 'package:frontend_app/widgets/custom_text_field.dart';
+import 'package:frontend_app/api/api_service.dart';
+import 'package:frontend_app/screens/auth/login_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String email;

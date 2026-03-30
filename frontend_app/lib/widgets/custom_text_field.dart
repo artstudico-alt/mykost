@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../utils/colors.dart';
+import 'package:frontend_app/utils/colors.dart';
 
 class CustomTextField extends StatefulWidget {
   final String hintText;

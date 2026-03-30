@@ -6,6 +6,7 @@ import 'package:frontend_app/screens/payment/billing_screen.dart';
 import 'package:frontend_app/screens/payment/payment_history_screen.dart';
 import 'package:frontend_app/screens/profile/hunian_saya_screen.dart';
 import 'package:frontend_app/screens/complaint/list_keluhan_screen.dart';
+import 'package:frontend_app/screens/auth/password_otp_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -22,6 +23,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadProfile();
+  }
+
+  Future<void> _handleUbahPassword() async {
+    final email = _userData?['email'];
+    if (email == null) return;
+
+    // Tampilkan loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary)),
+    );
+
+    try {
+      await ApiService.forgotPassword(email);
+      
+      if (mounted) {
+        Navigator.pop(context); // Tutup loading
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Kode reset telah dikirim ke email Anda.")),
+        );
+        
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PasswordOtpScreen(email: email),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Tutup loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Gagal mengirim kode: ${e.toString()}")),
+        );
+      }
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -612,6 +652,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           onTap: () => Navigator.push(context,
                               MaterialPageRoute(
                                   builder: (_) => const ListKeluhanScreen())),
+                        ),
+                        _divider(),
+                        _buildMenuItem(
+                          icon: Icons.lock_reset_rounded,
+                          label: 'Ubah Password',
+                          color: Colors.blueGrey,
+                          onTap: _handleUbahPassword,
                         ),
                       ],
                     ),
