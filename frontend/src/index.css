@@ -1298,7 +1298,7 @@ h1, h2, h3, h4 {
 }
 .kost-detail-price {
   font-family: var(--font-heading);
-  font-size: 1.75rem;
+  font-size: 1.4rem;
   font-weight: 800;
   color: var(--text-main);
   letter-spacing: -0.02em;
@@ -1314,7 +1314,7 @@ h1, h2, h3, h4 {
   margin: 1.25rem 0;
 }
 .kost-detail-title {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 800;
   margin: 0 0 6px;
   letter-spacing: -0.03em;

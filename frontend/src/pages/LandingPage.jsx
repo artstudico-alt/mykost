@@ -40,7 +40,7 @@ function LandingPage() {
   const [selectedBookingKost, setSelectedBookingKost] = useState(null)
   const [userData, setUserData] = useState(null)
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false)
-  
+
   // Radar & Location States
   const [userPos, setUserPos] = useState({ lat: -6.5946, lng: 106.7892 }) // Default Bogor
   const [radius, setRadius] = useState(2000) // in meters
@@ -192,7 +192,7 @@ function LandingPage() {
         const { latitude, longitude } = position.coords
         const newPos = { lat: latitude, lng: longitude }
         setUserPos(newPos)
-        
+
         try {
           // Reverse geocoding using Nominatim
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
@@ -201,7 +201,7 @@ function LandingPage() {
         } catch (err) {
           console.error('Reverse geocode error:', err)
         }
-        
+
         setIsGeolocating(false)
         setUseRadar(true)
       },
@@ -221,10 +221,10 @@ function LandingPage() {
     const dPhi = (lat2 - lat1) * Math.PI / 180
     const dLambda = (lon2 - lon1) * Math.PI / 180
 
-    const a = Math.sin(dPhi/2) * Math.sin(dPhi/2) +
-              Math.cos(phi1) * Math.cos(phi2) *
-              Math.sin(dLambda/2) * Math.sin(dLambda/2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    const a = Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
+      Math.cos(phi1) * Math.cos(phi2) *
+      Math.sin(dLambda / 2) * Math.sin(dLambda / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 
     return R * c
   }
@@ -237,11 +237,11 @@ function LandingPage() {
     'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&q=80'
   ]
 
-  const filteredKosts = useRadar 
+  const filteredKosts = useRadar
     ? kostData.filter(k => {
-        if (!k.latitude || !k.longitude) return false
-        return getDistance(userPos.lat, userPos.lng, parseFloat(k.latitude), parseFloat(k.longitude)) <= radius
-      })
+      if (!k.latitude || !k.longitude) return false
+      return getDistance(userPos.lat, userPos.lng, parseFloat(k.latitude), parseFloat(k.longitude)) <= radius
+    })
     : kostData
 
   return (
@@ -340,8 +340,8 @@ function LandingPage() {
             <article className="landing-feature-card">
               <div className="landing-feature-icon" style={{ '--icon-bg': '#dcfce7', '--icon-color': '#16a34a' }}>
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.5">
-                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                   <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
                 </svg>
               </div>
               <h3 className="landing-feature-title">100% Terverifikasi</h3>
@@ -351,8 +351,8 @@ function LandingPage() {
             <article className="landing-feature-card">
               <div className="landing-feature-icon" style={{ '--icon-bg': '#fef3c7', '--icon-color': '#d97706' }}>
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.5">
-                   <line x1="12" y1="1" x2="12" y2="23"></line>
-                   <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                  <line x1="12" y1="1" x2="12" y2="23"></line>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                 </svg>
               </div>
               <h3 className="landing-feature-title">Harga Transparan</h3>
@@ -362,8 +362,8 @@ function LandingPage() {
             <article className="landing-feature-card">
               <div className="landing-feature-icon" style={{ '--icon-bg': '#e0e7ff', '--icon-color': '#4f46e5' }}>
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.5">
-                   <circle cx="12" cy="12" r="10"></circle>
-                   <polyline points="12 6 12 12 16 14"></polyline>
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
               </div>
               <h3 className="landing-feature-title">Proses Cepat</h3>
@@ -381,7 +381,7 @@ function LandingPage() {
               Rekomendasi kos <span className="recommend-kost-title-accent">terbaru</span>
             </h2>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
+              <button
                 className={`radar-toggle-btn ${useRadar ? 'active' : ''}`}
                 onClick={() => setUseRadar(!useRadar)}
               >
@@ -407,8 +407,8 @@ function LandingPage() {
                   />
                   <Marker position={[userPos.lat, userPos.lng]} />
                   {kostData.map(k => (k.latitude && k.longitude) && (
-                     <Marker 
-                      key={k.id} 
+                    <Marker
+                      key={k.id}
                       position={[k.latitude, k.longitude]}
                       icon={new L.Icon({
                         iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
@@ -420,13 +420,13 @@ function LandingPage() {
               </div>
               <div className="radar-controls">
                 <div className="radius-selector">
-                  <label>Filter Radius: <span>{(radius/1000).toFixed(1)} km</span></label>
-                  <input 
-                    type="range" 
-                    min="500" 
-                    max="10000" 
+                  <label>Filter Radius: <span>{(radius / 1000).toFixed(1)} km</span></label>
+                  <input
+                    type="range"
+                    min="500"
+                    max="10000"
                     step="500"
-                    value={radius} 
+                    value={radius}
                     onChange={(e) => setRadius(parseInt(e.target.value))}
                   />
                   <div className="radius-labels">
@@ -464,16 +464,16 @@ function LandingPage() {
                     cursor: 'pointer',
                     position: 'relative',
                   }}
-                  onMouseEnter={(e) => { 
-                    e.currentTarget.style.transform = 'translateY(-8px)'; 
-                    e.currentTarget.style.boxShadow = '0 20px 40px -5px rgba(5, 150, 105, 0.15)'; 
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-8px)';
+                    e.currentTarget.style.boxShadow = '0 20px 40px -5px rgba(5, 150, 105, 0.15)';
                     e.currentTarget.style.borderColor = '#a7f3d0';
                     const img = e.currentTarget.querySelector('.recommend-kost-image');
                     if (img) img.style.transform = 'scale(1.05)';
                   }}
-                  onMouseLeave={(e) => { 
-                    e.currentTarget.style.transform = 'none'; 
-                    e.currentTarget.style.boxShadow = '0 10px 40px -10px rgba(0,0,0,0.08)'; 
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = '0 10px 40px -10px rgba(0,0,0,0.08)';
                     e.currentTarget.style.borderColor = '#f1f5f9';
                     const img = e.currentTarget.querySelector('.recommend-kost-image');
                     if (img) img.style.transform = 'scale(1)';
@@ -487,7 +487,7 @@ function LandingPage() {
                       className="recommend-kost-image"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease' }}
                     />
-                    
+
                     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 50%)' }} />
 
                     <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)', color: '#059669', padding: '6px 14px', borderRadius: '12px', fontWeight: 800, fontSize: '0.75rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
@@ -501,51 +501,51 @@ function LandingPage() {
                   </div>
 
                   <div style={{ padding: '24px 24px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '12px' }}>
-                        <div>
-                           <h3 style={{ margin: '0 0 6px', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {k.nama_kost}
-                           </h3>
-                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b', fontSize: '0.9rem' }}>
-                              <MapPin size={16} color="#059669" /> {k.kecamatan}, {k.kota}
-                           </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '12px' }}>
+                      <div>
+                        <h3 style={{ margin: '0 0 6px', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {k.nama_kost}
+                        </h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b', fontSize: '0.9rem' }}>
+                          <MapPin size={16} color="#059669" /> {k.kecamatan}, {k.kota}
                         </div>
-                     </div>
+                      </div>
+                    </div>
 
-                     <div style={{ marginBottom: '16px' }}>
-                        <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#059669', letterSpacing: '-0.02em' }}>
-                            Rp {new Intl.NumberFormat('id-ID').format(k.harga_min)}
-                        </span>
-                        <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500, marginLeft: '4px' }}>/bulan</span>
-                     </div>
+                    <div style={{ marginBottom: '16px' }}>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#059669', letterSpacing: '-0.02em' }}>
+                        Rp {new Intl.NumberFormat('id-ID').format(k.harga_min)}
+                      </span>
+                      <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500, marginLeft: '4px' }}>/bulan</span>
+                    </div>
 
-                     <div style={{ height: '1px', background: '#f1f5f9', margin: '0 0 16px 0' }} />
+                    <div style={{ height: '1px', background: '#f1f5f9', margin: '0 0 16px 0' }} />
 
-                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '24px', marginTop: 'auto' }}>
-                        {(k.fasilitas_umum || ['WiFi', 'Parkir', 'CCTV']).slice(0, 3).map((f, idx) => (
-                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600 }}>
-                             {f}
-                          </div>
-                        ))}
-                        {(k.fasilitas_umum?.length > 3) && (
-                          <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', padding: '4px 8px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700 }}>
-                             +{k.fasilitas_umum.length - 3}
-                          </div>
-                        )}
-                     </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '24px', marginTop: 'auto' }}>
+                      {(k.fasilitas_umum || ['WiFi', 'Parkir', 'CCTV']).slice(0, 3).map((f, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600 }}>
+                          {f}
+                        </div>
+                      ))}
+                      {(k.fasilitas_umum?.length > 3) && (
+                        <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', padding: '4px 8px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700 }}>
+                          +{k.fasilitas_umum.length - 3}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div style={{ padding: '0 24px 24px' }}>
-                     <button
-                       type="button"
-                       onClick={(e) => handleAjukanSewa(e, k)}
-                       style={{ width: '100%', padding: '14px', borderRadius: '16px', background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: 'white', border: 'none', fontWeight: 800, fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(5, 150, 105, 0.25)', transition: 'background 0.3s, box-shadow 0.3s' }}
-                       onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(5, 150, 105, 0.4)' }}
-                       onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(5, 150, 105, 0.25)' }}
-                     >
-                       <CreditCard size={18} />
-                       Booking Cepat
-                     </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleAjukanSewa(e, k)}
+                      style={{ width: '100%', padding: '14px', borderRadius: '16px', background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: 'white', border: 'none', fontWeight: 800, fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(5, 150, 105, 0.25)', transition: 'background 0.3s, box-shadow 0.3s' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(5, 150, 105, 0.4)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(5, 150, 105, 0.25)' }}
+                    >
+                      <CreditCard size={18} />
+                      Booking Cepat
+                    </button>
                   </div>
                 </article>
               ))
@@ -570,15 +570,15 @@ function LandingPage() {
             </div>
             <div>
               <h4 className="font-bold mb-6">Layanan</h4>
-              <ul className="space-y-3 opacity-70" style={{listStyle: 'none'}}>
-                <li onClick={() => navigate('/cari')} style={{cursor: 'pointer'}}>Cari Kos</li>
+              <ul className="space-y-3 opacity-70" style={{ listStyle: 'none' }}>
+                <li onClick={() => navigate('/cari')} style={{ cursor: 'pointer' }}>Cari Kos</li>
                 <li>Premium</li>
                 <li>Promo</li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold mb-6">Perusahaan</h4>
-              <ul className="space-y-3 opacity-70" style={{listStyle: 'none'}}>
+              <ul className="space-y-3 opacity-70" style={{ listStyle: 'none' }}>
                 <li>Tentang</li>
                 <li>Karir</li>
                 <li>Blog</li>
@@ -586,7 +586,7 @@ function LandingPage() {
             </div>
             <div>
               <h4 className="font-bold mb-6">Kontak</h4>
-              <ul className="space-y-3 opacity-70" style={{listStyle: 'none'}}>
+              <ul className="space-y-3 opacity-70" style={{ listStyle: 'none' }}>
                 <li>halo@mykost.id</li>
                 <li>021-123-456</li>
               </ul>
@@ -611,135 +611,135 @@ function LandingPage() {
       {/* Modal Cara Sewa */}
       {isCaraSewaModalOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', padding: '1.5rem' }}>
-           <div style={{ backgroundColor: 'white', borderRadius: '24px', width: '100%', maxWidth: '650px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-              
-              <div style={{ background: 'linear-gradient(135deg, #059669, #10b981)', padding: '2rem', color: 'white', position: 'relative' }}>
-                 <button onClick={() => setIsCaraSewaModalOpen(false)} style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'} onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}>
-                    <X size={20} />
-                 </button>
-                 <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 900, fontFamily: 'Outfit, sans-serif' }}>Cara Pesan di MyKost 🚀</h2>
-                 <p style={{ margin: '0.5rem 0 0', opacity: 0.9, fontSize: '1.05rem' }}>Ikuti 4 langkah mudah untuk mendapatkan hunian impianmu.</p>
+          <div style={{ backgroundColor: 'white', borderRadius: '24px', width: '100%', maxWidth: '650px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+
+            <div style={{ background: 'linear-gradient(135deg, #059669, #10b981)', padding: '2rem', color: 'white', position: 'relative' }}>
+              <button onClick={() => setIsCaraSewaModalOpen(false)} style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'} onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}>
+                <X size={20} />
+              </button>
+              <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 900, fontFamily: 'Outfit, sans-serif' }}>Cara Pesan di MyKost 🚀</h2>
+              <p style={{ margin: '0.5rem 0 0', opacity: 0.9, fontSize: '1.05rem' }}>Ikuti 4 langkah mudah untuk mendapatkan hunian impianmu.</p>
+            </div>
+
+            <div style={{ padding: '2rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+                {/* Langkah 1 */}
+                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #a7f3d0' }}>
+                    <Search size={24} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>1. Temukan Kos Pilihanmu</h4>
+                    <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>Gunakan fitur pencarian atau peta radar untuk menelusuri kos di sekitar kampus atau stasiun terdekat.</p>
+                  </div>
+                </div>
+
+                {/* Langkah 2 */}
+                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#fff7ed', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #fed7aa' }}>
+                    <MapPin size={24} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>2. Cek Detail & Fasilitas</h4>
+                    <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>Lihat galeri foto lengkap, daftar fasilitas, hingga jarak lokasi asli di peta terintegrasi.</p>
+                  </div>
+                </div>
+
+                {/* Langkah 3 */}
+                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #bfdbfe' }}>
+                    <CreditCard size={24} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>3. Ajukan Sewa & Bayar</h4>
+                    <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>Klik tombol "Ajukan Sewa", lengkapi profil, dan selesaikan pembayaran aman via Midtrans (Gopay/QRIS/Virtual Account).</p>
+                  </div>
+                </div>
+
+                {/* Langkah 4 */}
+                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #e2e8f0' }}>
+                    <CheckCircle size={24} color="#059669" />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>4. Siap Ditempati</h4>
+                    <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>Selamat! Kos kini resmi milikmu. Pemilik kos akan segera memberikan kunci setibanya kamu di lokasi.</p>
+                  </div>
+                </div>
+
               </div>
 
-              <div style={{ padding: '2rem' }}>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    
-                    {/* Langkah 1 */}
-                    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
-                       <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #a7f3d0' }}>
-                          <Search size={24} />
-                       </div>
-                       <div>
-                          <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>1. Temukan Kos Pilihanmu</h4>
-                          <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>Gunakan fitur pencarian atau peta radar untuk menelusuri kos di sekitar kampus atau stasiun terdekat.</p>
-                       </div>
-                    </div>
-
-                    {/* Langkah 2 */}
-                    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
-                       <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#fff7ed', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #fed7aa' }}>
-                          <MapPin size={24} />
-                       </div>
-                       <div>
-                          <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>2. Cek Detail & Fasilitas</h4>
-                          <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>Lihat galeri foto lengkap, daftar fasilitas, hingga jarak lokasi asli di peta terintegrasi.</p>
-                       </div>
-                    </div>
-
-                    {/* Langkah 3 */}
-                    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
-                       <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #bfdbfe' }}>
-                          <CreditCard size={24} />
-                       </div>
-                       <div>
-                          <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>3. Ajukan Sewa & Bayar</h4>
-                          <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>Klik tombol "Ajukan Sewa", lengkapi profil, dan selesaikan pembayaran aman via Midtrans (Gopay/QRIS/Virtual Account).</p>
-                       </div>
-                    </div>
-
-                    {/* Langkah 4 */}
-                    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
-                       <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #e2e8f0' }}>
-                          <CheckCircle size={24} color="#059669" />
-                       </div>
-                       <div>
-                          <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>4. Siap Ditempati</h4>
-                          <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.5 }}>Selamat! Kos kini resmi milikmu. Pemilik kos akan segera memberikan kunci setibanya kamu di lokasi.</p>
-                       </div>
-                    </div>
-
-                 </div>
-
-                 <button 
-                   onClick={() => { setIsCaraSewaModalOpen(false); navigate('/cari'); }} 
-                   style={{ marginTop: '2.5rem', width: '100%', padding: '1rem', background: '#0f172a', color: 'white', border: 'none', borderRadius: '16px', fontSize: '1.05rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(15, 23, 42, 0.2)' }}
-                 >
-                    Mulai Cari Kos Sekarang
-                 </button>
-              </div>
-           </div>
+              <button
+                onClick={() => { setIsCaraSewaModalOpen(false); navigate('/cari'); }}
+                style={{ marginTop: '2.5rem', width: '100%', padding: '1rem', background: '#0f172a', color: 'white', border: 'none', borderRadius: '16px', fontSize: '1.05rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(15, 23, 42, 0.2)' }}
+              >
+                Mulai Cari Kos Sekarang
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Modal Bantuan */}
       {isBantuanModalOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', padding: '1.5rem' }}>
-           <div style={{ backgroundColor: 'white', borderRadius: '24px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)', overflow: 'hidden', animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)', position: 'relative', padding: '2.5rem' }}>
-              
-              <button 
-                onClick={() => setIsBantuanModalOpen(false)} 
-                style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'transparent', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', cursor: 'pointer', transition: 'background 0.2s, color 0.2s' }} 
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }} 
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
-              >
-                 <X size={20} />
-              </button>
+          <div style={{ backgroundColor: 'white', borderRadius: '24px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)', overflow: 'hidden', animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)', position: 'relative', padding: '2.5rem' }}>
 
-              <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
-                 <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '20px', background: '#ecfdf5', color: '#059669', marginBottom: '1.25rem' }}>
-                    <Info size={32} />
-                 </div>
-                 <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 900, fontFamily: 'Outfit, sans-serif', color: '#0f172a', letterSpacing: '-0.5px' }}>Pusat Bantuan</h2>
-                 <p style={{ margin: '0.75rem 0 0', color: '#64748b', fontSize: '1rem', lineHeight: 1.5 }}>Ada kendala atau pertanyaan terkait layanan kos? Tim MyKost siap membantu Anda.</p>
+            <button
+              onClick={() => setIsBantuanModalOpen(false)}
+              style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'transparent', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', cursor: 'pointer', transition: 'background 0.2s, color 0.2s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
+            >
+              <X size={20} />
+            </button>
+
+            <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '20px', background: '#ecfdf5', color: '#059669', marginBottom: '1.25rem' }}>
+                <Info size={32} />
               </div>
+              <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 900, fontFamily: 'Outfit, sans-serif', color: '#0f172a', letterSpacing: '-0.5px' }}>Pusat Bantuan</h2>
+              <p style={{ margin: '0.75rem 0 0', color: '#64748b', fontSize: '1rem', lineHeight: 1.5 }}>Ada kendala atau pertanyaan terkait layanan kos? Tim MyKost siap membantu Anda.</p>
+            </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
-                 
-                 {/* Bantuan WhatsApp */}
-                 <a href="https://wa.me/6281234567890" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'flex', gap: '1.25rem', alignItems: 'center', padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(5, 150, 105, 0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                       <MessageCircle size={24} />
-                    </div>
-                    <div>
-                       <h4 style={{ margin: '0 0 0.2rem', fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Chat via WhatsApp</h4>
-                       <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>Respon Instan (0812-3456-7890)</p>
-                    </div>
-                 </a>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
 
-                 {/* Bantuan Email */}
-                 <a href="mailto:halo@mykost.id" style={{ textDecoration: 'none', display: 'flex', gap: '1.25rem', alignItems: 'center', padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(15, 23, 42, 0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                       <Mail size={24} />
-                    </div>
-                    <div>
-                       <h4 style={{ margin: '0 0 0.2rem', fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Kirim Pesan Email</h4>
-                       <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>halo@mykost.id</p>
-                    </div>
-                 </a>
+              {/* Bantuan WhatsApp */}
+              <a href="https://wa.me/6281234567890" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'flex', gap: '1.25rem', alignItems: 'center', padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(5, 150, 105, 0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <MessageCircle size={24} />
+                </div>
+                <div>
+                  <h4 style={{ margin: '0 0 0.2rem', fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Chat via WhatsApp</h4>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>Respon Instan (0812-3456-7890)</p>
+                </div>
+              </a>
 
-                 {/* Telepon Cust Care */}
-                 <a href="tel:021123456" style={{ textDecoration: 'none', display: 'flex', gap: '1.25rem', alignItems: 'center', padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(15, 23, 42, 0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                       <Phone size={24} />
-                    </div>
-                    <div>
-                       <h4 style={{ margin: '0 0 0.2rem', fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Telepon Customer Care</h4>
-                       <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>021-123-456 (08:00 - 17:00)</p>
-                    </div>
-                 </a>
+              {/* Bantuan Email */}
+              <a href="mailto:halo@mykost.id" style={{ textDecoration: 'none', display: 'flex', gap: '1.25rem', alignItems: 'center', padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(15, 23, 42, 0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Mail size={24} />
+                </div>
+                <div>
+                  <h4 style={{ margin: '0 0 0.2rem', fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Kirim Pesan Email</h4>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>halo@mykost.id</p>
+                </div>
+              </a>
 
-              </div>
-           </div>
+              {/* Telepon Cust Care */}
+              <a href="tel:021123456" style={{ textDecoration: 'none', display: 'flex', gap: '1.25rem', alignItems: 'center', padding: '1.25rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0f172a'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(15, 23, 42, 0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Phone size={24} />
+                </div>
+                <div>
+                  <h4 style={{ margin: '0 0 0.2rem', fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Telepon Customer Care</h4>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>021-123-456 (08:00 - 17:00)</p>
+                </div>
+              </a>
+
+            </div>
+          </div>
         </div>
       )}
     </div>
