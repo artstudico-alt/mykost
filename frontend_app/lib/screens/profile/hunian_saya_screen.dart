@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
 import '../../api/api_service.dart';
 import 'package:intl/intl.dart';
+import 'package:frontend_app/screens/complaint/complaint_screen.dart';
 
 class HunianSayaScreen extends StatefulWidget {
   const HunianSayaScreen({super.key});
@@ -30,7 +31,12 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        if (e.toString().contains('DATA_KARYAWAN_NOT_FOUND')) {
+          _hunian = null;
+          _error = null;
+        } else {
+          _error = e.toString();
+        }
         _isLoading = false;
       });
     }
@@ -312,6 +318,41 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
 
             // Duration progress
             _buildDurationCard(startDate, endDate),
+
+            const SizedBox(height: 32),
+
+            // Complaint button
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ComplaintScreen(
+                        kostId: kost['id'] ?? _hunian?['kost_id'],
+                        kostName: kostName,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.report_problem_outlined, size: 20),
+                label: const Text(
+                  'Ajukan Keluhan',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.redAccent,
+                  elevation: 0,
+                  side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
 
             const SizedBox(height: 32),
           ],

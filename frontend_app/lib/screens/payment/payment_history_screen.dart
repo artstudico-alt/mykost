@@ -38,7 +38,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
       });
     } catch (e) {
       final errorStr = e.toString();
-      if (errorStr.contains('404')) {
+      if (errorStr.contains('404') || errorStr.contains('DATA_KARYAWAN_NOT_FOUND')) {
         setState(() {
           _history = [];
           _isLoading = false;
@@ -144,6 +144,53 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
           SizedBox(height: 16),
           Text("Belum ada riwayat pembayaran", style: TextStyle(color: Colors.grey, fontSize: 16)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.redAccent,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "Gagal memuat riwayat pembayaran",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error ?? "Terjadi kesalahan yang tidak diketahui",
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _fetchHistory,
+              icon: const Icon(Icons.refresh),
+              label: const Text("Coba Lagi"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

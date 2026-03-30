@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../utils/colors.dart';
-import '../../api/api_service.dart';
-import '../auth/login_screen.dart';
-import '../payment/billing_screen.dart';
-import '../payment/payment_history_screen.dart';
-import 'hunian_saya_screen.dart';
+import 'package:frontend_app/utils/colors.dart';
+import 'package:frontend_app/api/api_service.dart';
+import 'package:frontend_app/screens/auth/login_screen.dart';
+import 'package:frontend_app/screens/payment/billing_screen.dart';
+import 'package:frontend_app/screens/payment/payment_history_screen.dart';
+import 'package:frontend_app/screens/profile/hunian_saya_screen.dart';
+import 'package:frontend_app/screens/complaint/list_keluhan_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -602,6 +603,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           onTap: () => Navigator.push(context,
                               MaterialPageRoute(
                                   builder: (_) => HunianSayaScreen())),
+                        ),
+                        _divider(),
+                        _buildMenuItem(
+                          icon: Icons.report_problem_outlined,
+                          label: 'Keluhan Saya',
+                          color: Colors.redAccent,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(
+                                  builder: (_) => const ListKeluhanScreen())),
                         ),
                       ],
                     ),

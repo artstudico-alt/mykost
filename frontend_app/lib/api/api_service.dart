@@ -156,6 +156,11 @@ final msg = decoded['message']?.toString() ?? "Terjadi error";
 // Ambil detail error (jika ada)
 final detail = decoded['error']?.toString();
 
+// Khusus untuk Karyawan tidak ditemukan, lempar exception khusus
+if (response.statusCode == 404 && msg.contains('Data karyawan tidak ditemukan')) {
+   throw Exception('DATA_KARYAWAN_NOT_FOUND');
+}
+
 // Tangani validasi Laravel (errors array)
 if (decoded['errors'] != null && decoded['errors'] is Map) {
   final errors = decoded['errors'] as Map;

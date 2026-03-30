@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../utils/colors.dart';
-import '../../api/api_service.dart';
+import 'package:frontend_app/utils/colors.dart';
+import 'package:frontend_app/api/api_service.dart';
 
 class ComplaintScreen extends StatefulWidget {
-  const ComplaintScreen({super.key});
+  final int? kostId;
+  final String? kostName;
+
+  const ComplaintScreen({super.key, this.kostId, this.kostName});
 
   @override
   State<ComplaintScreen> createState() => _ComplaintScreenState();
@@ -43,14 +46,18 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
         'kategori': _selectedCategory,
         'judul': _titleController.text,
         'deskripsi': _descriptionController.text,
+        if (widget.kostId != null) 'kost_id': widget.kostId,
       });
 
+      if (!mounted) return;
+      
       Navigator.pop(context); // Tutup loading
       Navigator.pop(context); // Kembali ke halaman sebelumnya
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Keluhan berhasil dikirim. Kami akan segera menindaklanjuti.")),
       );
     } catch (e) {
+      if (!mounted) return;
       Navigator.pop(context); // Tutup loading
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Gagal mengirim keluhan: ${e.toString()}")),
@@ -80,6 +87,38 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (widget.kostName != null) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.home_work_rounded, color: AppColors.primary, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Keluhan untuk Kost:",
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                          Text(
+                            widget.kostName!,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
             const Text(
               "Kategori Keluhan",
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),

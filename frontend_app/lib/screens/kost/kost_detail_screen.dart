@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../utils/colors.dart';
 import '../../widgets/custom_button.dart';
 import '../../api/api_service.dart';
-import '../complaint/complaint_screen.dart';
+import 'package:frontend_app/screens/complaint/complaint_screen.dart';
 import 'rental_application_screen.dart';
 
 class KostDetailScreen extends StatefulWidget {
@@ -302,7 +302,10 @@ class _KostDetailScreenState extends State<KostDetailScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const ComplaintScreen(),
+                              builder: (context) => ComplaintScreen(
+                                kostId: widget.kost['id'] ?? widget.kost['kost_id'],
+                                kostName: widget.kost['nama_kost'] ?? "Detail Kost",
+                              ),
                             ),
                           );
                         } else {
