@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../utils/colors.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
@@ -18,13 +20,14 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
   int _currentStep = 0;
   bool _isLoading = false;
 
-  // Controllers Step 1
+  // Step 1
   final nameController = TextEditingController();
   final phoneController = TextEditingController();
   final emailController = TextEditingController();
 
   // Step 2
   final nikController = TextEditingController();
+  PlatformFile? _ktpFile;
 
   // Step 3
   DateTime selectedDate = DateTime.now();
@@ -51,6 +54,19 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
     } catch (_) {}
   }
 
+  Future<void> _pickKtpImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+    );
+
+    if (result != null && result.files.isNotEmpty) {
+      setState(() {
+        _ktpFile = result.files.first;
+      });
+    }
+  }
+
   void _nextPage() {
     if (_currentStep < 3) {
       _pageController.nextPage(
@@ -70,40 +86,108 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
   }
 
   Future<void> _submitBooking() async {
+    if (_ktpFile == null && nikController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Mohon lengkapi NIK dan Foto KTP"), backgroundColor: Colors.orange),
+      );
+      _pageController.animateToPage(1, duration: const Duration(milliseconds: 300), curve: Curves.ease);
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      // 1. Update Profile first (Phone & NIK are required for booking verification)
+      // 1. Update Profile (Phone, NIK, and Foto KTP as Multipart)
       await ApiService.updateProfile({
         'phone': phoneController.text,
         'nik': nikController.text,
-      });
+      }, file: _ktpFile);
 
       // 2. Create Booking
-      // Note: We're assuming the first room (index 0) for this simplified flow 
-      // or using a fallback kamar_id if your backend requires it.
-      final kamarId = (widget.kost['kamars'] != null && widget.kost['kamars'].isNotEmpty) 
-          ? widget.kost['kamars'][0]['id'] 
-          : 1;
-
+      final kostId = widget.kost['id'] ?? widget.kost['kost_id'] ?? 1;
       final bookingResponse = await ApiService.createBooking({
-        'kamar_id': kamarId,
+        'kost_id': kostId,
         'tanggal_mulai': "${selectedDate.year}-${selectedDate.month.toString().padLeft(2,'0')}-${selectedDate.day.toString().padLeft(2,'0')}",
         'durasi_bulan': durationMonths,
         'catatan': 'Booking via Mobile App (${widget.kost['nama_kost']})',
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Booking berhasil dibuat! Menunggu pembayaran...")),
-      );
+      final bookingId = bookingResponse['data']['id'];
       
-      // Navigate to payment or success screen (Simplified: back to home)
-      Navigator.pop(context);
+      // Calculate total for payment
+      final String currentPriceStr = widget.kost['price'] ?? "Rp 0";
+      final totalHarga = bookingResponse['data']['total_harga'] ?? _calculateTotalDouble(currentPriceStr, durationMonths);
+
+      // 3. Inisiasi Pembayaran Midtrans
+      final paymentRes = await ApiService.createPembayaran({
+        'booking_id': bookingId,
+        'jumlah': totalHarga,
+        'keterangan': 'Pembayaran DP Kost: ${widget.kost['nama_kost']}',
+      });
+
+      final String? redirectUrl = paymentRes['redirect_url'];
+      
+      if (redirectUrl != null) {
+        if (!mounted) return;
+        
+        // Menampilkan Dialog Sukses & Tombol Pembayaran
+        // Ini diperlukan agar browser tidak memblokir popup (karena dipicu klik user langsung)
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Column(
+              children: [
+                Icon(Icons.check_circle_outline, color: Colors.green, size: 64),
+                SizedBox(height: 16),
+                Text("Booking Berhasil!", textAlign: TextAlign.center),
+              ],
+            ),
+            content: const Text(
+              "Pesanan Anda telah diterima. Silakan klik tombol di bawah untuk melanjutkan pembayaran via Midtrans.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            actions: [
+              Column(
+                children: [
+                  CustomButton(
+                    title: "Bayar Sekarang",
+                    onPressed: () async {
+                      final Uri url = Uri.parse(redirectUrl);
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                      if (mounted) {
+                        Navigator.of(context).pop(); // Close dialog
+                        Navigator.of(this.context).pop(); // Back to home
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Close dialog
+                      Navigator.of(this.context).pop(); // Back to home
+                    },
+                    child: const Text("Bayar Nanti (Cek di Hunian Saya)", style: TextStyle(color: AppColors.textSecondary)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      } else {
+        throw "Gagal mendapatkan link pembayaran dari server";
+      }
+
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Gagal: $e"), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Gagal: $e"), backgroundColor: Colors.red),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -130,12 +214,6 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close, color: AppColors.textPrimary),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
       ),
       body: PageView(
         controller: _pageController,
@@ -172,7 +250,6 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
     );
   }
 
-  // Implementation of Step 1 ...
   Widget _buildStep1() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -237,7 +314,6 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
     );
   }
 
-  // Step 2: Lengkapi Data Diri
   Widget _buildStep2() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -287,25 +363,36 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
               ),
               const SizedBox(height: 8),
               GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur upload foto segera hadir!")));
-                },
+                onTap: _pickKtpImage,
                 child: Container(
                   height: 120,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid), // In real app use dotted_border package
+                    border: Border.all(
+                      color: _ktpFile != null ? AppColors.primary : Colors.grey.shade300, 
+                      style: BorderStyle.solid,
+                      width: _ktpFile != null ? 2 : 1,
+                    ),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.cloud_upload_outlined, size: 32, color: AppColors.textSecondary.withOpacity(0.5)),
+                      Icon(
+                        _ktpFile != null ? Icons.check_circle : Icons.cloud_upload_outlined, 
+                        size: 32, 
+                        color: _ktpFile != null ? AppColors.primary : AppColors.textSecondary.withOpacity(0.5)
+                      ),
                       const SizedBox(height: 12),
                       Text(
-                        "Klik untuk upload foto KTP",
-                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary.withOpacity(0.5)),
+                        _ktpFile != null ? _ktpFile!.name : "Klik untuk upload foto KTP",
+                        style: TextStyle(
+                          fontSize: 13, 
+                          color: _ktpFile != null ? AppColors.primary : AppColors.textSecondary.withOpacity(0.5),
+                          fontWeight: _ktpFile != null ? FontWeight.bold : FontWeight.normal,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
@@ -341,9 +428,10 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
     );
   }
 
-  // Step 3: Pilih Durasi Sewa
   Widget _buildStep3() {
-    final priceStr = widget.kost['price'] ?? "Rp 0";
+    // Priority: Raw Numeric Field -> Display String
+    final dynamic rawPrice = widget.kost['harga_min'] ?? widget.kost['harga_per_bulan'];
+    final String priceStr = widget.kost['price'] ?? (rawPrice != null ? "Rp $rawPrice/bulan" : "Rp 0");
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -402,7 +490,7 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.textPrimary.withOpacity(0.8), // Dark UI as per image
+                    color: AppColors.textPrimary.withOpacity(0.8),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -471,8 +559,8 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
                       children: [
                         const Text("Total Estimasi", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         Text(
-                          "Rp ${_calculateTotal(priceStr, durationMonths)} Juta",
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          _getDisplayTotal(priceStr, durationMonths),
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary),
                         ),
                       ],
                     ),
@@ -509,7 +597,6 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
     );
   }
 
-  // Step 4: Siap untuk Pembayaran?
   Widget _buildStep4() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -581,7 +668,7 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
                 height: 54,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue, // Blue button matching theme
+                    backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
@@ -607,14 +694,42 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
     );
   }
 
-  String _calculateTotal(String priceStr, int months) {
-    // Basic parser for demo: "Rp 1,5 Juta/bulan" -> 1.5
+  String _getDisplayTotal(String priceStr, int months) {
     try {
-      final clean = priceStr.replaceAll("Rp ", "").replaceAll(",", ".").split(" ")[0];
-      final val = double.parse(clean);
-      return (val * months).toStringAsFixed(1);
+      final double total = _calculateTotalDouble(priceStr, months);
+      if (total >= 1000000) {
+        return "Rp ${(total / 1000000).toStringAsFixed(1)} Juta";
+      }
+      return "Rp ${total.toInt()}";
     } catch (e) {
-      return (1.5 * months).toStringAsFixed(1);
+      return "Rp 0";
+    }
+  }
+
+  double _calculateTotalDouble(String priceStr, int months) {
+    try {
+      // 1. Cek numeric field langsung dari map jika ada
+      final dynamic rawPrice = widget.kost['harga_min'] ?? widget.kost['harga_per_bulan'];
+      if (rawPrice != null) {
+        return (double.tryParse(rawPrice.toString()) ?? 0) * months;
+      }
+
+      // 2. Fallback: Parse dari string "Rp 1,5 Juta/bulan" atau "Rp 1.500.000"
+      String clean = priceStr.replaceAll("Rp ", "").replaceAll("Rp", "").split("/")[0].trim();
+      
+      bool isJuta = clean.contains("Juta");
+      if (isJuta) {
+        clean = clean.replaceAll(" Juta", "").replaceAll("Juta", "").replaceAll(",", ".");
+        return (double.tryParse(clean) ?? 0) * 1000000 * months;
+      }
+
+      // Handle dots as thousand separators (e.g., 1.500.000)
+      clean = clean.replaceAll(".", "");
+      return (double.tryParse(clean) ?? 0) * months;
+    } catch (e) {
+      return 0.0;
     }
   }
 }
+
+

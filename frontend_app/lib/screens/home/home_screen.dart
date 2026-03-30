@@ -16,8 +16,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey _semuaKostKey = GlobalKey();
-  String _userName = 'Guest User';
-  String _userEmail = '';
+  String _userName = ApiService.currentUser?['name'] ?? 'Guest User';
+  String _userEmail = ApiService.currentUser?['email'] ?? '';
 
   // Sort & Filter state
   String _sortMode = 'default';
@@ -35,14 +35,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadUser() async {
+    // If we already have data, the UI is already showing it. 
+    // We still fetch 'me' to ensure it's up to date.
     try {
       if (ApiService.token == null) return;
       final response = await ApiService.me();
       if (response != null && response['data'] != null) {
-        setState(() {
-          _userName = response['data']['name'] ?? 'Guest User';
-          _userEmail = response['data']['email'] ?? '';
-        });
+        if (mounted) {
+          setState(() {
+            _userName = response['data']['name'] ?? 'Guest User';
+            _userEmail = response['data']['email'] ?? '';
+          });
+        }
       }
     } catch (_) {}
   }
@@ -487,7 +491,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double _parsePrice(dynamic kost) {
     try {
       // Try API field first
-      final harga = kost['harga_per_bulan'];
+      final harga = kost['harga_min'] ?? kost['harga_per_bulan'];
       if (harga != null) return double.tryParse(harga.toString()) ?? 0;
 
       // Parse from display string like "Rp 1,8 Juta/bulan"
@@ -512,7 +516,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Category filter
     if (_categoryFilter != 'Semua') {
       filtered = filtered.where((kost) {
-        final type = (kost['type'] ?? kost['jenis_kost'] ?? '').toString().toLowerCase();
+        final type = (kost['tipe'] ?? kost['type'] ?? kost['jenis_kost'] ?? '').toString().toLowerCase();
         if (_categoryFilter == 'Putri') return type.contains('putri');
         if (_categoryFilter == 'Putra') return type.contains('putra') && !type.contains('putri');
         if (_categoryFilter == 'Campuran') return type.contains('campur');
@@ -703,60 +707,48 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRecommendations() {
+    if (_kostLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    }
+
+    final data = _allKostData;
+
+    if (data.isEmpty) {
+      return const Center(
+        child: Text("Belum ada kost tersedia", style: TextStyle(color: Colors.grey)),
+      );
+    }
+
     return SizedBox(
       height: 520,
-      child: FutureBuilder<dynamic>(
-        future: ApiService.getKost(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-          }
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        itemCount: data.length > 5 ? 5 : data.length, // Show top 5
+        itemBuilder: (context, index) {
+          final kost = data[index];
+          final hasOwner = kost['user'] != null;
 
-          List<dynamic> data = [];
-          if (snapshot.hasData && snapshot.data != null) {
-            var rawData = snapshot.data;
-            if (rawData is Map && rawData.containsKey('data')) {
-              data = rawData['data'];
-            } else if (rawData is List) {
-              data = rawData;
-            }
-          }
-
-          if (data.isEmpty) {
-            return const Center(
-              child: Text("Belum ada kost tersedia", style: TextStyle(color: Colors.grey)),
-            );
-          }
-
-          return ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            itemCount: data.length > 5 ? 5 : data.length, // Show top 5
-            itemBuilder: (context, index) {
-              final kost = data[index];
-              final hasOwner = kost['user'] != null;
-
-              return Padding(
-                padding: const EdgeInsets.only(right: 20, bottom: 20),
-                child: KostCard(
-                  kostMap: kost is Map<String, dynamic> ? kost : null,
-                  title: kost["nama_kost"] ?? "Kost",
-                  price: "Rp ${kost['harga_min'] ?? '0'}/bulan",
-                  minRent: "Minimal sewa 1 bulan",
-                  location: "${kost['kecamatan'] ?? ''}, ${kost['kota'] ?? ''}",
-                  type: kost["tipe"]?.toString().toUpperCase() ?? "CAMPUR",
-                  roomLeft: "Sisa ${kost['kamars_kosong_count'] ?? '?'} kamar",
-                  ownerName: hasOwner ? kost['user']['name'] : "Pemilik",
-                  lastUpdated: "Baru saja",
-                  imageCount: 1,
-                ),
-              );
-            },
+          return Padding(
+            padding: const EdgeInsets.only(right: 20, bottom: 20),
+            child: KostCard(
+              kostMap: kost is Map<String, dynamic> ? kost : null,
+              title: kost["nama_kost"] ?? "Kost",
+              price: "Rp ${kost['harga_min'] ?? '0'}/bulan",
+              minRent: "Minimal sewa 1 bulan",
+              location: "${kost['kecamatan'] ?? ''}, ${kost['kota'] ?? ''}",
+              type: kost["tipe"]?.toString().toUpperCase() ?? "CAMPUR",
+              roomLeft: "Sisa ${kost['kamars_kosong_count'] ?? '?'} kamar",
+              ownerName: hasOwner ? kost['user']['name'] : "Pemilik",
+              lastUpdated: "Baru saja",
+              imageCount: 1,
+            ),
           );
         },
       ),
     );
   }
+
   Widget _buildBenefitsBanner(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),

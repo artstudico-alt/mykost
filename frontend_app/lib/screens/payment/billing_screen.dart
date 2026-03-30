@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
+import '../../api/api_service.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class BillingScreen extends StatefulWidget {
   const BillingScreen({super.key});
@@ -9,39 +12,76 @@ class BillingScreen extends StatefulWidget {
 }
 
 class _BillingScreenState extends State<BillingScreen> {
-  // Data dummy tagihan (data dari ajuan sewa)
-  final List<Map<String, dynamic>> _bills = [
-    {
-      "id": "INV-001",
-      "month": "Maret 2026",
-      "amount": 1800000,
-      "dueDate": "10 Maret 2026",
-      "status": "Belum Bayar",
-      "kost_name": "Kost Gg. Melati Indah",
+  List<dynamic> _bills = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBills();
+  }
+
+  Future<void> _fetchBills() async {
+    try {
+      final response = await ApiService.getPembayaran();
+      final List<dynamic> data = response['data'] ?? [];
+      
+      // Filter hanya yang belum bayar (pending)
+      setState(() {
+        _bills = data.where((p) => 
+          p['status']?.toString().toLowerCase() == 'pending' || 
+          p['status']?.toString().toLowerCase() == 'belum bayar'
+        ).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
     }
-  ];
+  }
 
-  void _processPayment(String billId) {
-    // Simulasi memanggil API Midtrans dari Backend
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-      },
-    );
-
-    Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pop(context); // Tutup loading
-      
-      // Biasanya disini akan membuka WebView Midtrans atau Midtrans Snap SDK
+  Future<void> _processPayment(dynamic bill) async {
+    final String? redirectUrl = bill['redirect_url'];
+    
+    if (redirectUrl != null && redirectUrl.isNotEmpty) {
+      final Uri url = Uri.parse(redirectUrl);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Membuka halaman pembayaran...")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Gagal membuka link pembayaran"), backgroundColor: Colors.red),
+        );
+      }
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Mengalihkan ke halaman pembayaran otomatis UI (Midtrans)...")),
+        const SnackBar(content: Text("Data pembayaran tidak lengkap"), backgroundColor: Colors.orange),
       );
-      
-      // Simulasi pindah ke halaman checkout midtrans
-      // Untuk simulasi UI saat ini, cukup tampilkan snackbar
-    });
+    }
+  }
+
+  String _formatCurrency(num amount) {
+    return NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    ).format(amount);
+  }
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return "-";
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateFormat('dd MMM yyyy', 'id_ID').format(date);
+    } catch (_) {
+      return dateStr;
+    }
   }
 
   @override
@@ -54,25 +94,46 @@ class _BillingScreenState extends State<BillingScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
-      body: _bills.isEmpty
-          ? const Center(
-              child: Text(
-                "Tidak ada tagihan saat ini",
-                style: TextStyle(color: Colors.grey, fontSize: 16),
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _bills.length,
-              itemBuilder: (context, index) {
-                final bill = _bills[index];
-                return _buildBillCard(bill);
-              },
-            ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : _error != null
+              ? Center(child: Text("Gagal memuat: $_error", style: const TextStyle(color: Colors.red)))
+              : _bills.isEmpty
+                  ? _buildEmptyState()
+                  : RefreshIndicator(
+                      onRefresh: _fetchBills,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _bills.length,
+                        itemBuilder: (context, index) {
+                          final bill = _bills[index];
+                          return _buildBillCard(bill);
+                        },
+                      ),
+                    ),
     );
   }
 
-  Widget _buildBillCard(Map<String, dynamic> bill) {
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          const Text(
+            "Tidak ada tagihan saat ini",
+            style: TextStyle(color: Colors.grey, fontSize: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBillCard(dynamic bill) {
+    final booking = bill['booking'] ?? {};
+    final kost = booking['kost'] ?? {};
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -94,9 +155,9 @@ class _BillingScreenState extends State<BillingScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                const Text(
                   "Tagihan Sewa",
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
@@ -105,28 +166,30 @@ class _BillingScreenState extends State<BillingScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: Colors.orange.shade50,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    bill['status'],
-                    style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w600, fontSize: 12),
+                    bill['status']?.toString().toUpperCase() ?? "PENDING",
+                    style: TextStyle(color: Colors.orange.shade700, fontWeight: FontWeight.w600, fontSize: 10),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              "${bill['kost_name']} - ${bill['month']}",
-              style: const TextStyle(color: Colors.grey, fontSize: 14),
+              "${kost['nama_kost'] ?? 'Kost Pilihan'} - ${bill['nomor_referensi'] ?? ''}",
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Total Tagihan", style: TextStyle(color: Colors.grey)),
+                const Text("Total Tagihan", style: TextStyle(color: Colors.grey, fontSize: 14)),
                 Text(
-                  "Rp ${bill['amount']}",
+                  _formatCurrency(bill['jumlah'] ?? 0),
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
                 ),
               ],
@@ -135,9 +198,9 @@ class _BillingScreenState extends State<BillingScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Jatuh Tempo", style: TextStyle(color: Colors.grey)),
+                const Text("Tanggal", style: TextStyle(color: Colors.grey, fontSize: 14)),
                 Text(
-                  bill['dueDate'],
+                  _formatDate(bill['created_at']),
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                 ),
               ],
@@ -149,14 +212,16 @@ class _BillingScreenState extends State<BillingScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => _processPayment(bill['id']),
-                icon: const Icon(Icons.payment),
+                onPressed: () => _processPayment(bill),
+                icon: const Icon(Icons.payment, size: 18),
                 label: const Text("Bayar Sekarang"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),

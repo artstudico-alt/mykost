@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'screens/splash/splash_screen.dart';
+import 'api/api_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ApiService.init();
   runApp(const MyApp());
 }
 

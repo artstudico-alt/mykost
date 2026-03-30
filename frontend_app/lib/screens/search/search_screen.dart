@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../api/api_service.dart';
 import '../../utils/colors.dart';
@@ -15,53 +16,71 @@ class _SearchScreenState extends State<SearchScreen> {
   List<dynamic> _searchResults = [];
   bool _isLoading = false;
   bool _hasSearched = false;
+  Timer? _debounce;
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _performSearch(query);
+    });
+  }
 
   void _performSearch(String query) async {
     if (query.trim().isEmpty) {
-      setState(() {
-        _searchResults = [];
-        _hasSearched = false;
-      });
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _hasSearched = true;
-    });
-
-    try {
-      final response = await ApiService.searchKost(query);
-      if (response != null && response['data'] != null) {
-        setState(() {
-          _searchResults = response['data'];
-          _isLoading = false;
-        });
-      } else if (response != null && response is List) {
-        setState(() {
-          _searchResults = response;
-          _isLoading = false;
-        });
-      } else {
+      if (mounted) {
         setState(() {
           _searchResults = [];
+          _hasSearched = false;
           _isLoading = false;
         });
       }
-    } catch (e) {
+      return;
+    }
+
+    if (mounted) {
       setState(() {
-        _isLoading = false;
-        _searchResults = [];
+        _isLoading = true;
+        _hasSearched = true;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Terjadi kesalahan: $e")),
-      );
+    }
+
+    try {
+      final response = await ApiService.searchKost(query);
+      if (mounted) {
+        if (response != null && response['data'] != null) {
+          setState(() {
+            _searchResults = response['data'];
+            _isLoading = false;
+          });
+        } else if (response != null && response is List) {
+          setState(() {
+            _searchResults = response;
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _searchResults = [];
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _searchResults = [];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
     }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -89,6 +108,7 @@ class _SearchScreenState extends State<SearchScreen> {
               },
             ),
           ),
+          onChanged: _onSearchChanged,
           onSubmitted: _performSearch,
         ),
       ),
@@ -127,19 +147,21 @@ class _SearchScreenState extends State<SearchScreen> {
                       itemCount: _searchResults.length,
                       itemBuilder: (context, index) {
                         final kost = _searchResults[index];
+                        final hasOwner = kost['user'] != null;
+                        
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 16),
                           child: KostCard(
                             kostMap: kost is Map<String, dynamic> ? kost : null,
-                            title: kost["title"] ?? kost["nama_kost"] ?? "Kost",
-                            price: kost["price"] ?? ((kost["harga_per_bulan"] != null) ? "Rp ${kost['harga_per_bulan']}/bulan" : "Rp 1,8 Juta/bulan"),
-                            minRent: kost["minRent"] ?? "Minimal Sewa 1 Bulan",
-                            location: kost["location"] ?? kost["alamat"] ?? "Bogor",
-                            type: kost["type"] ?? kost["jenis_kost"] ?? "Campur",
-                            roomLeft: kost["roomLeft"] ?? "Sisa kamar",
-                            ownerName: kost["ownerName"] ?? "Pemilik Kost",
-                            lastUpdated: kost["lastUpdated"] ?? "Baru saja",
-                            imageCount: 8,
+                            title: kost["nama_kost"] ?? "Kost",
+                            price: "Rp ${kost['harga_min'] ?? '0'}/bulan",
+                            minRent: "Minimal Sewa 1 Bulan",
+                            location: "${kost['kecamatan'] ?? ''}, ${kost['kota'] ?? ''}",
+                            type: kost["tipe"]?.toString().toUpperCase() ?? "CAMPUR",
+                            roomLeft: "Sisa ${kost['kamars_kosong_count'] ?? '?'} kamar",
+                            ownerName: hasOwner ? kost['user']['name'] : "Pemilik",
+                            lastUpdated: "Baru saja",
+                            imageCount: 1,
                           ),
                         );
                       },

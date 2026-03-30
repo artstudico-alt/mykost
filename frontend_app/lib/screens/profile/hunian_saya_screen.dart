@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
 import '../../api/api_service.dart';
+import 'package:intl/intl.dart';
 
 class HunianSayaScreen extends StatefulWidget {
   const HunianSayaScreen({super.key});
@@ -167,17 +168,35 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
     );
   }
 
+  String _formatCurrency(num amount) {
+    return NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    ).format(amount);
+  }
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return "-";
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateFormat('dd MMM yyyy', 'id_ID').format(date);
+    } catch (_) {
+      return dateStr;
+    }
+  }
+
   Widget _buildContent() {
     final kost = _hunian?['kost'] ?? {};
-    final booking = _hunian?['booking'] ?? _hunian ?? {};
+    final booking = _hunian?['booking'] ?? {};
 
-    final String kostName = kost['name'] ?? booking['kost_name'] ?? 'Nama Kost';
-    final String address = kost['address'] ?? booking['address'] ?? 'Alamat tidak tersedia';
-    final String startDate = booking['start_date'] ?? booking['tanggal_mulai'] ?? '-';
-    final String endDate = booking['end_date'] ?? booking['tanggal_selesai'] ?? '-';
-    final String status = booking['status'] ?? 'aktif';
-    final String price = kost['price'] ?? booking['harga'] ?? '-';
-    final String imageUrl = kost['image'] ?? booking['image'] ?? '';
+    final String kostName = kost['nama_kost'] ?? booking['kost_name'] ?? _hunian?['kost_name'] ?? 'Nama Kost';
+    final String address = kost['alamat'] ?? booking['alamat'] ?? _hunian?['alamat'] ?? 'Alamat tidak tersedia';
+    final String startDate = booking['tanggal_mulai'] ?? _hunian?['tanggal_masuk'] ?? '-';
+    final String endDate = booking['tanggal_selesai'] ?? _hunian?['tanggal_keluar'] ?? '-';
+    final String status = _hunian?['status'] ?? 'aktif';
+    final String price = _formatCurrency(kost['harga_min'] ?? booking['total_harga'] ?? 0);
+    final String imageUrl = kost['foto_utama'] ?? booking['image'] ?? '';
 
     return RefreshIndicator(
       color: AppColors.primary,
