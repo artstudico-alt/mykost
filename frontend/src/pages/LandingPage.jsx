@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { Search, MapPin, CreditCard, CheckCircle, X, MessageCircle, Mail, Phone, Info } from 'lucide-react'
 import api from '../utils/api'
+import Footer from '../components/Footer'
 import BookingModal from '../components/BookingModal'
 import {
   loadMidtransSnap,
@@ -561,42 +562,7 @@ function LandingPage() {
 
 
       {/* Footer */}
-      <footer className="landing-footer">
-        <div className="container">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-20 text-center md:text-left">
-            <div className="col-span-1 md:col-span-1">
-              <h3 className="text-2xl font-bold mb-6 landing-brand-text">mykost</h3>
-              <p className="opacity-70 mb-8">Solusi terbaik untuk mencari hunian impian Anda di mana saja, kapan saja.</p>
-            </div>
-            <div>
-              <h4 className="font-bold mb-6">Layanan</h4>
-              <ul className="space-y-3 opacity-70" style={{ listStyle: 'none' }}>
-                <li onClick={() => navigate('/cari')} style={{ cursor: 'pointer' }}>Cari Kos</li>
-                <li>Premium</li>
-                <li>Promo</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold mb-6">Perusahaan</h4>
-              <ul className="space-y-3 opacity-70" style={{ listStyle: 'none' }}>
-                <li>Tentang</li>
-                <li>Karir</li>
-                <li>Blog</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold mb-6">Kontak</h4>
-              <ul className="space-y-3 opacity-70" style={{ listStyle: 'none' }}>
-                <li>halo@mykost.id</li>
-                <li>021-123-456</li>
-              </ul>
-            </div>
-          </div>
-          <div className="pt-8 border-t border-gray-700 text-center opacity-50 text-sm">
-            &copy; 2026 MyKost Indonesia. Seluruh hak cipta dilindungi.
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {selectedBookingKost && (
         <BookingModal
