@@ -14,8 +14,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  Map<String, dynamic>? _userData;
-  bool _isLoading = true;
+  Map<String, dynamic>? _userData = ApiService.currentUser;
+  bool _isLoading = ApiService.currentUser == null;
 
   @override
   void initState() {
@@ -26,20 +26,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfile() async {
     try {
       if (ApiService.token == null) {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
         return;
       }
       final response = await ApiService.me();
       if (response != null && response['data'] != null) {
-        setState(() {
-          _userData = response['data'];
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _userData = response['data'];
+            _isLoading = false;
+          });
+        }
       } else {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

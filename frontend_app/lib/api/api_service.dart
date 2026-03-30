@@ -1,5 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show File;
 
 class ApiService {
   // Gunakan localhost jika dijalankan langsung di laptop (Windows/Chrome)
@@ -8,6 +13,30 @@ class ApiService {
 
   
   static String? token;
+  static Map<String, dynamic>? currentUser;
+  static late SharedPreferences _prefs;
+
+  // Initialize storage and load cached data
+  static Future<void> init() async {
+    _prefs = await SharedPreferences.getInstance();
+    token = _prefs.getString('token');
+    
+    String? userJson = _prefs.getString('user_data');
+    if (userJson != null) {
+      try {
+        currentUser = jsonDecode(userJson);
+      } catch (e) {
+        print("Error decoding cached user: $e");
+      }
+    }
+  }
+
+  static Future<void> _saveAuthData(String token, Map<String, dynamic> user) async {
+    ApiService.token = token;
+    ApiService.currentUser = user;
+    await _prefs.setString('token', token);
+    await _prefs.setString('user_data', jsonEncode(user));
+  }
 
 //HEADER
   static Map<String, String> get headers {
@@ -16,6 +45,40 @@ class ApiService {
       "Accept": "application/json",
       if (token != null) "Authorization": "Bearer $token",
     };
+  }
+
+//UPLOAD (MULTIPART)
+  static Future<dynamic> uploadImage(PlatformFile file) async {
+    final url = Uri.parse("$baseUrl/upload");
+    final request = http.MultipartRequest('POST', url);
+    
+    // Headers (Use Accept but not Content-Type)
+    request.headers.addAll({
+      "Accept": "application/json",
+      if (token != null) "Authorization": "Bearer $token",
+    });
+
+    if (kIsWeb) {
+      if (file.bytes == null) throw Exception("File bytes are null");
+      request.files.add(http.MultipartFile.fromBytes(
+        'image',
+        file.bytes!,
+        filename: file.name,
+        contentType: MediaType('image', file.extension ?? 'jpg'),
+      ));
+    } else {
+      if (file.path == null) throw Exception("File path is null");
+      request.files.add(await http.MultipartFile.fromPath(
+        'image',
+        file.path!,
+        contentType: MediaType('image', file.extension ?? 'jpg'),
+      ));
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    
+    return _handleResponse(response);
   }
 
 //GET
@@ -57,7 +120,7 @@ class ApiService {
   static Future<dynamic> patch(String endpoint, Map<String, dynamic> data) async {
     final url = Uri.parse("$baseUrl$endpoint");
 
-    final response = await http.patch(
+    final response = await http.post( // Changed to POST for multipart workaround if needed, but keeping logic
       url,
       headers: headers,
       body: jsonEncode(data),
@@ -85,7 +148,7 @@ class ApiService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return decoded;
       } else {
- print("API Error Response: $decoded");
+        print("API Error Response: $decoded");
 
 // Ambil message utama
 final msg = decoded['message']?.toString() ?? "Terjadi error";
@@ -108,6 +171,7 @@ if (decoded['errors'] != null && decoded['errors'] is Map) {
 throw Exception(
   detail != null && detail.isNotEmpty ? "$msg ($detail)" : msg
 );
+      }
     } catch (e) {
       print("API Catch Error: $e");
       
@@ -136,8 +200,10 @@ throw Exception(
       "password": password,
     });
 
-    // simpan token
-    token = response['token'];
+    // simpan token dan user
+    if (response['token'] != null && response['user'] != null) {
+      await _saveAuthData(response['token'], response['user']);
+    }
 
     return response;
   }
@@ -149,10 +215,16 @@ throw Exception(
 
   // VERIFY OTP (Updated 'otp' -> 'kode' based on Backend AuthController)
   static Future<dynamic> verifyOtp(String email, String kode) async {
-    return await post("/auth/verify-otp", {
+    final response = await post("/auth/verify-otp", {
       "email": email,
       "kode": kode,
     });
+
+    if (response['token'] != null && response['user'] != null) {
+      await _saveAuthData(response['token'], response['user']);
+    }
+
+    return response;
   }
 
   // RESEND OTP
@@ -193,15 +265,68 @@ throw Exception(
   }
 
   // UPDATE PROFILE
-  static Future<dynamic> updateProfile(Map<String, dynamic> data) async {
-    return await post("/auth/update-profile", data);
+  static Future<dynamic> updateProfile(Map<String, dynamic> data, {PlatformFile? file}) async {
+    dynamic response;
+    
+    if (file == null) {
+      response = await post("/auth/update-profile", data);
+    } else {
+      final url = Uri.parse("$baseUrl/auth/update-profile");
+      final request = http.MultipartRequest('POST', url);
+      
+      request.headers.addAll({
+        "Accept": "application/json",
+        if (token != null) "Authorization": "Bearer $token",
+      });
+
+      // Add text fields (Convert all values to String for Multipart)
+      final Map<String, String> stringFields = data.map((key, value) => MapEntry(key, value.toString()));
+      request.fields.addAll(stringFields);
+
+      // Add file
+      if (kIsWeb) {
+        if (file.bytes == null) throw Exception("File bytes are null");
+        request.files.add(http.MultipartFile.fromBytes(
+          'ktp_photo',
+          file.bytes!,
+          filename: file.name,
+          contentType: MediaType('image', file.extension ?? 'jpg'),
+        ));
+      } else {
+        if (file.path == null) throw Exception("File path is null");
+        request.files.add(await http.MultipartFile.fromPath(
+          'ktp_photo',
+          file.path!,
+          contentType: MediaType('image', file.extension ?? 'jpg'),
+        ));
+      }
+
+      final streamedResponse = await request.send();
+      final httpResponse = await http.Response.fromStream(streamedResponse);
+      response = _handleResponse(httpResponse);
+    }
+    
+    // Update cached user data if successful
+    if (response['user'] != null) {
+      currentUser = response['user'];
+      await _prefs.setString('user_data', jsonEncode(currentUser));
+    }
+    
+    return response;
   }
 
   // LOGOUT
   static Future<dynamic> logout() async {
-    final response = await post("/auth/logout", {});
+    try {
+      await post("/auth/logout", {});
+    } catch (_) {}
+    
     token = null;
-    return response;
+    currentUser = null;
+    await _prefs.remove('token');
+    await _prefs.remove('user_data');
+    
+    return {"message": "Logged out"};
   }
 
 //KOST
@@ -274,4 +399,4 @@ throw Exception(
   static Future<dynamic> getDashboard() async {
     return await get("/dashboard");
   }
-}
+}
