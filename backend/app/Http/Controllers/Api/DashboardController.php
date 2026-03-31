@@ -17,13 +17,18 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        return match ($user->role?->name) {
+        $response = match ($user->role?->name) {
             'super_admin'  => $this->dashboardSuperAdmin(),
             'hr'           => $this->dashboardHr($user),
             'pemilik_kost' => $this->dashboardPemilikKost($user),
             'karyawan'     => $this->dashboardKaryawan($user),
             default        => response()->json(['message' => 'Role tidak dikenali'], 403),
         };
+
+        // Add cache control headers
+        return $response->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                        ->header('Pragma', 'no-cache')
+                        ->header('Expires', '0');
     }
 
     private function dashboardSuperAdmin()
@@ -84,7 +89,9 @@ class DashboardController extends Controller
 
     private function dashboardKaryawan(User $user)
     {
-        $karyawan   = Karyawan::where('user_id', $user->id)->first();
+        $karyawan = Karyawan::where('user_id', $user->id)->first();
+
+        // Optimized queries with single database calls
         $hunianAktif = null;
         $bookingAktif = null;
 
@@ -92,13 +99,18 @@ class DashboardController extends Controller
             $hunianAktif = Hunian::with(['kost'])
                 ->where('karyawan_id', $karyawan->id)
                 ->where('status', 'aktif')
-                ->latest()->first();
+                ->latest()
+                ->first();
         }
 
         $bookingAktif = Booking::with(['kost'])
             ->where('user_id', $user->id)
             ->whereIn('status', ['pending', 'confirmed', 'aktif'])
-            ->latest()->first();
+            ->latest()
+            ->first();
+
+        // Get total booking count in a single query
+        $totalBooking = Booking::where('user_id', $user->id)->count();
 
         return response()->json([
             'message'      => 'Dashboard Karyawan',
@@ -106,7 +118,7 @@ class DashboardController extends Controller
                 'karyawan'       => $karyawan,
                 'hunian_aktif'   => $hunianAktif,
                 'booking_aktif'  => $bookingAktif,
-                'total_booking'  => Booking::where('user_id', $user->id)->count(),
+                'total_booking'  => $totalBooking,
             ],
         ]);
     }

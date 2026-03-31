@@ -4,16 +4,21 @@ import { useAuth } from '../hooks/useAuth'
 import api from '../utils/api'
 
 function Dashboard() {
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, ensureAuth } = useAuth()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!authLoading && user) {
-      fetchDashboardData()
+    const initializeDashboard = async () => {
+      await ensureAuth()
+      if (!authLoading && user) {
+        fetchDashboardData()
+      }
     }
-  }, [authLoading, user])
+    
+    initializeDashboard()
+  }, [authLoading, user, ensureAuth])
 
   const fetchDashboardData = async () => {
     try {

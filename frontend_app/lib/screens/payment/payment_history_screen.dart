@@ -18,6 +18,12 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeAndFetch();
+  }
+
+  Future<void> _initializeAndFetch() async {
+    // Ensure ApiService is initialized before making API calls
+    await ApiService.init();
     _fetchHistory();
   }
 

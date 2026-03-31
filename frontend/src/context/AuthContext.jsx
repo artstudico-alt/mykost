@@ -30,6 +30,12 @@ export const AuthProvider = ({ children }) => {
     setLoading(false)
   }
 
+  const ensureAuth = async () => {
+    if (!isAuthenticated && authService.isAuthenticated()) {
+      await checkAuth()
+    }
+  }
+
   useEffect(() => {
     checkAuth()
   }, [])
@@ -52,7 +58,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout, checkAuth }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout, checkAuth, ensureAuth }}>
       {children}
     </AuthContext.Provider>
   )

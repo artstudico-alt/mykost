@@ -31,11 +31,16 @@ class PembayaranController extends Controller
 
         $pembayarans = $query->latest()->get();
 
-        return response()->json([
+        $response = response()->json([
             'message' => 'Data pembayaran berhasil diambil',
             'total'   => $pembayarans->count(),
             'data'    => $pembayarans,
         ]);
+
+        // Add cache control headers
+        return $response->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                        ->header('Pragma', 'no-cache')
+                        ->header('Expires', '0');
     }
 
     /**
