@@ -26,19 +26,14 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
       final response = await ApiService.getPembayaran();
       final List<dynamic> data = response['data'] ?? [];
       
-      // Filter hanya yang lunas (settlement, capture, success)
-      final successStatuses = ['settlement', 'capture', 'success', 'berhasil'];
-      
       setState(() {
-        _history = data.where((p) => 
-          successStatuses.contains(p['status']?.toString().toLowerCase())
-        ).toList();
+        _history = data;
         _isLoading = false;
         _error = null;
       });
     } catch (e) {
       final errorStr = e.toString();
-      if (errorStr.contains('404') || errorStr.contains('DATA_KARYAWAN_NOT_FOUND')) {
+      if (errorStr.contains('404')) {
         setState(() {
           _history = [];
           _isLoading = false;
@@ -71,6 +66,35 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
     }
   }
 
+  Widget _getStatusBadge(String? status) {
+    final s = status?.toLowerCase() ?? 'pending';
+    final isSuccess = ['settlement', 'capture', 'success', 'berhasil'].contains(s);
+    final isPending = ['pending', 'waiting'].contains(s);
+    
+    Color color = Colors.orange;
+    String label = "Pending";
+    
+    if (isSuccess) {
+      color = Colors.green;
+      label = "Lunas";
+    } else if (!isPending) {
+      color = Colors.red;
+      label = "Gagal";
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 10),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -97,6 +121,10 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                           final booking = item['booking'] ?? {};
                           final kost = booking['kost'] ?? {};
                           
+                          // Fallback data mapping
+                          final kostName = kost['nama_kost'] ?? booking['kost_name'] ?? item['keterangan'] ?? "Pembayaran Sewa";
+                          final amount = item['jumlah'] ?? item['gross_amount'] ?? 0;
+                          
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             decoration: BoxDecoration(
@@ -107,26 +135,23 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                             child: ListTile(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                               leading: CircleAvatar(
-                                backgroundColor: Colors.green.shade50,
-                                child: const Icon(Icons.check_circle, color: Colors.green),
+                                backgroundColor: AppColors.primary.withOpacity(0.1),
+                                child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary),
                               ),
                               title: Text(
-                                kost['nama_kost'] ?? "Pembayaran Sewa",
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                kostName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               subtitle: Padding(
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Text(
-                                  "${_formatCurrency(item['jumlah'] ?? 0)} • ${_formatDate(item['created_at'])}",
+                                  "${_formatCurrency(amount)} • ${_formatDate(item['created_at'] ?? item['tanggal_bayar'])}",
                                   style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                                 ),
                               ),
-                              trailing: const Text(
-                                "Lunas",
-                                style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600),
-                              ),
+                              trailing: _getStatusBadge(item['status']),
                             ),
                           );
                         },

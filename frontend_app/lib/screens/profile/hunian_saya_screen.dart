@@ -12,34 +12,105 @@ class HunianSayaScreen extends StatefulWidget {
 }
 
 class _HunianSayaScreenState extends State<HunianSayaScreen> {
-  Map<String, dynamic>? _hunian;
+  List<dynamic> _rentals = [];
   bool _isLoading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadHunian();
+    _loadAllData();
   }
 
-  Future<void> _loadHunian() async {
+  Future<void> _loadAllData() async {
+    setState(() => _isLoading = true);
+    final Map<int, dynamic> mergedRentals = {};
+
     try {
-      final response = await ApiService.getHunianSaya();
+      // 1. Ambil data Hunian Resmi (Stage 1)
+      try {
+        final resHunian = await ApiService.getHunianSaya();
+        if (resHunian != null && resHunian['data'] != null) {
+          final h = resHunian['data'];
+          final id = h['id'] ?? (h['booking']?['id']) ?? 0;
+          if (id != 0) mergedRentals[id] = h;
+        }
+      } catch (e) {
+        debugPrint("Stage 1 (Hunian) Error: $e");
+      }
+
+      // 2. Ambil data Booking (Stage 2)
+      try {
+        final resBooking = await ApiService.getBooking();
+        final List<dynamic> bookings = resBooking?['data'] ?? [];
+        for (var b in bookings) {
+          final id = b['id'] ?? 0;
+          if (id != 0 && !mergedRentals.containsKey(id)) {
+            mergedRentals[id] = b;
+          }
+        }
+      } catch (e) {
+        debugPrint("Stage 2 (Booking) Error: $e");
+      }
+
+      // 3. Ambil data Pembayaran (Stage 3 - Ultimate Fallback)
+      // Ini memastikan jika di History ada, di sini pasti muncul
+      try {
+        final resPay = await ApiService.getPembayaran();
+        final List<dynamic> payments = resPay?['data'] ?? [];
+        for (var p in payments) {
+          final b = p['booking'];
+          if (b != null) {
+            final id = b['id'] ?? 0;
+            if (id != 0 && !mergedRentals.containsKey(id)) {
+              mergedRentals[id] = b;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint("Stage 3 (Payment) Error: $e");
+      }
+
+      final resultList = mergedRentals.values.toList();
+      // Urutkan: Aktif > Pending > Selesai, lalu by ID terbaru
+      resultList.sort((a, b) {
+        final sA = _getStatus(a).toLowerCase();
+        final sB = _getStatus(b).toLowerCase();
+        
+        int priority(String s) {
+          if (s == 'aktif') return 0;
+          if (s == 'confirmed') return 1;
+          if (s == 'pending') return 2;
+          return 3;
+        }
+        
+        int pA = priority(sA);
+        int pB = priority(sB);
+        if (pA != pB) return pA.compareTo(pB);
+        
+        final idA = a['id'] ?? 0;
+        final idB = b['id'] ?? 0;
+        return idB.compareTo(idA);
+      });
+
       setState(() {
-        _hunian = response?['data'];
+        _rentals = resultList;
         _isLoading = false;
+        _error = null;
       });
     } catch (e) {
       setState(() {
-        if (e.toString().contains('DATA_KARYAWAN_NOT_FOUND')) {
-          _hunian = null;
-          _error = null;
-        } else {
-          _error = e.toString();
-        }
+        _error = e.toString();
         _isLoading = false;
       });
     }
+  }
+
+  String _getStatus(dynamic item) {
+    if (item.containsKey('booking')) {
+      return item['booking']['status'] ?? 'aktif';
+    }
+    return item['status'] ?? 'aktif';
   }
 
   @override
@@ -49,11 +120,7 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
       appBar: AppBar(
         title: const Text(
           'Hunian Saya',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -63,12 +130,224 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : _error != null
               ? _buildError()
-              : _hunian == null
+              : _rentals.isEmpty
                   ? _buildEmpty()
-                  : _buildContent(),
+                  : RefreshIndicator(
+                      onRefresh: _loadAllData,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _rentals.length,
+                        itemBuilder: (context, index) => _rentalCard(_rentals[index]),
+                      ),
+                    ),
     );
   }
 
+  Widget _rentalCard(dynamic item) {
+    final bool isHunian = item.containsKey('booking') && item['booking'] != null;
+    final kost = item['kost'] ?? (isHunian ? item['booking']['kost'] : {}) ?? {};
+    final booking = isHunian ? item['booking'] : item;
+
+    final String kostName = kost['nama_kost'] ?? booking['kost_name'] ?? item['kost_name'] ?? 'Nama Kost';
+    final String address = kost['alamat'] ?? booking['alamat'] ?? 'Alamat tidak tersedia';
+    final String status = booking['status'] ?? 'aktif';
+    final String imageUrl = kost['foto_utama'] ?? booking['image'] ?? '';
+    final String rawStartDate = booking['tanggal_mulai'] ?? item['tanggal_masuk'] ?? '';
+    final String rawEndDate = booking['tanggal_selesai'] ?? item['tanggal_keluar'] ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            child: Stack(
+              children: [
+                imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        height: 150,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _placeholderImage(),
+                      )
+                    : _placeholderImage(),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: _statusBadge(status),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  kostName,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_rounded, size: 14, color: AppColors.primary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        address,
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Periode Sewa', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${_formatDate(rawStartDate)} - ${_formatDate(rawEndDate)}',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    ElevatedButton(
+                      onPressed: () => _showDetail(item),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Detail', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDetail(dynamic item) {
+    // Navigasi ke detail atau update internal state untuk menunjukkan detail view
+    // Untuk saat ini, kita bisa navigasi ke screen khusus atau dialog
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, controller) => Container(
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            controller: controller,
+            child: _buildDetailContent(item),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailContent(dynamic item) {
+    // Menggunakan logic _buildContent yg lama tapi dipindahkan ke sini
+    final bool isHunian = item.containsKey('booking') && item['booking'] != null;
+    final kost = item['kost'] ?? (isHunian ? item['booking']['kost'] : {}) ?? {};
+    final booking = isHunian ? item['booking'] : item;
+
+    final String kostName = kost['nama_kost'] ?? booking['kost_name'] ?? item['kost_name'] ?? 'Nama Kost';
+    final String address = kost['alamat'] ?? booking['alamat'] ?? 'Alamat tidak tersedia';
+    final String rawStartDate = booking['tanggal_mulai'] ?? item['tanggal_masuk'] ?? '';
+    final String rawEndDate = booking['tanggal_selesai'] ?? item['tanggal_keluar'] ?? '';
+    final dynamic rawPrice = kost['harga_min'] ?? booking['total_harga'] ?? 0;
+    final String status = booking['status'] ?? 'aktif';
+
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.all(20),
+          width: 40,
+          height: 4,
+          decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(kostName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              _statusBadge(status),
+              const SizedBox(height: 24),
+              _infoRow(Icons.location_on_rounded, 'Alamat', address),
+              const SizedBox(height: 16),
+              _infoRow(Icons.calendar_today_rounded, 'Mulai', _formatDate(rawStartDate)),
+              const SizedBox(height: 16),
+              _infoRow(Icons.event_rounded, 'Berakhir', _formatDate(rawEndDate)),
+              const SizedBox(height: 16),
+              _infoRow(Icons.payments_outlined, 'Biaya', _formatCurrency(num.tryParse(rawPrice.toString()) ?? 0)),
+              const SizedBox(height: 32),
+              _buildDurationCard(rawStartDate, rawEndDate),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ComplaintScreen(
+                          kostId: kost['id'] ?? item['kost_id'],
+                          kostName: kostName,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.report_problem_outlined),
+                  label: const Text('Ajukan Keluhan', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.redAccent,
+                    side: const BorderSide(color: Colors.redAccent),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ... (Sisanya: _buildEmpty, _buildError, _formatCurrency, _formatDate, _placeholderImage, _statusBadge, _infoRow, _buildDurationCard tetap sama atau sedikit disesuaikan)
   Widget _buildEmpty() {
     return Center(
       child: Padding(
@@ -77,51 +356,19 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.home_work_outlined,
-                size: 48,
-                color: AppColors.primary,
-              ),
+              width: 100, height: 100,
+              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.08), shape: BoxShape.circle),
+              child: const Icon(Icons.home_work_outlined, size: 48, color: AppColors.primary),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Belum ada hunian aktif',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
+            const Text('Belum ada hunian aktif', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
             const SizedBox(height: 8),
-            const Text(
-              'Kamu belum memiliki hunian yang aktif saat ini.\nMulai cari kost yang sesuai!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                height: 1.5,
-              ),
-            ),
+            const Text('Kamu belum memiliki hunian yang aktif saat ini.\nMulai cari kost yang sesuai!', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5)),
             const SizedBox(height: 32),
-            ElevatedButton.icon(
+            ElevatedButton(
               onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.search_rounded, size: 18),
-              label: const Text('Cari Kost'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+              child: const Text('Cari Kost'),
             ),
           ],
         ),
@@ -131,286 +378,57 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
 
   Widget _buildError() {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.wifi_off_rounded, size: 56, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            const Text(
-              'Gagal memuat data',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error ?? '',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: () {
-                setState(() => _isLoading = true);
-                _loadHunian();
-              },
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Coba Lagi'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+          const SizedBox(height: 16),
+          Text(_error ?? 'Gagal memuat data'),
+          const SizedBox(height: 16),
+          ElevatedButton(onPressed: _loadAllData, child: const Text('Coba Lagi')),
+        ],
       ),
     );
   }
 
-  String _formatCurrency(num amount) {
-    return NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    ).format(amount);
-  }
-
+  String _formatCurrency(num amount) => NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   String _formatDate(String? dateStr) {
-    if (dateStr == null) return "-";
+    if (dateStr == null || dateStr.isEmpty) return "-";
     try {
       final date = DateTime.parse(dateStr);
       return DateFormat('dd MMM yyyy', 'id_ID').format(date);
-    } catch (_) {
-      return dateStr;
-    }
+    } catch (_) { return dateStr; }
   }
 
-  Widget _buildContent() {
-    final kost = _hunian?['kost'] ?? {};
-    final booking = _hunian?['booking'] ?? {};
-
-    final String kostName = kost['nama_kost'] ?? booking['kost_name'] ?? _hunian?['kost_name'] ?? 'Nama Kost';
-    final String address = kost['alamat'] ?? booking['alamat'] ?? _hunian?['alamat'] ?? 'Alamat tidak tersedia';
-    final String startDate = booking['tanggal_mulai'] ?? _hunian?['tanggal_masuk'] ?? '-';
-    final String endDate = booking['tanggal_selesai'] ?? _hunian?['tanggal_keluar'] ?? '-';
-    final String status = _hunian?['status'] ?? 'aktif';
-    final String price = _formatCurrency(kost['harga_min'] ?? booking['total_harga'] ?? 0);
-    final String imageUrl = kost['foto_utama'] ?? booking['image'] ?? '';
-
-    return RefreshIndicator(
-      color: AppColors.primary,
-      onRefresh: _loadHunian,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Kost card
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    child: imageUrl.isNotEmpty
-                        ? Image.network(
-                            imageUrl,
-                            height: 180,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _placeholderImage(),
-                          )
-                        : _placeholderImage(),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                kostName,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ),
-                            _statusBadge(status),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on_rounded, size: 15, color: AppColors.primary),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                address,
-                                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Detail info
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Detail Sewa',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: 16),
-                  _infoRow(Icons.calendar_today_rounded, 'Mulai Sewa', startDate),
-                  const SizedBox(height: 12),
-                  _infoRow(Icons.event_rounded, 'Sampai', endDate),
-                  const SizedBox(height: 12),
-                  _infoRow(Icons.payments_outlined, 'Biaya per Bulan', price),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Duration progress
-            _buildDurationCard(startDate, endDate),
-
-            const SizedBox(height: 32),
-
-            // Complaint button
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ComplaintScreen(
-                        kostId: kost['id'] ?? _hunian?['kost_id'],
-                        kostName: kostName,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.report_problem_outlined, size: 20),
-                label: const Text(
-                  'Ajukan Keluhan',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.redAccent,
-                  elevation: 0,
-                  side: const BorderSide(color: Colors.redAccent, width: 1.5),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _placeholderImage() {
-    return Container(
-      height: 180,
-      width: double.infinity,
-      color: AppColors.surface,
-      child: const Icon(Icons.home_work_outlined, size: 56, color: AppColors.primary),
-    );
-  }
+  Widget _placeholderImage() => Container(height: 150, width: double.infinity, color: AppColors.surface, child: const Icon(Icons.home_work_outlined, size: 56, color: AppColors.primary));
 
   Widget _statusBadge(String status) {
-    final isActive = status.toLowerCase() == 'aktif' || status.toLowerCase() == 'active';
+    final s = status.toLowerCase();
+    final isActive = s == 'aktif' || s == 'active';
+    final isPending = s == 'pending';
+    final isDone = s == 'selesai' || s == 'tidak aktif';
+    Color color = Colors.orange;
+    String label = status;
+    if (isActive) { color = Colors.green; label = 'Aktif'; }
+    else if (isDone) { color = Colors.grey; label = 'Tidak Aktif'; }
+    else if (isPending) { label = 'Pending'; }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      decoration: BoxDecoration(
-        color: isActive ? AppColors.primary.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        isActive ? 'Aktif' : status,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: isActive ? AppColors.primary : Colors.orange,
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+      child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
     );
   }
 
   Widget _infoRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 18, color: AppColors.primary),
-        ),
-        const SizedBox(width: 14),
+        Icon(icon, size: 20, color: AppColors.primary),
+        const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-            ),
+            Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
           ],
         ),
       ],
@@ -419,76 +437,19 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
 
   Widget _buildDurationCard(String startDate, String endDate) {
     double progress = 0.5;
-    String remainingLabel = '';
     try {
       final start = DateTime.parse(startDate);
       final end = DateTime.parse(endDate);
       final now = DateTime.now();
-      final total = end.difference(start).inDays;
-      final elapsed = now.difference(start).inDays;
-      progress = (elapsed / total).clamp(0.0, 1.0);
-      final remaining = end.difference(now).inDays;
-      remainingLabel = remaining > 0 ? '$remaining hari lagi' : 'Sudah selesai';
-    } catch (_) {
-      remainingLabel = '';
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Durasi Sewa',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              if (remainingLabel.isNotEmpty)
-                Text(
-                  remainingLabel,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: progress >= 1.0 ? Colors.red : AppColors.primary,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: AppColors.surface,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                progress >= 1.0 ? Colors.red : AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(startDate, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-              Text(endDate, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-            ],
-          ),
-        ],
-      ),
+      progress = (now.difference(start).inDays / end.difference(start).inDays).clamp(0.0, 1.0);
+    } catch (_) {}
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Progres Sewa', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        LinearProgressIndicator(value: progress, backgroundColor: Colors.grey.shade200, valueColor: const AlwaysStoppedAnimation(AppColors.primary)),
+      ],
     );
   }
 }

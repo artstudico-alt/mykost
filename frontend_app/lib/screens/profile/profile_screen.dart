@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:frontend_app/utils/colors.dart';
 import 'package:frontend_app/api/api_service.dart';
 import 'package:frontend_app/screens/auth/login_screen.dart';
-import 'package:frontend_app/screens/payment/billing_screen.dart';
 import 'package:frontend_app/screens/payment/payment_history_screen.dart';
 import 'package:frontend_app/screens/profile/hunian_saya_screen.dart';
 import 'package:frontend_app/screens/complaint/list_keluhan_screen.dart';
@@ -618,14 +617,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     child: Column(
                       children: [
-                        _buildMenuItem(
-                          icon: Icons.receipt_long_outlined,
-                          label: 'Tagihan Saya',
-                          color: const Color(0xFF6C63FF),
-                          onTap: () => Navigator.push(context,
-                              MaterialPageRoute(builder: (_) => const BillingScreen())),
-                        ),
-                        _divider(),
                         _buildMenuItem(
                           icon: Icons.history_rounded,
                           label: 'Riwayat Pembayaran',
