@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
 function GoogleIcon() {
@@ -43,6 +43,8 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const successMessage = location.state?.message
 
   const handleChange = (e) => {
     setFormData({
@@ -136,6 +138,18 @@ function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="auth-form" noValidate>
+            {successMessage && (
+              <div className="auth-alert auth-alert--success" role="status">
+                <div className="auth-alert__icon">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div className="auth-alert__content">
+                  <p className="auth-alert__text">{successMessage}</p>
+                </div>
+              </div>
+            )}
             {error ? (
               <div className="auth-alert animate-shake" role="alert">
                 <div className="auth-alert__icon">

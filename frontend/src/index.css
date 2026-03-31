@@ -800,6 +800,14 @@ h1, h2, h3, h4 {
   margin-bottom: 1.5rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
+.auth-alert--success {
+  background: #ecfdf5;
+  border: 1px solid #10b981;
+  color: #065f46;
+}
+.auth-alert--success .auth-alert__icon {
+  color: #059669;
+}
 
 .auth-alert__icon {
   flex-shrink: 0;
