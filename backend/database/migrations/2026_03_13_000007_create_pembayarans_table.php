@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->enum('metode', ['transfer', 'cash', 'virtual_account', 'qris'])->default('transfer');
             $table->string('nomor_referensi')->nullable()->unique();
             $table->string('bukti_pembayaran')->nullable();
-            $table->enum('status', ['pending', 'berhasil', 'gagal', 'refund'])->default('pending');
+            $table->enum('status', ['pending', 'berhasil', 'lunas', 'gagal', 'refund'])->default('pending');
             $table->timestamp('tanggal_bayar')->nullable();
             $table->text('keterangan')->nullable();
             $table->timestamps();

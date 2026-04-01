@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Keluhan;
+use App\Services\NotifikasiService;
 use Illuminate\Http\Request;
 
 class KeluhanController extends Controller
@@ -30,26 +31,40 @@ class KeluhanController extends Controller
             'message' => 'Data keluhan berhasil diambil',
             'total'   => $keluhans->count(),
             'data'    => $keluhans,
-        ]);
+        ])->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+          ->header('Pragma', 'no-cache')
+          ->header('Expires', '0');
     }
 
     // POST /api/keluhan — karyawan buat keluhan
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'kost_id'  => 'required|exists:kosts,id',
+            'kost_id'   => 'nullable|exists:kosts,id',
+            'kategori' => 'required|string|max:100',
             'judul'    => 'required|string|max:255',
-            'isi'      => 'required|string',
+            'deskripsi'=> 'required|string',
         ]);
 
         $validated['user_id'] = $request->user()->id;
-        $validated['status']  = 'open';
+        $validated['isi'] = $validated['deskripsi'];
+        $validated['status'] = 'open';
+        unset($validated['deskripsi']);
 
         $keluhan = Keluhan::create($validated);
 
+        // Kirim notifikasi ke pemilik kost
+        if ($keluhan->kost && $keluhan->kost->user_id) {
+            NotifikasiService::keluhanBaru(
+                $keluhan->kost->user_id,
+                $keluhan->kost->nama_kost,
+                $request->user()->name ?? 'Penyewa'
+            );
+        }
+
         return response()->json([
             'message' => 'Keluhan berhasil dikirim',
-            'data'    => $keluhan->load(['kost']),
+            'data'    => $keluhan->load(['kost', 'user']),
         ], 201);
     }
 
@@ -103,6 +118,12 @@ class KeluhanController extends Controller
             'status'       => $request->status,
             'responded_at' => now(),
         ]);
+
+        // Kirim notifikasi ke penyewa
+        NotifikasiService::keluhanDirespon(
+            $keluhan->user_id,
+            $keluhan->kost?->nama_kost ?? 'Kost'
+        );
 
         return response()->json([
             'message' => 'Respon keluhan berhasil disimpan',

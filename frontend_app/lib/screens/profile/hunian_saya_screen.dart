@@ -27,43 +27,56 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
     final Map<int, dynamic> mergedRentals = {};
 
     try {
-      // 1. Ambil data Hunian Resmi (Stage 1)
+      // 1. Prioritaskan data Hunian Resmi (data yang sudah diverifikasi)
       try {
         final resHunian = await ApiService.getHunianSaya();
         if (resHunian != null && resHunian['data'] != null) {
           final h = resHunian['data'];
           final id = h['id'] ?? (h['booking']?['id']) ?? 0;
-          if (id != 0) mergedRentals[id] = h;
+          if (id != 0) {
+            // Tandai sebagai hunian resmi
+            h['is_hunian_resmi'] = true;
+            mergedRentals[id] = h;
+          }
         }
       } catch (e) {
         debugPrint("Stage 1 (Hunian) Error: $e");
       }
 
-      // 2. Ambil data Booking (Stage 2)
+      // 2. Ambil data Booking dengan status aktif/pending
       try {
         final resBooking = await ApiService.getBooking();
         final List<dynamic> bookings = resBooking?['data'] ?? [];
         for (var b in bookings) {
-          final id = b['id'] ?? 0;
-          if (id != 0 && !mergedRentals.containsKey(id)) {
-            mergedRentals[id] = b;
+          // Hanya ambil booking yang relevan (aktif, pending, confirmed)
+          final status = b['status']?.toLowerCase() ?? '';
+          if (['aktif', 'pending', 'confirmed'].contains(status)) {
+            final id = b['id'] ?? 0;
+            if (id != 0 && !mergedRentals.containsKey(id)) {
+              b['is_hunian_resmi'] = false;
+              mergedRentals[id] = b;
+            }
           }
         }
       } catch (e) {
         debugPrint("Stage 2 (Booking) Error: $e");
       }
 
-      // 3. Ambil data Pembayaran (Stage 3 - Ultimate Fallback)
-      // Ini memastikan jika di History ada, di sini pasti muncul
+      // 3. Fallback ke Pembayaran yang berhasil (untuk jaga-jaga)
       try {
         final resPay = await ApiService.getPembayaran();
         final List<dynamic> payments = resPay?['data'] ?? [];
         for (var p in payments) {
-          final b = p['booking'];
-          if (b != null) {
-            final id = b['id'] ?? 0;
-            if (id != 0 && !mergedRentals.containsKey(id)) {
-              mergedRentals[id] = b;
+          final status = p['status']?.toLowerCase() ?? '';
+          if (['settlement', 'capture', 'success', 'berhasil'].contains(status)) {
+            final b = p['booking'];
+            if (b != null) {
+              final id = b['id'] ?? 0;
+              if (id != 0 && !mergedRentals.containsKey(id)) {
+                b['is_hunian_resmi'] = false;
+                b['payment_info'] = p; // Simpan info pembayaran
+                mergedRentals[id] = b;
+              }
             }
           }
         }
@@ -72,8 +85,18 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
       }
 
       final resultList = mergedRentals.values.toList();
-      // Urutkan: Aktif > Pending > Selesai, lalu by ID terbaru
+      
+      // Urutkan berdasarkan prioritas: Hunian Resmi > Aktif > Pending > Confirmed
       resultList.sort((a, b) {
+        final aIsHunian = a['is_hunian_resmi'] ?? false;
+        final bIsHunian = b['is_hunian_resmi'] ?? false;
+        
+        // Prioritaskan hunian resmi
+        if (aIsHunian != bIsHunian) {
+          return bIsHunian ? 1 : -1;
+        }
+        
+        // Lalu urutkan berdasarkan status
         final sA = _getStatus(a).toLowerCase();
         final sB = _getStatus(b).toLowerCase();
         
@@ -88,6 +111,7 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
         int pB = priority(sB);
         if (pA != pB) return pA.compareTo(pB);
         
+        // Terakhir urutkan berdasarkan ID terbaru
         final idA = a['id'] ?? 0;
         final idB = b['id'] ?? 0;
         return idB.compareTo(idA);
@@ -145,6 +169,7 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
 
   Widget _rentalCard(dynamic item) {
     final bool isHunian = item.containsKey('booking') && item['booking'] != null;
+    final bool isHunianResmi = item['is_hunian_resmi'] ?? false;
     final kost = item['kost'] ?? (isHunian ? item['booking']['kost'] : {}) ?? {};
     final booking = isHunian ? item['booking'] : item;
 
@@ -183,8 +208,25 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
                 Positioned(
                   top: 12,
                   right: 12,
-                  child: _statusBadge(status),
+                  child: _statusBadge(status, isHunianResmi: isHunianResmi),
                 ),
+                if (isHunianResmi)
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                      ),
+                      child: const Text(
+                        'Terverifikasi',
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.purple),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -402,20 +444,39 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
 
   Widget _placeholderImage() => Container(height: 150, width: double.infinity, color: AppColors.surface, child: const Icon(Icons.home_work_outlined, size: 56, color: AppColors.primary));
 
-  Widget _statusBadge(String status) {
+  Widget _statusBadge(String status, {bool isHunianResmi = false}) {
     final s = status.toLowerCase();
-    final isActive = s == 'aktif' || s == 'active';
-    final isPending = s == 'pending';
-    final isDone = s == 'selesai' || s == 'tidak aktif';
     Color color = Colors.orange;
     String label = status;
-    if (isActive) { color = Colors.green; label = 'Aktif'; }
-    else if (isDone) { color = Colors.grey; label = 'Tidak Aktif'; }
-    else if (isPending) { label = 'Pending'; }
+    
+    if (isHunianResmi) {
+      color = Colors.green;
+      label = 'Aktif';
+    } else if (s == 'aktif' || s == 'active') {
+      color = Colors.green;
+      label = 'Aktif';
+    } else if (s == 'confirmed') {
+      color = Colors.blue;
+      label = 'Confirmed';
+    } else if (s == 'pending') {
+      color = Colors.orange;
+      label = 'Pending';
+    } else if (s == 'selesai' || s == 'tidak aktif') {
+      color = Colors.grey;
+      label = 'Selesai';
+    }
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-      child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+      ),
     );
   }
 

@@ -187,7 +187,6 @@ class _SearchScreenState extends State<SearchScreen> {
     final kota = kost['kota'] ?? '';
     final lokasi = [kecamatan, kota].where((s) => s.isNotEmpty).join(', ');
     final tipe = (kost['tipe'] ?? 'campur').toString().toUpperCase();
-    final kamarKosong = kost['kamars_kosong_count'] ?? kost['kamar_kosong'] ?? '?';
     final images = kost['images'] as List?;
     final imageUrl = (images != null && images.isNotEmpty)
         ? images[0]['url'] ?? images[0]['path'] ?? ''
@@ -297,10 +296,6 @@ class _SearchScreenState extends State<SearchScreen> {
                             color: AppColors.primary,
                             fontSize: 14,
                           ),
-                        ),
-                        Text(
-                          "Sisa $kamarKosong kamar",
-                          style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
                         ),
                       ],
                     ),

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useGlobalModal } from '../context/ModalContext'
 import { Search, MapPin, CreditCard, CheckCircle, X, MessageCircle, Mail, Phone, Info } from 'lucide-react'
 import api from '../utils/api'
 import Footer from '../components/Footer'
@@ -41,6 +42,7 @@ function LandingPage() {
   const [selectedBookingKost, setSelectedBookingKost] = useState(null)
   const [userData, setUserData] = useState(null)
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false)
+  const { alert: modalAlert } = useGlobalModal()
 
   // Radar & Location States
   const [userPos, setUserPos] = useState({ lat: -6.5946, lng: 106.7892 }) // Default Bogor
@@ -56,10 +58,26 @@ function LandingPage() {
 
   const fetchKosts = async () => {
     try {
+      console.log('Fetching kost data...')
       const response = await api.get('/kost')
-      setKostData(Array.isArray(response.data?.data) ? response.data.data : [])
+      console.log('Kost API response:', response)
+      console.log('Response data:', response.data)
+      
+      const kostArray = response.data?.data
+      console.log('Kost array:', kostArray)
+      console.log('Is array:', Array.isArray(kostArray))
+      
+      if (Array.isArray(kostArray)) {
+        setKostData(kostArray)
+        console.log('Kost data set:', kostArray.length, 'items')
+      } else {
+        console.warn('Kost data is not an array:', kostArray)
+        setKostData([])
+      }
     } catch (error) {
       console.error('Gagal mengambil data kost:', error)
+      console.error('Error response:', error.response)
+      console.error('Error message:', error.message)
     } finally {
       setIsLoading(false)
     }
@@ -98,8 +116,9 @@ function LandingPage() {
       return
     }
     if (!getMidtransClientKey()) {
-      alert(
-        'Midtrans: tambahkan VITE_MIDTRANS_CLIENT_KEY di file .env frontend (nilai sama dengan MIDTRANS_CLIENT_KEY di backend), lalu restart npm run dev.'
+      modalAlert(
+        'Midtrans: tambahkan VITE_MIDTRANS_CLIENT_KEY di file .env frontend (nilai sama dengan MIDTRANS_CLIENT_KEY di backend), lalu restart npm run dev.',
+        'warning'
       )
       return
     }
@@ -158,7 +177,7 @@ function LandingPage() {
           navigate('/profile')
         },
         onError: () => {
-          alert('Pembayaran gagal atau dibatalkan di Midtrans.')
+          modalAlert('Pembayaran gagal atau dibatalkan di Midtrans.', 'error')
         },
         onClose: () => {
           setIsBookingModalOpen(false)
@@ -166,7 +185,7 @@ function LandingPage() {
       })
     } catch (error) {
       console.error('Error saat booking:', error)
-      alert(error.response?.data?.message || error.message || 'Terjadi kesalahan saat memproses booking.')
+      modalAlert(error.response?.data?.message || error.message || 'Terjadi kesalahan saat memproses booking.', 'error')
     } finally {
       setIsSubmittingBooking(false)
     }
@@ -295,7 +314,7 @@ function LandingPage() {
                 <span className="landing-title-accent">Online Terpercaya</span>
               </h1>
               <p className="landing-subtitle">
-                Ribuan pilihan hunian nyaman, aman, dan terjangkau tersebar di seluruh Bogor dan Indonesia. Proses mudah, booking sekarang!
+                Solusi hunian lengkap untuk karyawan dan profesional. Temukan kost nyaman & apartemen strategis dekat kantor Anda. Booking mudah, langsung masuk!
               </p>
 
               <div className="landing-search-card">

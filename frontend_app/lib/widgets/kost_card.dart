@@ -4,7 +4,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:frontend_app/utils/colors.dart';
 import 'package:frontend_app/screens/kost/kost_detail_screen.dart';
 import 'package:frontend_app/screens/kost/rental_application_screen.dart';
-import 'package:frontend_app/widgets/custom_button.dart';
 
 class KostCard extends StatelessWidget {
   final Map<String, dynamic>? kostMap;
@@ -13,7 +12,6 @@ class KostCard extends StatelessWidget {
   final String minRent;
   final String location;
   final String type;
-  final String roomLeft;
   final String ownerName;
   final String lastUpdated;
   final int imageCount;
@@ -28,7 +26,6 @@ class KostCard extends StatelessWidget {
     required this.minRent,
     required this.location,
     required this.type,
-    required this.roomLeft,
     required this.ownerName,
     required this.lastUpdated,
     this.imageCount = 8,
@@ -38,16 +35,22 @@ class KostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: isGrid ? double.infinity : 340, // Responsive layout
+      width: isGrid ? double.infinity : 340,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         onTap: () {
-          // Navigasi ke Halaman Detail
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -68,69 +71,82 @@ class KostCard extends StatelessWidget {
             _buildImageGallery(),
             Expanded(
               child: Padding(
-                padding: EdgeInsets.all(isGrid ? 8.0 : 16.0),
+                padding: EdgeInsets.all(isGrid ? 12.0 : 16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                _buildTagsAndActions(context),
-                SizedBox(height: isGrid ? 4 : 12),
-                Text(
-                  price,
-                  style: TextStyle(
-                    fontSize: isGrid ? 14 : 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                if (!isGrid) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    minRent,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
+                    _buildTagsAndActions(context),
+                    SizedBox(height: isGrid ? 8 : 12),
+                    Text(
+                      price,
+                      style: TextStyle(
+                        fontSize: isGrid ? 14 : 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
                     ),
-                  ),
-                ],
-                SizedBox(height: isGrid ? 6 : 12),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: isGrid ? 12 : 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                    if (!isGrid) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        minRent,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                    SizedBox(height: isGrid ? 8 : 10),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: isGrid ? 13 : 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: isGrid ? 4 : 6),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: isGrid ? 12 : 14,
+                          color: AppColors.textMuted,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            location,
+                            style: TextStyle(
+                              fontSize: isGrid ? 11 : 13,
+                              color: AppColors.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (isGrid) ...[
+                      const Spacer(),
+                      _buildActionButtons(context),
+                    ],
+                    if (!isGrid) ...[
+                      const SizedBox(height: 12),
+                      Divider(color: AppColors.divider, height: 1),
+                      const SizedBox(height: 12),
+                      _buildOwnerInfo(),
+                      const SizedBox(height: 12),
+                      _buildActionButtons(context),
+                    ],
+                  ],
                 ),
-                SizedBox(height: isGrid ? 2 : 4),
-                Text(
-                  location,
-                  style: TextStyle(
-                    fontSize: isGrid ? 10 : 14,
-                    color: AppColors.textSecondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (isGrid) ...[
-                  const Spacer(), // Dorong tombol ke bawah
-                  _buildActionButtons(context),
-                ],
-                if (!isGrid) ...[
-                  const SizedBox(height: 16),
-                  Divider(color: Colors.grey.shade200, height: 1),
-                  const SizedBox(height: 12),
-                  _buildOwnerInfo(),
-                  const SizedBox(height: 16),
-                  _buildActionButtons(context),
-                ],
-              ],
-            ),
-          ))
-        ],
-      ),
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
@@ -221,13 +237,12 @@ class KostCard extends StatelessWidget {
 
   Widget _buildTagsAndActions(BuildContext context) {
     if (isGrid) {
-      // Sangat minimalis untuk grid, tapi masukkan sisa kamar
+      // Sangat minimalis untuk grid
       return Wrap(
         spacing: 4,
         runSpacing: 4,
         children: [
           _buildTag(type, AppColors.primary, AppColors.secondary),
-          _buildTag(roomLeft, Colors.orange.shade800, Colors.orange.shade50),
         ],
       );
     }
@@ -238,12 +253,6 @@ class KostCard extends StatelessWidget {
           type,
           AppColors.primary,
           AppColors.secondary,
-        ),
-        const SizedBox(width: 8),
-        _buildTag(
-          roomLeft,
-          Colors.orange.shade800,
-          Colors.orange.shade50,
         ),
         const Spacer(),
         GestureDetector(

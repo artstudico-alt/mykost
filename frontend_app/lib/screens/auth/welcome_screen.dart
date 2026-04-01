@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:frontend_app/utils/colors.dart';
 import 'package:frontend_app/screens/auth/login_screen.dart';
-import 'package:frontend_app/screens/auth/register_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -351,14 +350,28 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           ),
         ),
         const SizedBox(height: 14),
-        // "Daftar" - glass/outlined button
-        _buildOutlinedButton(
-          context: context,
-          label: 'Daftar',
-          icon: Icons.person_add_rounded,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const RegisterScreen()),
+        // Info text - akun hanya bisa dibuat oleh HR
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.info_outline, color: Colors.white.withOpacity(0.7), size: 16),
+              const SizedBox(width: 8),
+              Text(
+                'Akun hanya dapat dibuat oleh HR',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withOpacity(0.7),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 20),
@@ -400,37 +413,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           backgroundColor: Colors.white,
           elevation: 0,
           shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOutlinedButton({
-    required BuildContext context,
-    required String label,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: OutlinedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 20, color: Colors.white),
-        label: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            letterSpacing: 0.2,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.white.withOpacity(0.6), width: 1.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),

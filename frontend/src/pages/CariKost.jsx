@@ -5,6 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, MapPin, SlidersHorizontal, Navigation, Star, Wifi, Car, Shield, Building2 } from 'lucide-react';
 import api from '../utils/api';
+import { useGlobalModal } from '../context/ModalContext';
 import './CariKost.css';
 
 // Fix for default marker icons in Leaflet with Vite/Webpack
@@ -29,6 +30,7 @@ function MapUpdater({ center }) {
 export default function CariKost() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { alert: modalAlert } = useGlobalModal();
   
   // Default Center: Kedung Waringin, Kota Bogor, Jawa Barat (CQPJ+GC)
   const defaultLocation = { lat: -6.5637499, lng: 106.7810624 };
@@ -99,7 +101,7 @@ export default function CariKost() {
 
   const getUserLocation = () => {
     if (!navigator.geolocation) {
-      alert("Browser Anda tidak mendukung Geolocation");
+      modalAlert('Browser Anda tidak mendukung Geolocation', 'warning');
       return;
     }
     
@@ -115,7 +117,7 @@ export default function CariKost() {
         setMapCenter([latitude, longitude]);
       },
       (error) => {
-        alert("Gagal mendapatkan lokasi: " + error.message);
+        modalAlert('Gagal mendapatkan lokasi: ' + error.message, 'error');
       }
     );
   };

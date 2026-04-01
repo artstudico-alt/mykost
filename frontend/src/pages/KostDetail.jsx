@@ -101,12 +101,25 @@ function KostDetail() {
     return [base, base + 1, base + 2, base + 3, base + 4]
   }, [kost])
 
+  // Helper to get full image URL (handles Supabase and relative URLs)
+  const getFullImageUrl = (url) => {
+    if (!url) return null
+    if (url.startsWith('http')) return url
+    if (url.includes('supabase')) return url
+    // For relative paths, prepend backend URL
+    const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || ''
+    return `${baseUrl}/storage/${url}`
+  }
+
   const displayPhotos = useMemo(() => {
     if (!kost) return []
     let photos = []
-    if (kost.foto_utama) photos.push(kost.foto_utama)
+    if (kost.foto_utama) photos.push(getFullImageUrl(kost.foto_utama))
     if (Array.isArray(kost.foto_tambahan)) {
-      photos = [...photos, ...kost.foto_tambahan]
+      photos = [...photos, ...kost.foto_tambahan.map(getFullImageUrl).filter(Boolean)]
+    }
+    if (Array.isArray(kost.foto_galeri)) {
+      photos = [...photos, ...kost.foto_galeri.map(getFullImageUrl).filter(Boolean)]
     }
 
     // Fallback ke dummy jika tidak ada foto
@@ -122,8 +135,9 @@ function KostDetail() {
       return
     }
     if (!getMidtransClientKey()) {
-      alert(
-        'Midtrans: tambahkan VITE_MIDTRANS_CLIENT_KEY di file .env frontend (nilai sama dengan MIDTRANS_CLIENT_KEY di backend), lalu restart npm run dev.'
+      modalAlert(
+        'Midtrans: tambahkan VITE_MIDTRANS_CLIENT_KEY di file .env frontend (nilai sama dengan MIDTRANS_CLIENT_KEY di backend), lalu restart npm run dev.',
+        'warning'
       )
       return
     }
@@ -182,7 +196,7 @@ function KostDetail() {
           navigate('/profile')
         },
         onError: () => {
-          alert('Pembayaran gagal atau dibatalkan di Midtrans.')
+          modalAlert('Pembayaran gagal atau dibatalkan di Midtrans.', 'error')
         },
         onClose: () => {
           setIsBookingModalOpen(false)
@@ -190,7 +204,7 @@ function KostDetail() {
       })
     } catch (error) {
       console.error(error)
-      alert(error.response?.data?.message || error.message || 'Terjadi kesalahan.')
+      modalAlert(error.response?.data?.message || error.message || 'Terjadi kesalahan.', 'error')
     } finally {
       setIsSubmittingBooking(false)
     }

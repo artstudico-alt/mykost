@@ -6,7 +6,8 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
   const hasToken = !!localStorage.getItem('token')
 
-  if (loading) {
+  // Selama masih loading atau ada token tapi user belum siap, tampilkan loading
+  if (loading || (hasToken && !user)) {
     return (
       <div className="app-loading-shell">
         <div className="app-loading-spinner" role="status" aria-label="Memuat" />
@@ -15,23 +16,20 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     )
   }
 
-  if (!isAuthenticated && !hasToken) {
+  // Redirect ke login hanya jika benar-benar tidak ada token
+  if (!hasToken && !isAuthenticated) {
     return <Navigate to="/login" replace />
-  }
-
-  if (hasToken && !user) {
-    return (
-      <div className="app-loading-shell">
-        <div className="app-loading-spinner" role="status" aria-label="Memuat profil" />
-        <p className="app-loading-text">Memuat profil…</p>
-      </div>
-    )
   }
 
   if (allowedRoles.length > 0) {
     const userRole = user?.role?.name || ''
     if (!allowedRoles.includes(userRole)) {
-      return <Navigate to="/" replace />
+      // Redirect to appropriate dashboard based on user's actual role
+      if (userRole === 'hr') return <Navigate to="/hr/dashboard" replace />
+      if (userRole === 'pemilik_kost') return <Navigate to="/owner/dashboard" replace />
+      if (userRole === 'super_admin' || userRole === 'admin') return <Navigate to="/admin/dashboard" replace />
+      // Fallback to login if no valid role
+      return <Navigate to="/login" replace />
     }
   }
 

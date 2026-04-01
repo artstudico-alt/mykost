@@ -3,10 +3,11 @@ import {
   Users, MapPin, CheckCircle, Clock, Home, BarChart3,
   Loader2, TrendingUp, Shield, AlertTriangle, Navigation,
   Building2, ChevronRight, Eye, Filter, RefreshCw,
-  Activity, Target, Zap
+  Activity, Target, Zap, Plus, X
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { useGlobalModal } from '../context/ModalContext';
 import api from '../utils/api';
 
 /* ─── helpers ─── */
@@ -47,9 +48,10 @@ const RadiusBadge = ({ km }) => {
 
 /* ─── Main Component ─── */
 const HRDashboard = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
-
+  const { alert: modalAlert } = useGlobalModal();
+  const authLoading = false;
   const [tab, setTab] = useState('dashboard');
   const [karyawanList, setKaryawanList] = useState([]);
   const [hunianList, setHunianList] = useState([]);
@@ -57,6 +59,27 @@ const HRDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchKary, setSearchKary] = useState('');
   const [filterRadius, setFilterRadius] = useState('all');
+  const [filterAccountType, setFilterAccountType] = useState('all');
+  
+  // Modal state for creating account
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    account_type: 'karyawan', // 'karyawan' or 'pemilik_kost'
+    // Karyawan fields
+    nama: '',
+    jabatan: '',
+    divisi: '',
+    status: 'aktif',
+    kantor_id: 1,
+    // Pemilik Kost fields
+    nama_pemilik: '',
+    nama_kost: '',
+    nomor_telepon: '',
+    // Common fields
+    email: '',
+    password: '',
+  });
 
   const fetchAll = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
@@ -95,6 +118,55 @@ const HRDashboard = () => {
     }
   };
 
+  const handleCreateAccount = async (e) => {
+    e.preventDefault();
+    setCreateLoading(true);
+    try {
+      // Prepare data based on account type
+      const submitData = {
+        account_type: createForm.account_type,
+        email: createForm.email,
+        password: createForm.password,
+      };
+      
+      if (createForm.account_type === 'pemilik_kost') {
+        submitData.nama_pemilik = createForm.nama_pemilik;
+        submitData.nama_kost = createForm.nama_kost;
+        submitData.nomor_telepon = createForm.nomor_telepon;
+      } else {
+        submitData.nama = createForm.nama;
+        submitData.jabatan = createForm.jabatan;
+        submitData.divisi = createForm.divisi;
+        submitData.status = createForm.status;
+        submitData.kantor_id = createForm.kantor_id;
+      }
+      
+      await api.post('/karyawan', submitData);
+      setIsCreateModalOpen(false);
+      setCreateForm({
+        account_type: 'karyawan',
+        nama: '',
+        jabatan: '',
+        divisi: '',
+        password: '',
+        status: 'aktif',
+        kantor_id: 1,
+        nama_pemilik: '',
+        nama_kost: '',
+        nomor_telepon: '',
+        email: '',
+      });
+      fetchAll(true);
+      const typeLabel = createForm.account_type === 'pemilik_kost' ? 'Pemilik Kost' : 'Karyawan';
+      modalAlert(`Akun ${typeLabel} berhasil dibuat!`, 'success');
+    } catch (error) {
+      console.error('Create account error:', error);
+      modalAlert(error.response?.data?.message || 'Gagal membuat akun', 'error');
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!authLoading && user) {
       fetchAll();
@@ -119,6 +191,10 @@ const HRDashboard = () => {
     const name = (k.user?.name || k.nama || '').toLowerCase();
     const match = name.includes(searchKary.toLowerCase());
     const hunianKary = hunianList.find(h => h.karyawan_id === k.id);
+    
+    // Filter by account type
+    if (filterAccountType !== 'all' && k.role !== filterAccountType) return false;
+    
     if (filterRadius === 'dekat') return match && hunianKary?.jarakKm !== null && hunianKary?.jarakKm <= 5;
     if (filterRadius === 'jauh') return match && (!hunianKary?.jarakKm || hunianKary?.jarakKm > 7);
     if (filterRadius === 'belum') return match && !hunianKary;
@@ -130,7 +206,7 @@ const HRDashboard = () => {
   const GD = '#16a34a';
 
   const statCards = [
-    { label: 'Total Karyawan', value: totalKaryawan, icon: Users, color: '#6366f1', bg: '#f5f3ff', shadow: '#6366f115' },
+    { label: 'Total Akun', value: totalKaryawan, icon: Users, color: '#6366f1', bg: '#f5f3ff', shadow: '#6366f115' },
     { label: 'Hunian Aktif', value: hunianAktif, icon: Home, color: G, bg: '#f0fdf4', shadow: '#22c55e15' },
     { label: 'Terverifikasi', value: verified, icon: CheckCircle, color: GD, bg: '#dcfce7', shadow: '#16a34a15' },
     { label: 'Menunggu Verif', value: pending, icon: Clock, color: '#f59e0b', bg: '#fffbeb', shadow: '#f59e0b15' },
@@ -139,7 +215,7 @@ const HRDashboard = () => {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'radius', label: 'Radius Tracker', icon: Navigation },
-    { id: 'karyawan', label: 'Data Karyawan', icon: Users },
+    { id: 'karyawan', label: 'Data Akun', icon: Users },
     { id: 'hunian', label: 'Hunian', icon: Home },
   ];
 
@@ -185,7 +261,7 @@ const HRDashboard = () => {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, flexShrink: 0 }}>
           {[
-            { v: totalKaryawan, l: 'Karyawan', c: G },
+            { v: totalKaryawan, l: 'Total Akun', c: G },
             { v: `${pctDekat}%`, l: 'Dekat ref.', c: '#2563eb' },
             { v: verified, l: 'Terverifikasi', c: GD },
             { v: belumInput > 0 ? belumInput : 0, l: 'Belum Input', c: '#f59e0b' },
@@ -336,7 +412,7 @@ const HRDashboard = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {[
                     { label: 'Lihat Radius Tracker', icon: Navigation, color: '#2563eb', bg: '#eff6ff', action: () => setTab('radius') },
-                    { label: 'Data Karyawan', icon: Users, color: G, bg: '#f0fdf4', action: () => setTab('karyawan') },
+                    { label: 'Data Akun', icon: Users, color: G, bg: '#f0fdf4', action: () => setTab('karyawan') },
                     { label: 'Kelola Hunian', icon: Home, color: '#8b5cf6', bg: '#f5f3ff', action: () => setTab('hunian') },
                   ].map(q => {
                     const Icon = q.icon;
@@ -464,30 +540,60 @@ const HRDashboard = () => {
         </div>
       )}
 
-      {/* ════════════════════════════════════ TAB: KARYAWAN ════════════════════════════════════ */}
+      {/* ════════════════════════════════════ TAB: KARYAWAN (DATA AKUN) ════════════════════════════════════ */}
       {tab === 'karyawan' && (
         <div>
           <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
             <div>
-              <h2 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>Data Karyawan</h2>
+              <h2 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>Data Akun</h2>
               <p style={{ color: '#64748b', fontSize: 14, margin: '6px 0 0', fontWeight: 500 }}>
-                Daftar karyawan ({totalKaryawan} orang).
+                Total {totalKaryawan} akun ({karyawanList.filter(k => k.role === 'karyawan' || k.role === 'karyawan').length} Karyawan, {karyawanList.filter(k => k.role === 'pemilik_kost').length} Pemilik Kost).
               </p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, padding: '10px 18px', minWidth: 300 }}>
-              <Filter size={16} color="#94a3b8" />
-              <input type="text" placeholder="Cari nama karyawan..."
-                value={searchKary} onChange={e => setSearchKary(e.target.value)}
-                style={{ border: 'none', outline: 'none', fontSize: 14, color: '#1e293b', background: 'transparent', width: '100%', fontWeight: 500 }}
-              />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '12px 20px', borderRadius: 14, border: 'none',
+                  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                  color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(5, 150, 105, 0.3)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <Plus size={18} />
+                Buat Akun Baru
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, padding: '10px 18px', minWidth: 300 }}>
+                <Filter size={16} color="#94a3b8" />
+                <input type="text" placeholder="Cari nama akun..."
+                  value={searchKary} onChange={e => setSearchKary(e.target.value)}
+                  style={{ border: 'none', outline: 'none', fontSize: 14, color: '#1e293b', background: 'transparent', width: '100%', fontWeight: 500 }}
+                />
+              </div>
             </div>
+          </div>
+
+          {/* Category Filter Tabs */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20, background: '#f1f5f9', padding: 4, borderRadius: 14, width: 'fit-content' }}>
+            {[['all', 'Semua'], ['karyawan', 'Karyawan'], ['pemilik_kost', 'Pemilik Kost']].map(([val, lbl]) => (
+              <button key={val} onClick={() => setFilterAccountType(val)} style={{
+                padding: '8px 16px', borderRadius: 10, fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                background: filterAccountType === val ? 'white' : 'transparent',
+                color: filterAccountType === val ? '#0f172a' : '#64748b',
+                boxShadow: filterAccountType === val ? '0 2px 6px rgba(0,0,0,0.05)' : 'none'
+              }}>{lbl}</button>
+            ))}
           </div>
 
           <div style={{ background: 'white', borderRadius: 28, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f8fafc' }}>
-                  {['Karyawan', 'Jabatan / Divisi', 'Status Karyawan', 'Hunian', 'Radius'].map(h => (
+                  {['Nama', 'Peran / Info', 'Status', 'Hunian', 'Radius'].map(h => (
                     <th key={h} style={{ textAlign: 'left', padding: '15px 28px', color: '#94a3b8', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: '1px solid #f1f5f9' }}>{h}</th>
                   ))}
                 </tr>
@@ -495,12 +601,14 @@ const HRDashboard = () => {
               <tbody>
                 {filteredKary.length === 0 ? (
                   <tr><td colSpan={5} style={{ padding: 60, textAlign: 'center', color: '#94a3b8', fontSize: 14, fontWeight: 500 }}>
-                    {searchKary ? 'Karyawan tidak ditemukan.' : 'Belum ada data karyawan.'}
+                    {searchKary ? 'Akun tidak ditemukan.' : 'Belum ada data akun.'}
                   </td></tr>
                 ) : filteredKary.map(k => {
                   const nama = k.user?.name || k.nama || '-';
                   const hunianKary = hunianList.find(h => h.karyawan_id === k.id || h.karyawan?.id === k.id);
                   const statusColor = k.status === 'aktif' ? { bg: '#f0fdf4', color: GD, border: '#bbf7d0' } : { bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' };
+                  const isPemilikKost = k.role === 'pemilik_kost';
+                  const roleBadgeColor = isPemilikKost ? { bg: '#fef3c7', color: '#d97706', border: '#fde68a' } : { bg: '#e0e7ff', color: '#6366f1', border: '#c7d2fe' };
                   return (
                     <tr key={k.id} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.15s' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
@@ -508,18 +616,24 @@ const HRDashboard = () => {
                     >
                       <td style={{ padding: '18px 28px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ width: 42, height: 42, borderRadius: 14, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: G, fontSize: 16, flexShrink: 0 }}>
+                          <div style={{ width: 42, height: 42, borderRadius: 14, background: isPemilikKost ? '#fef3c7' : '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: isPemilikKost ? '#d97706' : G, fontSize: 16, flexShrink: 0 }}>
                             {nama.charAt(0).toUpperCase()}
                           </div>
                           <div>
                             <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.2px' }}>{nama}</p>
-                            <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>ID: {k.no_karyawan || k.id}</p>
+                            <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{k.email || k.user?.email || '-'}</p>
                           </div>
                         </div>
                       </td>
                       <td style={{ padding: '18px 28px' }}>
-                        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{k.jabatan || '-'}</p>
-                        <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{k.divisi || '-'}</p>
+                        <span style={{ padding: '4px 10px', borderRadius: 16, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.3px', background: roleBadgeColor.bg, color: roleBadgeColor.color, border: `1px solid ${roleBadgeColor.border}` }}>
+                          {isPemilikKost ? 'Pemilik Kost' : 'Karyawan'}
+                        </span>
+                        {isPemilikKost ? (
+                          <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{k.hunian_aktif?.kost?.nama_kost || 'Belum ada kost'}</p>
+                        ) : (
+                          <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{k.jabatan || '-'} {k.divisi ? `/ ${k.divisi}` : ''}</p>
+                        )}
                       </td>
                       <td style={{ padding: '18px 28px' }}>
                         <span style={{ padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.3px', background: statusColor.bg, color: statusColor.color, border: `1px solid ${statusColor.border}` }}>
@@ -615,6 +729,196 @@ const HRDashboard = () => {
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
+
+      {/* Create Karyawan Modal */}
+      {isCreateModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', padding: '1.5rem' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '24px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <div style={{ background: 'linear-gradient(135deg, #059669, #10b981)', padding: '1.5rem 2rem', color: 'white', position: 'relative' }}>
+              <button onClick={() => setIsCreateModalOpen(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900 }}>
+                {createForm.account_type === 'pemilik_kost' ? 'Buat Akun Pemilik Kost' : 'Buat Akun Karyawan'}
+              </h2>
+              <p style={{ margin: '0.5rem 0 0', opacity: 0.9 }}>
+                {createForm.account_type === 'pemilik_kost' 
+                  ? 'Isi data lengkap untuk membuat akun pemilik kost baru.' 
+                  : 'Isi data lengkap untuk membuat akun karyawan baru.'}
+              </p>
+            </div>
+            
+            <form onSubmit={handleCreateAccount} style={{ padding: '2rem' }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Jenis Akun *</label>
+                <select
+                  value={createForm.account_type}
+                  onChange={e => setCreateForm({...createForm, account_type: e.target.value})}
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                >
+                  <option value="karyawan">Karyawan (Staff)</option>
+                  <option value="pemilik_kost">Pemilik Kost</option>
+                </select>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                  Pilih jenis akun yang akan dibuat. Pemilik Kost dapat mengelola data kost.
+                </p>
+              </div>
+
+              {/* Fields for Pemilik Kost */}
+              {createForm.account_type === 'pemilik_kost' ? (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Nama Pemilik *</label>
+                      <input
+                        type="text"
+                        required
+                        value={createForm.nama_pemilik}
+                        onChange={e => setCreateForm({...createForm, nama_pemilik: e.target.value})}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                        placeholder="Contoh: Budi Santoso"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Email *</label>
+                      <input
+                        type="email"
+                        required
+                        value={createForm.email}
+                        onChange={e => setCreateForm({...createForm, email: e.target.value})}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                        placeholder="budi@email.com"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Nama Kost *</label>
+                      <input
+                        type="text"
+                        required
+                        value={createForm.nama_kost}
+                        onChange={e => setCreateForm({...createForm, nama_kost: e.target.value})}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                        placeholder="Contoh: Kost Mawar"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Nomor Telepon *</label>
+                      <input
+                        type="tel"
+                        required
+                        value={createForm.nomor_telepon}
+                        onChange={e => setCreateForm({...createForm, nomor_telepon: e.target.value})}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                        placeholder="081234567890"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* Fields for Karyawan */
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Nama Lengkap *</label>
+                      <input
+                        type="text"
+                        required
+                        value={createForm.nama}
+                        onChange={e => setCreateForm({...createForm, nama: e.target.value})}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                        placeholder="Contoh: Budi Santoso"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Email *</label>
+                      <input
+                        type="email"
+                        required
+                        value={createForm.email}
+                        onChange={e => setCreateForm({...createForm, email: e.target.value})}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                        placeholder="budi@company.com"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Jabatan</label>
+                      <input
+                        type="text"
+                        value={createForm.jabatan}
+                        onChange={e => setCreateForm({...createForm, jabatan: e.target.value})}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                        placeholder="Staff"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Divisi</label>
+                      <input
+                        type="text"
+                        value={createForm.divisi}
+                        onChange={e => setCreateForm({...createForm, divisi: e.target.value})}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                        placeholder="IT"
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Status</label>
+                      <select
+                        value={createForm.status}
+                        onChange={e => setCreateForm({...createForm, status: e.target.value})}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                      >
+                        <option value="aktif">Aktif</option>
+                        <option value="nonaktif">Nonaktif</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Password *</label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={createForm.password}
+                  onChange={e => setCreateForm({...createForm, password: e.target.value})}
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                  placeholder="Minimal 8 karakter"
+                />
+                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                  Password minimal 8 karakter. User dapat login dengan email dan password ini.
+                </p>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  style={{ flex: 1, padding: '0.875rem', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', color: '#374151', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={createLoading}
+                  style={{ flex: 1, padding: '0.875rem', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: 'white', fontWeight: 700, cursor: createLoading ? 'not-allowed' : 'pointer', opacity: createLoading ? 0.7 : 1 }}
+                >
+                  {createLoading ? 'Membuat...' : 'Buat Akun'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

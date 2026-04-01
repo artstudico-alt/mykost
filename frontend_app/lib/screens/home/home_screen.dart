@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:frontend_app/utils/colors.dart';
 import 'package:frontend_app/widgets/kost_card.dart';
 import 'package:frontend_app/api/api_service.dart';
-import 'package:frontend_app/screens/kost/kost_detail_screen.dart';
-import 'package:frontend_app/screens/search/search_screen.dart';
 import 'package:frontend_app/screens/notification/notification_screen.dart';
 import 'package:frontend_app/screens/profile/profile_screen.dart';
 
@@ -16,12 +14,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey _semuaKostKey = GlobalKey();
+  final TextEditingController _searchController = TextEditingController();
   String _userName = ApiService.currentUser?['name'] ?? 'Guest User';
   String _userEmail = ApiService.currentUser?['email'] ?? '';
 
   // Sort & Filter state
   String _sortMode = 'default';
   String _categoryFilter = 'Semua';
+  String _searchQuery = '';
 
   // Cached kost data
   List<dynamic> _allKostData = [];
@@ -75,14 +75,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  String _initials(String name) {
-    if (name.trim().isEmpty) return 'GU';
-    final parts = name.trim().split(RegExp(r'\s+'));
+  String _initials(dynamic name) {
+    if (name == null) return 'GU';
+    final nameStr = name.toString();
+    if (nameStr.trim().isEmpty) return 'GU';
+    final parts = nameStr.trim().split(RegExp(r'\s+'));
     if (parts.length == 1) return parts[0][0].toUpperCase();
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
-  Color _avatarColor(String name) {
+  Color _avatarColor(dynamic name) {
     const colors = [
       Color(0xFF00B14F),
       Color(0xFF6C63FF),
@@ -91,8 +93,10 @@ class _HomeScreenState extends State<HomeScreen> {
       Color(0xFF00B4D8),
       Color(0xFFE83E8C),
     ];
-    if (name.isEmpty) return colors[0];
-    return colors[name.codeUnitAt(0) % colors.length];
+    if (name == null) return colors[0];
+    final nameStr = name.toString();
+    if (nameStr.isEmpty) return colors[0];
+    return colors[nameStr.codeUnitAt(0) % colors.length];
   }
 
   @override
@@ -100,7 +104,36 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: _buildHomeBody(context),
+        child: Stack(
+          children: [
+            // Decorative background elements
+            Positioned(
+              top: -50,
+              right: -50,
+              child: Container(
+                width: 150,
+                height: 150,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary.withOpacity(0.08),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 100,
+              left: -30,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.secondary,
+                ),
+              ),
+            ),
+            _buildHomeBody(context),
+          ],
+        ),
       ),
     );
   }
@@ -113,37 +146,51 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
+              color: AppColors.primary.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Material(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(24),
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SearchScreen()),
-              );
+          child: TextField(
+            controller: _searchController,
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
             },
-            borderRadius: BorderRadius.circular(24),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Row(
-                children: [
-                  const Icon(Icons.search, color: Colors.black87, size: 26),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      "Cari kost...",
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
+            decoration: InputDecoration(
+              hintText: "Cari nama kost...",
+              hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 16),
+              prefixIcon: const Icon(Icons.search, color: AppColors.primary, size: 26),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: AppColors.textMuted, size: 20),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                      },
+                    )
+                  : Container(
+                      margin: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondarySoft,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.tune,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             ),
           ),
         ),
@@ -171,16 +218,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.all(4.0),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 26,
-                      backgroundColor: _avatarColor(_userName),
-                      child: Text(
-                        _initials(_userName),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: CircleAvatar(
+                        radius: 26,
+                        backgroundColor: _avatarColor(_userName),
+                        child: Text(
+                          _initials(_userName),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
                         ),
                       ),
                     ),
@@ -188,13 +247,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Welcome!",
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.waving_hand,
+                              color: AppColors.limeAccent,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              "Selamat Datang!",
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -217,14 +286,14 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.08),
+                  color: AppColors.primary.withOpacity(0.15),
                   blurRadius: 15,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Material(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
               child: InkWell(
                 onTap: () {
@@ -238,18 +307,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade100),
+                    border: Border.all(color: AppColors.secondary),
                   ),
                   child: const Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      Icon(Icons.notifications_none_rounded, color: Color(0xFF3B2E58), size: 28),
+                      Icon(
+                        Icons.notifications_none_rounded,
+                        color: AppColors.primary,
+                        size: 28,
+                      ),
                       Positioned(
                         right: 4,
                         top: 2,
                         child: CircleAvatar(
                           radius: 5,
-                          backgroundColor: Colors.amber,
+                          backgroundColor: AppColors.accentGreen,
                         ),
                       )
                     ],
@@ -513,6 +586,19 @@ class _HomeScreenState extends State<HomeScreen> {
   List<dynamic> _applySortAndFilter(List<dynamic> data) {
     List<dynamic> filtered = List.from(data);
 
+    // Search filter by kost name
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((kost) {
+        final namaKost = (kost['nama_kost'] ?? '').toString().toLowerCase();
+        final kecamatan = (kost['kecamatan'] ?? '').toString().toLowerCase();
+        final kota = (kost['kota'] ?? '').toString().toLowerCase();
+        return namaKost.contains(query) || 
+               kecamatan.contains(query) || 
+               kota.contains(query);
+      }).toList();
+    }
+
     // Category filter
     if (_categoryFilter != 'Semua') {
       filtered = filtered.where((kost) {
@@ -577,7 +663,15 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: data.length,
         itemBuilder: (context, index) {
           final kost = data[index];
-          final hasOwner = kost['user'] != null;
+          // Safe owner name extraction
+          String ownerName = "Pemilik";
+          final dynamic rawUser = kost['user'];
+          if (rawUser is Map) {
+            final dynamic rawName = rawUser['name'];
+            if (rawName is String) {
+              ownerName = rawName;
+            }
+          }
           
           return KostCard(
             kostMap: kost is Map<String, dynamic> ? kost : null,
@@ -586,8 +680,7 @@ class _HomeScreenState extends State<HomeScreen> {
             minRent: "Minimal Sewa 1 Bulan",
             location: "${kost['kecamatan'] ?? ''}, ${kost['kota'] ?? ''}",
             type: kost["tipe"]?.toString().toUpperCase() ?? "CAMPUR",
-            roomLeft: "Sisa ${kost['kamars_kosong_count'] ?? '?'} kamar",
-            ownerName: hasOwner ? kost['user']['name'] : "Pemilik",
+            ownerName: ownerName,
             lastUpdated: "Baru saja",
             imageCount: 1,
             isGrid: true,
@@ -727,7 +820,15 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: data.length > 5 ? 5 : data.length, // Show top 5
         itemBuilder: (context, index) {
           final kost = data[index];
-          final hasOwner = kost['user'] != null;
+          // Safe owner name extraction
+          String ownerName = "Pemilik";
+          final dynamic rawUser = kost['user'];
+          if (rawUser is Map) {
+            final dynamic rawName = rawUser['name'];
+            if (rawName is String) {
+              ownerName = rawName;
+            }
+          }
 
           return Padding(
             padding: const EdgeInsets.only(right: 20, bottom: 20),
@@ -738,8 +839,7 @@ class _HomeScreenState extends State<HomeScreen> {
               minRent: "Minimal sewa 1 bulan",
               location: "${kost['kecamatan'] ?? ''}, ${kost['kota'] ?? ''}",
               type: kost["tipe"]?.toString().toUpperCase() ?? "CAMPUR",
-              roomLeft: "Sisa ${kost['kamars_kosong_count'] ?? '?'} kamar",
-              ownerName: hasOwner ? kost['user']['name'] : "Pemilik",
+              ownerName: ownerName,
               lastUpdated: "Baru saja",
               imageCount: 1,
             ),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:frontend_app/utils/colors.dart';
 import 'package:frontend_app/widgets/custom_button.dart';
 import 'package:frontend_app/widgets/custom_text_field.dart';
-import 'package:frontend_app/widgets/google_logo.dart';
 import 'package:frontend_app/api/api_service.dart';
 import 'package:frontend_app/screens/auth/login_screen.dart';
 import 'package:frontend_app/screens/auth/otp_verification_screen.dart';
@@ -275,7 +274,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(height: 24),
 
                       // ── Google Button ────────────────────────────────────
-                      _buildGoogleButton(),
                       const SizedBox(height: 28),
 
                       // ── Already have account ─────────────────────────────
@@ -450,45 +448,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // ── Google Button ────────────────────────────────────────────────────────
-  Widget _buildGoogleButton() {
-    return InkWell(
-      onTap: () {},
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.white,
-          border: Border.all(color: AppColors.border, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            GoogleLogo(size: 22),
-            SizedBox(width: 10),
-            Text(
-              'Daftar dengan Google',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-                letterSpacing: 0.1,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

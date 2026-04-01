@@ -33,7 +33,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
       try {
         final userResponse = await ApiService.me();
         if (userResponse != null && userResponse['user'] != null) {
-          final userName = userResponse['user']['name'] ?? 'Pengguna';
+          final dynamic rawUser = userResponse['user'];
+          String userName = 'Pengguna';
+          if (rawUser is Map) {
+            final dynamic rawName = rawUser['name'];
+            if (rawName is String) {
+              userName = rawName;
+            }
+          }
           loadedNotifs.add({
             "title": "Selamat Datang!",
             "message": "Halo $userName, terima kasih telah login di MyKost. Cari kos impianmu sekarang!",
@@ -52,13 +59,24 @@ class _NotificationScreenState extends State<NotificationScreen> {
       try {
         final hunianResponse = await ApiService.getHunianSaya();
         if (hunianResponse != null && hunianResponse['data'] != null) {
-          final hunian = hunianResponse['data'];
-          final kost = hunian['kost'] ?? {};
-          final booking = hunian['booking'] ?? hunian ?? {};
+          final dynamic hunian = hunianResponse['data'];
+          final dynamic rawKost = hunian is Map ? hunian['kost'] : null;
+          final dynamic rawBooking = hunian is Map ? (hunian['booking'] ?? hunian) : {};
           
-          final kostName = kost['name'] ?? booking['kost_name'] ?? 'Kost';
-          final startDateStr = booking['start_date'] ?? booking['tanggal_mulai'];
-          final endDateStr = booking['end_date'] ?? booking['tanggal_selesai'];
+          String kostName = 'Kost';
+          if (rawKost is Map) {
+            final dynamic rawKostName = rawKost['name'] ?? rawKost['nama_kost'];
+            if (rawKostName is String) {
+              kostName = rawKostName;
+            }
+          }
+          
+          String? startDateStr;
+          String? endDateStr;
+          if (rawBooking is Map) {
+            startDateStr = rawBooking['start_date'] ?? rawBooking['tanggal_mulai'];
+            endDateStr = rawBooking['end_date'] ?? rawBooking['tanggal_selesai'];
+          }
 
            // Notif Booking Berhasil
            if (startDateStr != null) {

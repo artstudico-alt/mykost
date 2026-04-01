@@ -7,9 +7,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show File;
 
 class ApiService {
-  // Gunakan localhost jika dijalankan langsung di laptop (Windows/Chrome)
-  static const String baseUrl = "http://127.0.0.1:8000/api";
-  // static const String baseUrl = "http://192.168.0.111:8000/api"; 
+  // Konfigurasi URL - ubah sesuai environment
+  // Untuk development dengan emulator Android: http://10.0.2.2:8000/api
+  // Untuk development dengan device fisik: http://192.168.x.x:8000/api (ganti dengan IP komputer)
+  // Untuk production: https://your-domain.com/api
+  static const String baseUrl = "http://127.0.0.1:8000/api"; // For Web/Browser testing 
 
   
   static String? token;
@@ -392,6 +394,10 @@ throw Exception(
     return await get("/keluhan");
   }
 
+  static Future<dynamic> responKeluhan(int id, Map<String, dynamic> data) async {
+    return await patch("/keluhan/$id/respon", data);
+  }
+
   static Future<dynamic> getDetailKeluhan(int id) async {
     return await get("/keluhan/$id");
   }
@@ -400,8 +406,17 @@ throw Exception(
     return await post("/keluhan", data);
   }
 
+//INVOICE
+  static Future<dynamic> getInvoicePreview(int pembayaranId) async {
+    return await get("/invoice/$pembayaranId/preview");
+  }
+
+  static Future<dynamic> getInvoiceDownload(int pembayaranId) async {
+    return await get("/invoice/$pembayaranId/download");
+  }
+
 //DASHBOARD
   static Future<dynamic> getDashboard() async {
     return await get("/dashboard");
   }
-}
+}

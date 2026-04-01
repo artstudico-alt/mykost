@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,7 +17,33 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
+        $middleware->api(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+        $middleware->web(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Return JSON for authentication errors in API routes
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
+            return response()->json([
+                'message' => 'Silakan login terlebih dahulu',
+            ], 401);
+        });
+
+        // Handle all errors for API routes to prevent redirects
+        $exceptions->render(function (\Throwable $e, Request $request) {
+            if ($request->is('api/*')) {
+                // If it's an authentication-related error
+                if ($e instanceof \Illuminate\Auth\AuthenticationException ||
+                    $e instanceof \Illuminate\Session\TokenMismatchException ||
+                    str_contains($e->getMessage(), 'Route [login] not defined') ||
+                    str_contains($e->getMessage(), 'Unauthenticated')) {
+                    return response()->json([
+                        'message' => 'Silakan login terlebih dahulu',
+                    ], 401);
+                }
+            }
+        });
     })->create();

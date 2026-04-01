@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\KaryawanController;
 use App\Http\Controllers\Api\KostController;
@@ -10,8 +11,11 @@ use App\Http\Controllers\Api\HunianController;
 use App\Http\Controllers\Api\TrackingController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\KeluhanController;
+use App\Http\Controllers\Api\NotifikasiController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\UploadController;
+
+use App\Http\Controllers\Api\InvoiceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,6 +25,24 @@ use App\Http\Controllers\Api\UploadController;
 | Roles: super_admin | hr | pemilik_kost | karyawan
 |--------------------------------------------------------------------------
 */
+
+// TEST ROUTE - Debug 500 error
+Route::get('/test', function () {
+    return response()->json(['status' => 'OK', 'message' => 'API is working']);
+});
+
+// DEBUG: Check all kost data regardless of status
+Route::get('/debug/kost', function () {
+    $allKost = \App\Models\Kost::all();
+    $aktifKost = \App\Models\Kost::where('status', 'aktif')->get();
+    return response()->json([
+        'message' => 'Debug kost data',
+        'total_all' => $allKost->count(),
+        'total_aktif' => $aktifKost->count(),
+        'status_counts' => \App\Models\Kost::groupBy('status')->selectRaw('status, count(*) as count')->get(),
+        'all_data' => $allKost,
+    ]);
+});
 
 // ============================================================
 // AUTH — Public
@@ -109,6 +131,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/by-order/{orderId}', [PembayaranController::class, 'showByOrder']);
         Route::post('/sync-status', [PembayaranController::class, 'syncStatus']);
 
+        Route::get('/debug/{orderId}', [PembayaranController::class, 'debugStatus'])
+            ->middleware('role:super_admin,pemilik_kost,hr');
+
+        Route::post('/force-sync/{orderId}', [PembayaranController::class, 'forceSync'])
+            ->middleware('role:super_admin,hr,pemilik_kost');
+
         Route::post('/', [PembayaranController::class, 'store'])
             ->middleware('role:karyawan,super_admin,hr');
 
@@ -116,6 +144,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::patch('/{id}/verify', [PembayaranController::class, 'verify'])
             ->middleware('role:pemilik_kost,super_admin');
+    });
+
+    // INVOICE API
+    Route::prefix('invoice')->group(function () {
+        Route::get('/{pembayaranId}', [InvoiceController::class, 'generate']);
+        Route::get('/{pembayaranId}/preview', [InvoiceController::class, 'preview']);
+        Route::get('/{pembayaranId}/download', [InvoiceController::class, 'download']);
     });
 
     Route::prefix('hunian')->group(function () {
@@ -147,5 +182,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::patch('/{id}/respon', [KeluhanController::class, 'respon'])
             ->middleware('role:pemilik_kost,super_admin');
+    });
+
+    Route::prefix('notifikasi')->group(function () {
+        Route::get('/',     [NotifikasiController::class, 'index']);
+        Route::post('/read-all', [NotifikasiController::class, 'markAllAsRead']);
+        Route::patch('/{id}/read', [NotifikasiController::class, 'markAsRead']);
+        Route::delete('/{id}', [NotifikasiController::class, 'destroy']);
     });
 });

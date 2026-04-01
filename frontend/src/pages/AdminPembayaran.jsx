@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { CheckSquare, Search, Loader2, CheckCircle, Clock, XCircle, Eye, DollarSign } from 'lucide-react';
+import { CheckSquare, Search, Loader2, CheckCircle, Clock, XCircle, Eye, DollarSign, RefreshCw, DownloadCloud, FileText } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
+import { useGlobalModal } from '../context/ModalContext';
 
 const AdminPembayaran = () => {
   const { user, loading: authLoading } = useAuth();
+  const { alert: modalAlert, confirm: modalConfirm } = useGlobalModal();
   const [pembayarans, setPembayarans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [summary, setSummary] = useState({ total: 0, lunas: 0, pending: 0, totalNominal: 0 });
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [syncedOrders, setSyncedOrders] = useState(new Set());
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -37,20 +41,85 @@ const AdminPembayaran = () => {
   };
 
   const handleVerify = async (id) => {
-    if (!window.confirm('Verifikasi pembayaran ini?')) return;
+    modalConfirm('Verifikasi pembayaran ini?', () => {
+      api.patch(`/pembayaran/${id}/verify`, { status: 'lunas' }).then(() => {
+        fetchPembayaran();
+        modalAlert('Pembayaran berhasil diverifikasi!', 'success');
+      }).catch((e) => {
+        modalAlert('Gagal verifikasi: ' + (e.response?.data?.message || e.message), 'error');
+      });
+    });
+  };
+
+  const handleSyncStatus = async (orderId) => {
     try {
-      await api.patch(`/pembayaran/${id}/verify`);
+      setLoading(true);
+      const res = await api.post(`/pembayaran/force-sync/${orderId}`);
+      modalAlert('Status berhasil disinkronkan dari Midtrans!', 'success');
+      setSyncedOrders(prev => new Set(prev).add(orderId));
       fetchPembayaran();
     } catch (e) {
-      alert('Gagal verifikasi: ' + (e.response?.data?.message || e.message));
+      modalAlert('Gagal sync: ' + (e.response?.data?.message || e.message), 'error');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleViewInvoice = (pembayaranId) => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    window.open(`${apiUrl}/api/invoice/${pembayaranId}/preview`, '_blank');
+  };
+
+  const handleSyncAllSuccessful = async () => {
+    const successfulOrders = [
+      'PAY-EZAI1RTQTI',
+      'PAY-G4WFCBBYSF', 
+      'PAY-CC155VBOV0',
+      'PAY-662T4UOEWW',
+      'PAY-ZYGRSFLL7Z',
+      'PAY-BJMFMGJSRW',
+      'PAY-ZVBM0KXQHJ',
+      'PAY-KKXK7KOHRI'
+    ];
+    
+    // Filter yang belum ada di database dan belum disync
+    const existingOrders = new Set(pembayarans.map(p => p.nomor_referensi));
+    const ordersToSync = successfulOrders.filter(o => !existingOrders.has(o) && !syncedOrders.has(o));
+    
+    if (ordersToSync.length === 0) {
+      modalAlert('Semua pembayaran sudah tersinkronisasi!', 'info');
+      return;
+    }
+    
+    modalConfirm(`Sync ${ordersToSync.length} pembayaran berhasil dari Midtrans?`, async () => {
+      setSyncingAll(true);
+      let success = 0;
+      let failed = 0;
+      
+      for (const orderId of ordersToSync) {
+        try {
+          await api.post(`/pembayaran/force-sync/${orderId}`);
+          setSyncedOrders(prev => new Set(prev).add(orderId));
+          success++;
+        } catch (e) {
+          failed++;
+          console.error(`Failed to sync ${orderId}:`, e);
+        }
+      }
+      
+      setSyncingAll(false);
+      fetchPembayaran();
+      modalAlert(`${success} berhasil, ${failed} gagal disinkronkan.`, success > 0 ? 'success' : 'warning');
+    });
   };
 
   const statusCfg = {
     lunas:      { label: 'Lunas',    bg: '#ecfdf5', color: '#059669', icon: <CheckCircle size={11}/> },
     menunggu:   { label: 'Menunggu', bg: '#fffbeb', color: '#d97706', icon: <Clock size={11}/> },
+    pending:    { label: 'Menunggu', bg: '#fffbeb', color: '#d97706', icon: <Clock size={11}/> },
     gagal:      { label: 'Gagal',    bg: '#fef2f2', color: '#dc2626', icon: <XCircle size={11}/> },
     diproses:   { label: 'Diproses', bg: '#eff6ff', color: '#2563eb', icon: <Clock size={11}/> },
+    refund:     { label: 'Refund',   bg: '#fef3c7', color: '#d97706', icon: <Clock size={11}/> },
   };
 
   const filtered = pembayarans.filter(p => {
@@ -97,7 +166,7 @@ const AdminPembayaran = () => {
 
       {/* Table */}
       <div style={{ background: 'white', borderRadius: 18, border: '1px solid #f1f5f9', overflow: 'hidden' }}>
-        <div style={{ padding: '16px 24px', borderBottom: '1px solid #f8fafc', display: 'flex', gap: 12, flexWrap: 'wrap', background: '#fcfcfd' }}>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #f8fafc', display: 'flex', gap: 12, flexWrap: 'wrap', background: '#fcfcfd', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'white', border: '1px solid #e2e8f0', borderRadius: 12, padding: '8px 14px', flex: 1, maxWidth: 360 }}>
             <Search size={15} color="#94a3b8" />
             <input type="text" placeholder="Cari nama atau no. referensi..." value={searchTerm}
@@ -105,7 +174,7 @@ const AdminPembayaran = () => {
               style={{ border: 'none', outline: 'none', fontSize: 13, background: 'transparent', width: '100%', color: '#1e293b', fontWeight: 500 }} />
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            {['all', 'lunas', 'menunggu', 'diproses', 'gagal'].map(s => (
+            {['all', 'lunas', 'menunggu', 'diproses', 'gagal', 'refund'].map(s => (
               <button key={s} onClick={() => setFilterStatus(s)} style={{
                 padding: '8px 13px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
                 border: filterStatus === s ? 'none' : '1px solid #e2e8f0',
@@ -115,6 +184,22 @@ const AdminPembayaran = () => {
                 {s === 'all' ? 'Semua' : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
+          </div>
+          <div style={{ marginLeft: 'auto' }}>
+            <button 
+              onClick={handleSyncAllSuccessful}
+              disabled={syncingAll}
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 14px', borderRadius: 10, border: '1px solid #3b82f6',
+                background: '#eff6ff', color: '#2563eb', fontWeight: 700, fontSize: 12, 
+                cursor: syncingAll ? 'not-allowed' : 'pointer', opacity: syncingAll ? 0.7 : 1,
+                transition: 'all 0.2s'
+              }}
+            >
+              {syncingAll ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <DownloadCloud size={14} />}
+              {syncingAll ? 'Syncing...' : 'Sync Berhasil'}
+            </button>
           </div>
         </div>
 
@@ -166,12 +251,20 @@ const AdminPembayaran = () => {
                       {p.created_at ? new Date(p.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                     </td>
                     <td style={{ padding: '14px 20px' }}>
-                      {p.status === 'menunggu' && (
-                        <button onClick={() => handleVerify(p.id)}
-                          style={{ padding: '7px 14px', borderRadius: 9, border: 'none', background: '#ecfdf5', color: '#059669', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <CheckCircle size={13} /> Verifikasi
-                        </button>
-                      )}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {(p.status === 'menunggu' || p.status === 'pending' || p.status === 'diproses') && (
+                          <button onClick={() => handleVerify(p.id)}
+                            style={{ padding: '7px 14px', borderRadius: 9, border: 'none', background: '#ecfdf5', color: '#059669', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <CheckCircle size={13} /> Verifikasi
+                          </button>
+                        )}
+                        {p.status === 'lunas' && (
+                          <button onClick={() => handleViewInvoice(p.id)}
+                            style={{ padding: '7px 14px', borderRadius: 9, border: 'none', background: '#eff6ff', color: '#2563eb', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <FileText size={13} /> Invoice
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

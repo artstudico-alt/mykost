@@ -3,234 +3,48 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Mail\OtpMail;
-use App\Models\OtpCode;
-use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
     // ================================================================
-    // STEP 1 — Register: validasi data + kirim OTP ke email
+    // PUBLIC REGISTRATION DISABLED — HR creates accounts for employees
     // POST /api/auth/register
     // ================================================================
     public function register(Request $request)
     {
-        Log::info('Register request received from React', $request->all());
-
-        try {
-            $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'phone' => 'nullable|string|max:20',
-            'role_id' => 'nullable|exists:roles,id',
-            'password' => [
-                'required',
-                'confirmed',
-                Password::min(8)
-                    ->letters()        // harus ada huruf
-                    ->mixedCase()      // harus ada huruf kapital & kecil
-                    ->numbers()        // harus ada angka
-                    ->symbols()        // harus ada karakter khusus (!@#$%^&*)
-                    // ->uncompromised(), // tidak boleh ada di database kebocoran
-            ],
-        ], [
-            // Pesan error custom dalam Bahasa Indonesia
-            'name.required' => 'Nama wajib diisi.',
-            'email.required' => 'Email wajib diisi.',
-            'email.unique' => 'Email ini sudah terdaftar.',
-            'password.required' => 'Password wajib diisi.',
-            'password.confirmed' => 'Konfirmasi password tidak cocok.',
-            'password.min' => 'Password minimal 8 karakter.',
-            'password.mixed_case' => 'Password harus mengandung huruf kapital dan huruf kecil.',
-            'password.letters' => 'Password harus mengandung minimal satu huruf.',
-            'password.numbers' => 'Password harus mengandung minimal satu angka.',
-            'password.symbols' => 'Password harus mengandung minimal satu karakter khusus (!@#$%^&*).',
-        ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Validation Failed in React Registration', $e->errors());
-            throw $e;
-        }
-
-        // Simpan data user sementara di cache / session sambil tunggu OTP
-        // *** User belum dibuat di DB, baru dibuat setelah OTP verified ***
-
-        // Generate dan kirim OTP
-        $otp = OtpCode::generate($request->email);
-
-        try {
-            Mail::to($request->email)->send(new OtpMail(
-                kode: $otp->kode,
-                namaUser: $request->name,
-            ));
-        } catch (\Exception $e) {
-            Log::error('Register: pengiriman email OTP gagal', [
-                'email' => $request->email,
-                'exception' => $e->getMessage(),
-            ]);
-
-            // User belum disimpan di DB — kegagalan ini hampir selalu konfigurasi SMTP / mailer, bukan "email tidak valid"
-            if (config('app.debug')) {
-                cache()->put('register_data_' . $request->email, [
-                    'name' => $request->name,
-                    'email' => $request->email,
-                    'password' => $request->password,
-                    'phone' => $request->phone,
-                    'role_id' => $request->role_id,
-                ], now()->addMinutes(10));
-
-                return response()->json([
-                    'message' => 'Email verifikasi tidak terkirim (SMTP). Mode APP_DEBUG: lanjutkan verifikasi dengan OTP di bawah. Set MAIL_MAILER=smtp dan MAIL_* di .env untuk produksi.',
-                    'email' => $request->email,
-                    'dev_otp' => $otp->kode,
-                    'mail_error' => $e->getMessage(),
-                    'next_step' => 'POST /api/auth/verify-otp dengan { email, kode }',
-                ], 200);
-            }
-
-            $otp->delete();
-
-            return response()->json([
-                'message' => 'Gagal mengirim email verifikasi. Ini biasanya karena pengaturan pengiriman email (SMTP) di server belum benar — bukan karena alamat email Anda salah. Periksa MAIL_MAILER, MAIL_HOST, MAIL_PORT, MAIL_USERNAME, dan MAIL_PASSWORD di file .env, atau set MAIL_MAILER=log untuk mencoba mencatat email ke storage/logs. Lihat juga storage/logs/laravel.log.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
-        }
-
-        // Simpan data pendaftaran sementara di cache (10 menit)
-        cache()->put('register_data_' . $request->email, [
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => $request->password,
-            'phone' => $request->phone,
-            'role_id' => $request->role_id,
-        ], now()->addMinutes(10));
-
         return response()->json([
-            'message' => 'Kode OTP telah dikirim ke email ' . $request->email . '. Berlaku 10 menit.',
-            'email' => $request->email,
-            'next_step' => 'POST /api/auth/verify-otp dengan { email, kode }',
-        ], 200);
+            'message' => 'Registrasi publik telah dinonaktifkan. Akun karyawan hanya dapat dibuat oleh HR.',
+        ], 403);
     }
 
     // ================================================================
-    // STEP 2 — Verifikasi OTP: konfirmasi kode, buat akun, return token
+    // PUBLIC OTP VERIFICATION DISABLED
     // POST /api/auth/verify-otp
     // ================================================================
     public function verifyOtp(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'kode' => 'required|string|size:6',
-        ]);
-
-        // Cari OTP yang valid
-        $otp = OtpCode::where('email', $request->email)
-            ->where('kode', $request->kode)
-            ->where('is_used', false)
-            ->latest()
-            ->first();
-
-        if (!$otp) {
-            return response()->json([
-                'message' => 'Kode OTP tidak ditemukan.',
-            ], 422);
-        }
-
-        if (!$otp->isValid()) {
-            return response()->json([
-                'message' => 'Kode OTP sudah kadaluarsa. Silakan request kode baru.',
-            ], 422);
-        }
-
-        // Ambil data registrasi dari cache
-        $registerData = cache()->get('register_data_' . $request->email);
-
-        if (!$registerData) {
-            return response()->json([
-                'message' => 'Sesi pendaftaran kadaluarsa. Silakan daftar ulang.',
-            ], 422);
-        }
-
-        // Tentukan role default jika tidak ada
-        $roleId = $registerData['role_id'];
-        if (!$roleId) {
-            $defaultRole = Role::where('name', Role::KARYAWAN)->first();
-            $roleId = $defaultRole?->id;
-        }
-
-        // Buat user di database
-        $user = User::create([
-            'name' => $registerData['name'],
-            'email' => $registerData['email'],
-            'password' => $registerData['password'],
-            'phone' => $registerData['phone'],
-            'role_id' => $roleId,
-            'email_verified_at' => now(), // langsung terverifikasi
-        ]);
-
-        // Tandai OTP sebagai sudah dipakai
-        $otp->update(['is_used' => true]);
-
-        // Hapus data cache
-        cache()->forget('register_data_' . $request->email);
-
-        // Buat token
-        $token = $user->createToken('auth_token')->plainTextToken;
-
         return response()->json([
-            'message' => '✅ Akun berhasil dibuat dan email berhasil diverifikasi!',
-            'user' => $user->load('role'),
-            'token' => $token,
-        ], 201);
+            'message' => 'Verifikasi OTP tidak diperlukan. Akun karyawan hanya dapat dibuat oleh HR.',
+        ], 403);
     }
 
     // ================================================================
-    // RESEND OTP — jika kode kadaluarsa / tidak sampai
+    // PUBLIC RESEND OTP DISABLED
     // POST /api/auth/resend-otp
     // ================================================================
     public function resendOtp(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-        ]);
-
-        // Pastikan ada sesi registrasi yang aktif
-        $registerData = cache()->get('register_data_' . $request->email);
-
-        if (!$registerData) {
-            return response()->json([
-                'message' => 'Tidak ada sesi pendaftaran aktif untuk email ini. Silakan daftar ulang.',
-            ], 422);
-        }
-
-        // Generate OTP baru
-        $otp = OtpCode::generate($request->email);
-
-        try {
-            Mail::to($request->email)->send(new OtpMail(
-                kode: $otp->kode,
-                namaUser: $registerData['name'],
-            ));
-        } catch (\Exception $e) {
-            $otp->delete();
-            return response()->json([
-                'message' => 'Gagal mengirim ulang email. Coba beberapa saat lagi.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
-        }
-
         return response()->json([
-            'message' => 'Kode OTP baru telah dikirim ke ' . $request->email . '. Berlaku 10 menit.',
-        ]);
+            'message' => 'Pengiriman ulang OTP tidak diperlukan. Akun karyawan hanya dapat dibuat oleh HR.',
+        ], 403);
     }
 
     // ================================================================
-    // LOGIN
+    // LOGIN - Simplified: use only Users table
     // POST /api/auth/login
     // ================================================================
     public function login(Request $request)
@@ -248,11 +62,10 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Cek apakah email sudah diverifikasi
+        // Check if email verified
         if (!$user->email_verified_at) {
             return response()->json([
-                'message' => 'Email kamu belum diverifikasi. Silakan cek email dan masukkan kode OTP.',
-                'next_step' => 'POST /api/auth/verify-otp',
+                'message' => 'Email kamu belum diverifikasi.',
             ], 403);
         }
 
@@ -260,7 +73,12 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Login berhasil.',
-            'user' => $user->load('role'),
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->load('role')->role,
+            ],
             'token' => $token,
         ]);
     }
@@ -271,93 +89,48 @@ class AuthController extends Controller
     // ================================================================
     public function me(Request $request)
     {
-        return response()->json([
-            'message' => 'Data user berhasil diambil.',
-            'user' => $request->user()->load('role'),
-        ]);
+        try {
+            $user = $request->user();
+
+            if (!$user) {
+                return response()->json(['message' => 'User tidak ditemukan.'], 401);
+            }
+
+            return response()->json([
+                'message' => 'Data user berhasil diambil.',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role?->name ?? 'unknown',
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in me(): ' . $e->getMessage());
+            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
+        }
     }
 
     public function forgotPassword(Request $request)
     {
-        $request->validate(['email' => 'required|email']);
-
-        $user = User::where('email', $request->email)->first();
-
-        if (!$user) {
-            return response()->json([
-                'message' => 'Email yang Anda masukkan tidak terdaftar di sistem kami. Silakan cek ulang.',
-            ], 404);
-        }
-
-        $otp = OtpCode::generate($request->email);
-
-        try {
-            Mail::to($request->email)->send(new OtpMail(
-                kode: $otp->kode, 
-                namaUser: $user->name
-            ));
-        } catch (\Exception $e) {
-            $otp->delete();
-            return response()->json([
-                'message' => 'Gagal mengirim email reset. Sistem Email SMTP (Gmail) mungkin belum di-setting dengan benar. (Mode Debug: OTP Anda adalah ' . $otp->kode . ')',
-            ], 500);
-        }
-
         return response()->json([
-            'message' => 'Kode reset password telah dikirim ke email Anda. (Mode Debug: Cek terminal/log atau gunakan ' . $otp->kode . ' jika email gagal masuk)',
-            'next_step' => 'POST /api/auth/reset-password dengan { email, kode, password, password_confirmation }',
-        ]);
+            'message' => 'Reset password dengan OTP telah dinonaktifkan. Hubungi HR atau admin untuk reset password.',
+        ], 403);
     }
 
     // ================================================================
-    // RESET PASSWORD — Verifikasi OTP dan ganti password
+    // RESET PASSWORD — DISABLED (no OTP)
     // POST /api/auth/reset-password
     // ================================================================
     public function resetPassword(Request $request)
     {
-        $request->validate([
-            'email'    => 'required|email',
-            'kode'     => 'required|string|size:6',
-            'password' => [
-                'required',
-                'confirmed',
-                Password::min(8)->letters()->mixedCase()->numbers()->symbols()
-            ],
-        ], [
-            'password.min' => 'Password minimal 8 karakter.',
-            'password.symbols' => 'Password harus mengandung simbol.',
-        ]);
-
-        $otp = OtpCode::where('email', $request->email)
-            ->where('kode', $request->kode)
-            ->where('is_used', false)
-            ->first();
-
-        if (!$otp || !$otp->isValid()) {
-            return response()->json(['message' => 'Kode OTP salah atau kadaluarsa.'], 422);
-        }
-
-        $user = User::where('email', $request->email)->first();
-        if (!$user) {
-            return response()->json(['message' => 'User tidak ditemukan.'], 404);
-        }
-
-        // Update Password dan pastikan status verifikasi aktif
-        $user->update([
-            'password'          => $request->password,
-            'email_verified_at' => $user->email_verified_at ?? now(), // Tandai verifikasi jika belum
-        ]);
-
-        // Tandai OTP terpakai
-        $otp->update(['is_used' => true]);
-
         return response()->json([
-            'message' => '✅ Password berhasil diperbarui! Silakan login kembali.',
-        ]);
+            'message' => 'Reset password dengan OTP telah dinonaktifkan. Hubungi HR atau admin untuk reset password.',
+        ], 403);
     }
 
     // ================================================================
-    // UPDATE PROFILE — Update data diri (Phone, NIK, Foto KTP)
+    // UPDATE PROFILE — Update data diri
     // POST /api/auth/update-profile
     // ================================================================
     public function updateProfile(Request $request)
@@ -365,12 +138,11 @@ class AuthController extends Controller
         $user = $request->user();
 
         $request->validate([
-            'phone'     => 'nullable|string|max:20',
-            'nik'       => 'nullable|string|size:16',
+            'phone' => 'nullable|string|max:20',
             'ktp_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
 
-        $data = $request->only(['phone', 'nik']);
+        $data = $request->only(['phone']);
 
         if ($request->hasFile('ktp_photo')) {
             $file = $request->file('ktp_photo');
@@ -383,7 +155,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Profil berhasil diperbarui.',
-            'user'    => $user,
+            'user' => $user,
         ]);
     }
 

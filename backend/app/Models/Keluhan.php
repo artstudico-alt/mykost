@@ -9,6 +9,7 @@ class Keluhan extends Model
     protected $fillable = [
         'user_id',
         'kost_id',
+        'kategori',
         'judul',
         'isi',
         'status',

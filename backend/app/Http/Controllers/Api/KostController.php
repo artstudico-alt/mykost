@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Kost;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class KostController extends Controller
 {
@@ -30,52 +31,60 @@ class KostController extends Controller
     // GET /api/kost — semua role bisa lihat (Publik)
     public function index(Request $request)
     {
-        // Gunakan auth('sanctum')->user() untuk deteksi user opsional secara aman
-        $user = auth('sanctum')->user();
-        if ($user) {
-            $user->load('role');
-        }
+        try {
+            // Get user from request if authenticated
+            $user = $request->user();
+            if ($user) {
+                $user->load('role');
+            }
 
+            $query = Kost::with('user');
 
-        $query = Kost::with('user');
+            // Katalog publik (beranda, tamu, karyawan, dll.): semua kost berstatus aktif.
+            // Hanya "Kost Saya" milik pemilik yang memakai ?mine=1 — supaya beranda tidak kosong saat pemilik login.
+            $onlyMine = $request->boolean('mine');
+            if ($user && $user->hasRole('pemilik_kost') && $onlyMine) {
+                $query->where('user_id', $user->id);
+            } else {
+                $query->where('status', 'aktif');
+            }
 
-        // Katalog publik (beranda, tamu, karyawan, dll.): semua kost berstatus aktif.
-        // Hanya "Kost Saya" milik pemilik yang memakai ?mine=1 — supaya beranda tidak kosong saat pemilik login.
-        $onlyMine = $request->boolean('mine');
-        if ($user && $user->hasRole('pemilik_kost') && $onlyMine) {
-            $query->where('user_id', $user->id);
-        } else {
-            $query->where('status', 'aktif');
-        }
+            // Filter
+            if ($request->filled('kota')) {
+                $query->where('kota', 'like', '%' . $request->kota . '%');
+            }
+            if ($request->filled('tipe')) {
+                $query->where('tipe', $request->tipe);
+            }
+            if ($request->filled('harga_max')) {
+                $query->where('harga_min', '<=', $request->harga_max);
+            }
+            if ($request->filled('status') && $user && $user->hasRole('pemilik_kost') && $onlyMine) {
+                $query->where('status', $request->status);
+            }
+            if ($request->filled('search')) {
+                $query->where(function ($q) use ($request) {
+                    $q->where('nama_kost', 'like', '%' . $request->search . '%')
+                      ->orWhere('alamat', 'like', '%' . $request->search . '%')
+                      ->orWhere('kota', 'like', '%' . $request->search . '%');
+                });
+            }
 
-        // Filter
-        if ($request->filled('kota')) {
-            $query->where('kota', 'like', '%' . $request->kota . '%');
-        }
-        if ($request->filled('tipe')) {
-            $query->where('tipe', $request->tipe);
-        }
-        if ($request->filled('harga_max')) {
-            $query->where('harga_min', '<=', $request->harga_max);
-        }
-        if ($request->filled('status') && $user && $user->hasRole('pemilik_kost') && $onlyMine) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('search')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('nama_kost', 'like', '%' . $request->search . '%')
-                  ->orWhere('alamat', 'like', '%' . $request->search . '%')
-                  ->orWhere('kota', 'like', '%' . $request->search . '%');
-            });
-        }
+            $kosts = $query->latest()->get();
 
-        $kosts = $query->latest()->get();
-
-        return response()->json([
-            'message' => 'Data kost berhasil diambil',
-            'total'   => $kosts->count(),
-            'data'    => $kosts,
-        ]);
+            return response()->json([
+                'message' => 'Data kost berhasil diambil',
+                'total'   => $kosts->count(),
+                'data'    => $kosts,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Kost index error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Server error: ' . $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 500);
+        }
     }
 
     // POST /api/kost

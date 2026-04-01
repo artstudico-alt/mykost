@@ -5,6 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
+import { useGlobalModal } from '../context/ModalContext';
 
 // Fix Marker Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -24,7 +25,7 @@ function FormMapUpdater({ lat, lng }) {
 }
 
 // Helper untuk klik Map Interaktif + Reverse Geocoding
-function MapClickSetter({ setFormData }) {
+function MapClickSetter({ setFormData, confirm }) {
   useMapEvents({
     async click(e) {
       const { lat, lng } = e.latlng;
@@ -39,14 +40,14 @@ function MapClickSetter({ setFormData }) {
           const city = addr.city || addr.town || addr.village || addr.county || '';
           const state = addr.state || '';
           
-          if (window.confirm(`Gunakan alamat terdeteksi?\n${data.display_name}`)) {
+          confirm(`Gunakan alamat terdeteksi?\n${data.display_name}`, () => {
             setFormData(prev => ({
               ...prev,
               alamat: street ? `${street}, ${addr.house_number || ''}` : prev.alamat,
               kota: city || prev.kota,
               provinsi: state || prev.provinsi
             }));
-          }
+          });
         }
       } catch (err) {
         console.error('Reverse Geocode Error:', err);
@@ -58,6 +59,7 @@ function MapClickSetter({ setFormData }) {
 
 const AdminKost = () => {
   const { user, loading: authLoading } = useAuth();
+  const { alert: modalAlert, confirm: modalConfirm } = useGlobalModal();
   const role = user?.role?.name || '';
   const isOwner = role === 'pemilik_kost';
   const isAdmin = role === 'super_admin';
@@ -118,10 +120,11 @@ const AdminKost = () => {
       
       // Jika error 401, berarti sesi habis (karena server restart dll)
       if (error.response?.status === 401) {
-        alert('Sesi Anda telah habis. Silakan login kembali.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/#/login';
+        modalAlert('Sesi Anda telah habis. Silakan login kembali.', 'warning', () => {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/#/login';
+        });
       }
     } finally {
       setLoading(false);
@@ -168,7 +171,7 @@ const AdminKost = () => {
     if (!files || files.length === 0) return;
 
     if (photos.length + files.length > 10) {
-       alert('Maksimal 10 gambar yang diizinkan!');
+       modalAlert('Maksimal 10 gambar yang diizinkan!', 'warning');
        return;
     }
 
@@ -190,7 +193,7 @@ const AdminKost = () => {
        }
        setPhotos(newPhotos);
     } catch (err) {
-       alert('Gagal mengupload gambar. Pastikan format jpeg/png/jpg/webp dan ukuran maksimal 5MB.');
+       modalAlert('Gagal mengupload gambar. Pastikan format jpeg/png/jpg/webp dan ukuran maksimal 5MB.', 'error');
     } finally {
        setUploadingImage(false);
        e.target.value = ''; // Reset input
@@ -239,20 +242,21 @@ const AdminKost = () => {
       setShowModal(false);
       fetchKosts();
     } catch (error) {
-      alert('Gagal menyimpan kost: ' + (error.response?.data?.message || error.message));
+      modalAlert('Gagal menyimpan kost: ' + (error.response?.data?.message || error.message), 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (id, nama) => {
-    if (!window.confirm(`Hapus kost "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) return;
-    try {
-      await api.delete(`/kost/${id}/force`);
-      fetchKosts();
-    } catch (error) {
-      alert('Gagal menghapus kost.');
-    }
+    modalConfirm(`Hapus kost "${nama}"? Tindakan ini tidak dapat dibatalkan.`, () => {
+      api.delete(`/kost/${id}/force`).then(() => {
+        fetchKosts();
+        modalAlert('Kost berhasil dihapus!', 'success');
+      }).catch(() => {
+        modalAlert('Gagal menghapus kost.', 'error');
+      });
+    });
   };
 
   const statusFilter = kosts.filter(k => filterStatus === 'all' || k.status === filterStatus);
@@ -644,7 +648,7 @@ const AdminKost = () => {
                             type="button" 
                             onClick={async () => {
                               if (!formData.alamat && !formData.kota) {
-                                return alert('Silakan isi Alamat atau minimal Kota terlebih dahulu!');
+                                return modalAlert('Silakan isi Alamat atau minimal Kota terlebih dahulu!', 'warning');
                               }
                               
                               setIsSubmitting(true);
@@ -704,7 +708,7 @@ const AdminKost = () => {
                                 const coordMatch = inputAlamat.match(/^([-+]?\d{1,2}(?:\.\d+)?),\s*([-+]?\d{1,3}(?:\.\d+)?)$/);
                                 if (coordMatch) {
                                    setFormData(prev => ({ ...prev, latitude: parseFloat(coordMatch[1]), longitude: parseFloat(coordMatch[2]) }));
-                                   alert('🎯 Koordinat Langsung Berhasil Dideteksi!');
+                                   modalAlert('🎯 Koordinat Langsung Berhasil Dideteksi!', 'success');
                                    return;
                                 }
 
@@ -712,7 +716,7 @@ const AdminKost = () => {
                                 let result = await trySearch(`${formData.alamat}, ${formData.kota}`, 'photon');
                                 if (result) {
                                    setFormData(prev => ({ ...prev, latitude: parseFloat(result.lat), longitude: parseFloat(result.lon) }));
-                                   alert(`🎯 Lokasi Ditemukan!\n\n${result.name}`);
+                                   modalAlert(`🎯 Lokasi Ditemukan!\n\n${result.name}`, 'success');
                                    return;
                                 }
 
@@ -729,7 +733,7 @@ const AdminKost = () => {
                                 result = await trySearch(`${smartClean}, ${formData.kota}`, 'nominatim');
                                 if (result) {
                                    setFormData(prev => ({ ...prev, latitude: parseFloat(result.lat), longitude: parseFloat(result.lon) }));
-                                   alert(`✅ Alamat Berhasil Ditemukan!\n\n${result.name}`);
+                                   modalAlert(`✅ Alamat Berhasil Ditemukan!\n\n${result.name}`, 'success');
                                    return;
                                 }
 
@@ -738,7 +742,7 @@ const AdminKost = () => {
                                 result = await trySearch(`${streetOnly} ${formData.kota}`, 'photon');
                                 if (result) {
                                   setFormData(prev => ({ ...prev, latitude: parseFloat(result.lat), longitude: parseFloat(result.lon) }));
-                                  alert(`⚠️ Nama Jalan Ditemukan.\nArea: ${streetOnly}, ${formData.kota}`);
+                                  modalAlert(`⚠️ Nama Jalan Ditemukan.\nArea: ${streetOnly}, ${formData.kota}`, 'warning');
                                   return;
                                 }
 
@@ -746,12 +750,12 @@ const AdminKost = () => {
                                 result = await trySearch(`${formData.kota}, Indonesia`, 'nominatim');
                                 if (result) {
                                   setFormData(prev => ({ ...prev, latitude: parseFloat(result.lat), longitude: parseFloat(result.lon) }));
-                                  alert('⚠️ Lokasi detail tidak terdeteksi. Silakan tandai manual di peta.');
+                                  modalAlert('⚠️ Lokasi detail tidak terdeteksi. Silakan tandai manual di peta.', 'warning');
                                 } else {
-                                  alert('❌ Lokasi tidak terdaftar di satelit.');
+                                  modalAlert('❌ Lokasi tidak terdaftar di satelit.', 'error');
                                 }
                               } catch (e) {
-                                alert('❌ Gangguan koneksi peta.');
+                                modalAlert('❌ Gangguan koneksi peta.', 'error');
                               } finally {
                                 setIsSubmitting(false);
                               }

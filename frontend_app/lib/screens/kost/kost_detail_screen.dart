@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,6 +20,51 @@ class KostDetailScreen extends StatefulWidget {
 class _KostDetailScreenState extends State<KostDetailScreen> {
   bool _isTenant = false;
   bool _isLoading = true;
+  int _selectedImageIndex = 0;
+  
+  // List of all images for the kost
+  List<String> get _allImages {
+    final List<String> images = [];
+    
+    // Add main image first
+    final mainImage = widget.kost['foto_utama'] ?? widget.kost['foto'] ?? widget.kost['thumbnail'];
+    if (mainImage != null && mainImage.toString().isNotEmpty) {
+      images.add(_getFullImageUrl(mainImage.toString()));
+    }
+    
+    // Add gallery images if available
+    final gallery = widget.kost['foto_galeri'] ?? widget.kost['gallery'] ?? widget.kost['images'];
+    if (gallery is List) {
+      for (var img in gallery) {
+        if (img is String && img.isNotEmpty) {
+          images.add(_getFullImageUrl(img));
+        } else if (img is Map && img['url'] != null) {
+          images.add(_getFullImageUrl(img['url'].toString()));
+        }
+      }
+    }
+    
+    // Fallback to placeholder if no images
+    if (images.isEmpty) {
+      images.add('https://via.placeholder.com/800x600?text=No+Image');
+    }
+    
+    return images;
+  }
+  
+  // Get full image URL (handle Supabase URLs)
+  String _getFullImageUrl(String url) {
+    if (url.startsWith('http')) {
+      return url;
+    }
+    // For Supabase storage URLs
+    if (url.contains('supabase')) {
+      return url;
+    }
+    // For relative paths from backend
+    final baseUrl = ApiService.baseUrl.replaceAll('/api', '');
+    return '$baseUrl/storage/$url';
+  }
 
   @override
   void initState() {
@@ -59,8 +105,19 @@ class _KostDetailScreenState extends State<KostDetailScreen> {
     final price = "Rp ${widget.kost['harga_min'] ?? '...'}";
     final location = "${widget.kost['kecamatan'] ?? ''}, ${widget.kost['kota'] ?? ''}";
     final type = (widget.kost['tipe'] ?? "CAMPUR").toString().toUpperCase();
-    final ownerName = widget.kost['user'] != null ? widget.kost['user']['name'] : "Pemilik Kost";
-    final mainImage = widget.kost['foto_utama'] ?? 'https://picsum.photos/800/600';
+    
+    // Safe owner name extraction
+    String ownerName = "Pemilik Kost";
+    final dynamic rawUser = widget.kost['user'];
+    if (rawUser is Map) {
+      final dynamic rawName = rawUser['name'];
+      if (rawName is String) {
+        ownerName = rawName;
+      }
+    }
+    
+    // Get current main image based on selection
+    final mainImage = _allImages.isNotEmpty ? _allImages[_selectedImageIndex] : 'https://via.placeholder.com/800x600?text=No+Image';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -121,21 +178,46 @@ class _KostDetailScreenState extends State<KostDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Thumbnail Gallery
                   SizedBox(
                     height: 80,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: 4,
+                      itemCount: _allImages.length,
                       itemBuilder: (context, index) {
-                        return Container(
-                          width: 100,
-                          margin: const EdgeInsets.only(right: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(12),
-                            image: const DecorationImage(
-                              image: NetworkImage('https://picsum.photos/300/200'),
-                              fit: BoxFit.cover,
+                        final isSelected = index == _selectedImageIndex;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedImageIndex = index;
+                            });
+                          },
+                          child: Container(
+                            width: 100,
+                            margin: const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: isSelected 
+                                ? Border.all(color: AppColors.primary, width: 3)
+                                : null,
+                              boxShadow: isSelected
+                                ? [BoxShadow(
+                                    color: AppColors.primary.withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  )]
+                                : null,
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                _allImages[index],
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: Colors.grey.shade300,
+                                  child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                                ),
+                              ),
                             ),
                           ),
                         );
@@ -352,52 +434,31 @@ class _KostDetailScreenState extends State<KostDetailScreen> {
   }
 
   Widget _buildAccessibilitySection() {
-    // Sample accessibility data - akan diganti dengan data dari backend
-    final List<Map<String, dynamic>> accessibilityData = [
-      {
-        'type': 'Akses Transportasi',
-        'icon': Icons.directions_bus,
-        'items': [
-          {'name': 'Halte Bus', 'distance': '200 meter'},
-          {'name': 'Stasiun Kereta', 'distance': '500 meter'},
-          {'name': 'Terminal Bus', 'distance': '1.2 km'},
-        ],
-      },
-      {
-        'type': 'Sekolah & Universitas',
-        'icon': Icons.school,
-        'items': [
-          {'name': 'SDN 01 Menteng', 'distance': '300 meter'},
-          {'name': 'SMA Negeri 5', 'distance': '800 meter'},
-          {'name': 'Universitas Indonesia', 'distance': '2.5 km'},
-        ],
-      },
-      {
-        'type': 'Pusat Belanja',
-        'icon': Icons.shopping_cart,
-        'items': [
-          {'name': 'Mini Market', 'distance': '150 meter'},
-          {'name': 'Supermarket', 'distance': '400 meter'},
-          {'name': 'Mall Grand Indonesia', 'distance': '1.8 km'},
-        ],
-      },
-      {
-        'type': 'Fasilitas Kesehatan',
-        'icon': Icons.local_hospital,
-        'items': [
-          {'name': 'Klinik 24 Jam', 'distance': '350 meter'},
-          {'name': 'Rumah Sakit', 'distance': '1.5 km'},
-          {'name': 'Apotek', 'distance': '250 meter'},
-        ],
-      },
-    ];
-
+    // Calculate distance to office from kost coordinates
+    final officeLat = widget.kost['office_lat'] ?? -6.5946; // Default Bogor office
+    final officeLng = widget.kost['office_lng'] ?? 106.7892;
+    final kostLat = widget.kost['latitude'] ?? widget.kost['lat'];
+    final kostLng = widget.kost['longitude'] ?? widget.kost['lng'] ?? widget.kost['long'];
+    
+    double distanceKm = 0;
+    if (kostLat != null && kostLng != null) {
+      distanceKm = _calculateDistance(
+        double.tryParse(kostLat.toString()) ?? 0,
+        double.tryParse(kostLng.toString()) ?? 0,
+        officeLat,
+        officeLng,
+      );
+    }
+    
+    // Calculate walking and motorbike times
+    final walkingMinutes = (distanceKm * 12.5).round(); // 12.5 min per km walking
+    final motorbikeMinutes = (distanceKm * 3.33).round(); // 3.33 min per km motorbike
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
         const Text(
-          "Aksesibilitas & Radius",
+          "Jarak ke Kantor",
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -406,521 +467,135 @@ class _KostDetailScreenState extends State<KostDetailScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          "Jarak dari lokasi kost ke berbagai fasilitas penting",
+          "Estimasi waktu tempuh dari kost ke kantor",
           style: TextStyle(
             fontSize: 14,
             color: AppColors.textSecondary.withOpacity(0.8),
           ),
         ),
-        const SizedBox(height: 20),
-
-        // Modern Accessibility Grid
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.85,
-          ),
-          itemCount: accessibilityData.length,
-          itemBuilder: (context, index) {
-            final category = accessibilityData[index];
-            return InkWell(
-              onTap: () => _showAccessibilityDetailModal(category),
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.grey.shade50),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Icon Circle
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.08),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          category['icon'],
-                          color: AppColors.primary,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      
-                      // Category Title
-                      Text(
-                        category['type'],
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      
-                      // Items List
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: category['items'].take(3).map<Widget>((item) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 4,
-                                    height: 4,
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.primary,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      item['name'],
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.textSecondary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 1,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: _getModernDistanceColor(item['distance']),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        _formatDistance(item['distance']),
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w600,
-                                          color: _getModernDistanceTextColor(item['distance']),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  void _showAccessibilityDetailModal(Map<String, dynamic> category) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        maxChildSize: 0.8,
-        minChildSize: 0.4,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
+        const SizedBox(height: 16),
+        
+        // Distance Card
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade100),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          child: SingleChildScrollView(
-            controller: scrollController,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            children: [
+              // Distance Display
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Handle bar
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Header with Icon
-                  Row(
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          category['icon'],
-                          color: AppColors.primary,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              category['type'],
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            Text(
-                              "${category['items'].length} lokasi terdekat",
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Description
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Informasi Penting",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _getCategoryDescription(category['type']),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Detailed List
-                  const Text(
-                    "Daftar Lokasi",
-                    style: TextStyle(
-                      fontSize: 18,
+                  Icon(Icons.location_on, color: AppColors.primary, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    distanceKm > 0 ? '${distanceKm.toStringAsFixed(1)} km' : 'Jarak tidak tersedia',
+                    style: const TextStyle(
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  
-                  ...category['items'].map<Widget>((item) {
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade100),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          // Location Icon
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: _getModernDistanceColor(item['distance']),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.place,
-                              color: _getModernDistanceTextColor(item['distance']),
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          
-                          // Location Info
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        item['name'],
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: _getModernDistanceColor(item['distance']),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        item['distance'],
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: _getModernDistanceTextColor(item['distance']),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 4,
-                                  children: [
-                                    _buildTransportOption(
-                                      Icons.directions_walk,
-                                      _getWalkingTime(item['distance']),
-                                    ),
-                                    _buildTransportOption(
-                                      Icons.motorcycle,
-                                      _getMotorcycleTime(item['distance']),
-                                    ),
-                                    _buildTransportOption(
-                                      Icons.directions_car,
-                                      _getCarTime(item['distance']),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Action Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        "Tutup",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
                 ],
               ),
-            ),
+              const SizedBox(height: 20),
+              const Divider(height: 1),
+              const SizedBox(height: 20),
+              
+              // Transport Options
+              Row(
+                children: [
+                  // Walking
+                  Expanded(
+                    child: _buildTransportTimeCard(
+                      icon: Icons.directions_walk,
+                      label: 'Jalan Kaki',
+                      time: distanceKm > 0 ? '$walkingMinutes menit' : '-',
+                      color: Colors.blue,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Motorbike
+                  Expanded(
+                    child: _buildTransportTimeCard(
+                      icon: Icons.motorcycle,
+                      label: 'Motor',
+                      time: distanceKm > 0 ? '$motorbikeMinutes menit' : '-',
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-      ),
+      ],
     );
   }
-
-  String _getCategoryDescription(String categoryType) {
-    switch (categoryType) {
-      case 'Akses Transportasi':
-        return "Akses transportasi umum yang mudah dari lokasi kost, memudahkan mobilitas sehari-hari.";
-      case 'Sekolah & Universitas':
-        return "Berbagai institusi pendidikan terdekat, cocok untuk pelajar dan mahasiswa.";
-      case 'Pusat Belanja':
-        return "Fasilitas perbelanjaan lengkap untuk memenuhi kebutuhan sehari-hari.";
-      case 'Fasilitas Kesehatan':
-        return "Layanan kesehatan terdekat untuk keadaan darurat dan rutin.";
-      default:
-        return "Fasilitas penting lainnya yang dekat dengan lokasi kost.";
-    }
+  
+  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    const double earthRadius = 6371; // km
+    final double dLat = _degreesToRadians(lat2 - lat1);
+    final double dLon = _degreesToRadians(lon2 - lon1);
+    final double a = 
+      (math.sin(dLat / 2) * math.sin(dLat / 2)) +
+      math.cos(_degreesToRadians(lat1)) * math.cos(_degreesToRadians(lat2)) *
+      (math.sin(dLon / 2) * math.sin(dLon / 2));
+    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadius * c;
   }
-
-  Widget _buildTransportOption(IconData icon, String time) {
+  
+  double _degreesToRadians(double degrees) {
+    return degrees * (math.pi / 180);
+  }
+  
+  Widget _buildTransportTimeCard({
+    required IconData icon,
+    required String label,
+    required String time,
+    required Color color,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade200),
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
         children: [
-          Icon(
-            icon,
-            size: 11,
-            color: AppColors.textSecondary,
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color.withOpacity(0.8),
+            ),
           ),
-          const SizedBox(width: 2),
+          const SizedBox(height: 4),
           Text(
             time,
-            style: const TextStyle(
-              fontSize: 10,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _getWalkingTime(String distance) {
-    if (distance.contains('meter')) {
-      final meterValue = int.tryParse(distance.split(' ')[0]) ?? 0;
-      final minutes = (meterValue / 80).round(); // Average walking speed 80m/min
-      return "$minutes menit";
-    } else {
-      final kmValue = double.tryParse(distance.split(' ')[0]) ?? 0;
-      final minutes = (kmValue * 12.5).round(); // Average walking speed 12.5 min/km
-      return "$minutes menit";
-    }
-  }
-
-  String _getMotorcycleTime(String distance) {
-    if (distance.contains('meter')) {
-      final meterValue = int.tryParse(distance.split(' ')[0]) ?? 0;
-      final minutes = (meterValue / 300).round(); // Average motorcycle speed 300m/min (18km/h)
-      if (minutes == 0) return "<1 menit";
-      return "$minutes menit";
-    } else {
-      final kmValue = double.tryParse(distance.split(' ')[0]) ?? 0;
-      final minutes = (kmValue * 3.33).round(); // Average motorcycle speed 18km/h
-      if (minutes == 0) return "<1 menit";
-      return "$minutes menit";
-    }
-  }
-
-  String _getCarTime(String distance) {
-    if (distance.contains('meter')) {
-      final meterValue = int.tryParse(distance.split(' ')[0]) ?? 0;
-      final minutes = (meterValue / 417).round(); // Average car speed 417m/min (25km/h)
-      if (minutes == 0) return "<1 menit";
-      return "$minutes menit";
-    } else {
-      final kmValue = double.tryParse(distance.split(' ')[0]) ?? 0;
-      final minutes = (kmValue * 2.4).round(); // Average car speed 25km/h
-      if (minutes == 0) return "<1 menit";
-      return "$minutes menit";
-    }
-  }
-
-  String _formatDistance(String distance) {
-    if (distance.contains('meter')) {
-      final meterValue = int.tryParse(distance.split(' ')[0]) ?? 0;
-      return '${meterValue}m';
-    } else {
-      final kmValue = double.tryParse(distance.split(' ')[0]) ?? 0;
-      return '${kmValue}km';
-    }
-  }
-
-  Color _getModernDistanceColor(String distance) {
-    if (distance.contains('meter')) {
-      final meterValue = int.tryParse(distance.split(' ')[0]) ?? 0;
-      if (meterValue <= 200) return Colors.green.shade100;
-      if (meterValue <= 500) return Colors.orange.shade100;
-      return Colors.red.shade100;
-    } else {
-      final kmValue = double.tryParse(distance.split(' ')[0]) ?? 0;
-      if (kmValue <= 1.0) return Colors.green.shade100;
-      if (kmValue <= 2.0) return Colors.orange.shade100;
-      return Colors.red.shade100;
-    }
-  }
-
-  Color _getModernDistanceTextColor(String distance) {
-    if (distance.contains('meter')) {
-      final meterValue = int.tryParse(distance.split(' ')[0]) ?? 0;
-      if (meterValue <= 200) return Colors.green.shade700;
-      if (meterValue <= 500) return Colors.orange.shade700;
-      return Colors.red.shade700;
-    } else {
-      final kmValue = double.tryParse(distance.split(' ')[0]) ?? 0;
-      if (kmValue <= 1.0) return Colors.green.shade700;
-      if (kmValue <= 2.0) return Colors.orange.shade700;
-      return Colors.red.shade700;
-    }
   }
 
   // ── Map Section ───────────────────────────────────────────────────────────

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { useGlobalModal } from '../context/ModalContext'
 import penyewaService from '../services/penyewaService'
 
 function Penyewa() {
   const { user, loading: authLoading } = useAuth()
+  const { alert: modalAlert, confirm: modalConfirm } = useGlobalModal()
   const [penyewas, setPenyewas] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -29,15 +31,16 @@ function Penyewa() {
   }
 
   const handleDelete = async (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus penyewa ini?')) {
-      try {
-        await penyewaService.deletePenyewa(id)
+    modalConfirm('Apakah Anda yakin ingin menghapus penyewa ini?', () => {
+      penyewaService.deletePenyewa(id).then(() => {
         fetchPenyewas()
-      } catch (err) {
+        modalAlert('Penyewa berhasil dihapus!', 'success')
+      }).catch((err) => {
         setError('Gagal menghapus penyewa')
+        modalAlert('Gagal menghapus penyewa', 'error')
         console.error(err)
-      }
-    }
+      })
+    })
   }
 
   return (

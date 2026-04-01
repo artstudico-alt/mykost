@@ -16,11 +16,17 @@ import {
   Plus,
   Info,
   X,
-  MessageCircle
+  MessageCircle,
+  Receipt,
+  CheckCircle,
+  Lock,
+  FileText,
+  Download
 } from 'lucide-react'
 import api from '../utils/api'
 import { useAuth } from '../hooks/useAuth'
 import '../profile.css'
+import { useGlobalModal } from '../context/ModalContext'
 
 /** Respons Laravel { data: [...] } — selalu kembalikan array (hindari .map crash). */
 function normalizeList(result) {
@@ -56,15 +62,28 @@ const TABS = [
 const Profile = () => {
   const navigate = useNavigate()
   const { logout, user: authUser } = useAuth()
+  const { alert: modalAlert, confirm: modalConfirm } = useGlobalModal()
   const [activeTab, setActiveTab] = useState('overview')
   const [user, setUser] = useState(null)
   const [bookings, setBookings] = useState([])
   const [payments, setPayments] = useState([])
   const [complaints, setComplaints] = useState([])
+  const [kostList, setKostList] = useState([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
   const [syncingId, setSyncingId] = useState(null)
   const [isBantuanModalOpen, setIsBantuanModalOpen] = useState(false)
+  
+  // Keluhan Modal State
+  const [isKeluhanModalOpen, setIsKeluhanModalOpen] = useState(false)
+  const [keluhanForm, setKeluhanForm] = useState({
+    kost_id: '',
+    kost_nama: '',
+    kategori: 'Umum',
+    judul: '',
+    deskripsi: ''
+  })
+  const [isSubmittingKeluhan, setIsSubmittingKeluhan] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -78,9 +97,10 @@ const Profile = () => {
       api.get('/booking'),
       api.get('/pembayaran'),
       api.get('/keluhan'),
+      api.get('/kost'),
     ])
 
-    const [meRes, bookingRes, payRes, keluhanRes] = results
+    const [meRes, bookingRes, payRes, keluhanRes, kostRes] = results
 
     if (meRes.status === 'fulfilled' && meRes.value?.data?.user) {
       setUser(meRes.value.data.user)
@@ -95,6 +115,16 @@ const Profile = () => {
     setBookings(normalizeList(bookingRes))
     setPayments(normalizeList(payRes))
     setComplaints(normalizeList(keluhanRes))
+    
+    // Set kost list from API or bookings
+    if (kostRes.status === 'fulfilled' && kostRes.value?.data) {
+      const kostData = Array.isArray(kostRes.value.data) ? kostRes.value.data : kostRes.value.data.data || []
+      setKostList(kostData)
+    } else {
+      // Fallback: extract unique kosts from bookings
+      const uniqueKosts = [...new Map(bookings.map(b => [b.kost?.id, b.kost]).filter(([id, kost]) => id && kost)).values()]
+      setKostList(uniqueKosts)
+    }
 
     const parts = []
     if (bookingRes.status === 'rejected') {
@@ -119,12 +149,76 @@ const Profile = () => {
 
     setLoading(false)
   }
+  
+  const openKeluhanModal = () => {
+    // Auto-detect kost from active booking
+    const activeBooking = bookings.find(b => 
+      b.status === 'aktif' || b.status === 'confirmed' || b.status === 'paid' || b.status === 'lunas'
+    )
+    
+    if (activeBooking && activeBooking.kost) {
+      setKeluhanForm({
+        kost_id: activeBooking.kost.id || '',
+        kost_nama: activeBooking.kost.nama_kost || activeBooking.kost.nama || 'Kost Anda',
+        kategori: 'Umum',
+        judul: '',
+        deskripsi: ''
+      })
+    } else {
+      // Fallback: try to get from first booking
+      const firstBooking = bookings[0]
+      if (firstBooking && firstBooking.kost) {
+        setKeluhanForm({
+          kost_id: firstBooking.kost.id || '',
+          kost_nama: firstBooking.kost.nama_kost || firstBooking.kost.nama || 'Kost Anda',
+          kategori: 'Umum',
+          judul: '',
+          deskripsi: ''
+        })
+      } else {
+        modalAlert('Anda tidak memiliki booking aktif. Silakan booking kost terlebih dahulu.', 'warning')
+        return
+      }
+    }
+    
+    setIsKeluhanModalOpen(true)
+  }
+
+  const handleSubmitKeluhan = async (e) => {
+    e.preventDefault()
+    if (!keluhanForm.kost_id || !keluhanForm.judul || !keluhanForm.deskripsi) {
+      modalAlert('Harap isi semua field yang wajib diisi', 'warning')
+      return
+    }
+    
+    setIsSubmittingKeluhan(true)
+    try {
+      const response = await api.post('/keluhan', {
+        kost_id: keluhanForm.kost_id,
+        kategori: keluhanForm.kategori,
+        judul: keluhanForm.judul,
+        deskripsi: keluhanForm.deskripsi
+      })
+      
+      modalAlert('Keluhan berhasil dikirim!', 'success')
+      setIsKeluhanModalOpen(false)
+      setKeluhanForm({ kost_id: '', kategori: 'Umum', judul: '', deskripsi: '' })
+      
+      // Refresh complaints list
+      await fetchData()
+    } catch (err) {
+      console.error('Submit keluhan error:', err)
+      modalAlert(err.response?.data?.message || 'Gagal mengirim keluhan. Silakan coba lagi.', 'error')
+    } finally {
+      setIsSubmittingKeluhan(false)
+    }
+  }
 
   const handleLogout = async () => {
-    if (window.confirm('Apakah Anda yakin ingin keluar?')) {
+    modalConfirm('Apakah Anda yakin ingin keluar?', async () => {
       await logout()
       navigate('/')
-    }
+    })
   }
 
   const handleSyncPayment = async (orderId) => {
@@ -134,13 +228,96 @@ const Profile = () => {
       const res = await api.post('/pembayaran/sync-status', { order_id: orderId })
       // Jika berhasil, refresh data
       await fetchData()
-      alert(res.data.message || 'Status pembayaran berhasil diperbarui.')
+      modalAlert(res.data.message || 'Status pembayaran berhasil diperbarui.', 'success')
     } catch (err) {
       console.error('Sync error:', err)
       const msg = err.response?.data?.message || 'Gagal sinkronisasi. Pastikan Anda sudah membayar atau coba lagi nanti.'
-      alert(msg)
+      modalAlert(msg, 'error')
     } finally {
       setSyncingId(null)
+    }
+  }
+
+  const handleViewInvoice = async (pembayaranId) => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    const token = localStorage.getItem('token')
+    
+    if (!token) {
+      alert('Silakan login terlebih dahulu')
+      return
+    }
+    
+    try {
+      const response = await fetch(`${apiUrl}/api/invoice/${pembayaranId}/preview`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'text/html'
+        }
+      })
+      
+      if (response.status === 401) {
+        alert('Sesi login habis, silakan login kembali')
+        localStorage.removeItem('token')
+        window.location.href = '/#/login'
+        return
+      }
+      
+      if (!response.ok) {
+        const error = await response.json()
+        alert(error.message || 'Gagal membuka invoice')
+        return
+      }
+      
+      const html = await response.text()
+      const blob = new Blob([html], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank')
+    } catch (error) {
+      alert('Terjadi kesalahan saat membuka invoice')
+    }
+  }
+
+  const handleDownloadInvoice = async (pembayaranId) => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    const token = localStorage.getItem('token')
+    
+    if (!token) {
+      alert('Silakan login terlebih dahulu')
+      return
+    }
+    
+    try {
+      const response = await fetch(`${apiUrl}/api/invoice/${pembayaranId}/download`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/pdf'
+        }
+      })
+      
+      if (response.status === 401) {
+        alert('Sesi login habis, silakan login kembali')
+        localStorage.removeItem('token')
+        window.location.href = '/#/login'
+        return
+      }
+      
+      if (!response.ok) {
+        const error = await response.json()
+        alert(error.message || 'Gagal mengunduh invoice')
+        return
+      }
+      
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `INV-${pembayaranId}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      alert('Terjadi kesalahan saat mengunduh invoice')
     }
   }
 
@@ -152,11 +329,13 @@ const Profile = () => {
           bookings={bookings}
           payments={payments}
           complaints={complaints}
+          kostList={kostList}
           onSelectTab={setActiveTab}
+          onOpenKeluhanModal={openKeluhanModal}
         />
       )
       case 'bookings': return <BookingsTab bookings={bookings} onSync={handleSyncPayment} syncingId={syncingId} />
-      case 'payments': return <PaymentsTab payments={payments} onSync={handleSyncPayment} syncingId={syncingId} />
+      case 'payments': return <PaymentsTab payments={payments} onSync={handleSyncPayment} syncingId={syncingId} onViewInvoice={handleViewInvoice} onDownloadInvoice={handleDownloadInvoice} />
       case 'complaints': return <ComplaintsTab complaints={complaints} />
       case 'settings': return <SettingsTab user={user} />
       default:
@@ -166,7 +345,9 @@ const Profile = () => {
             bookings={bookings}
             payments={payments}
             complaints={complaints}
+            kostList={kostList}
             onSelectTab={setActiveTab}
+            onOpenKeluhanModal={openKeluhanModal}
           />
         )
     }
@@ -261,8 +442,8 @@ const Profile = () => {
                   <button
                     type="button"
                     className="btn-ghost"
-                    style={{ fontSize: '0.8125rem' }}
                     onClick={() => fetchData()}
+                    style={{ fontSize: '0.8125rem' }}
                   >
                     Coba lagi
                   </button>
@@ -334,6 +515,123 @@ const Profile = () => {
              </div>
           </div>
         )}
+        {/* Modal Keluhan */}
+        {isKeluhanModalOpen && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', padding: '1.5rem' }}>
+            <div style={{ backgroundColor: 'white', borderRadius: '24px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)', position: 'relative', padding: '2rem' }}>
+              <button 
+                onClick={() => setIsKeluhanModalOpen(false)} 
+                style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'transparent', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', cursor: 'pointer' }} 
+              >
+                <X size={20} />
+              </button>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>Buat Keluhan</h2>
+                <p style={{ margin: '0.5rem 0 0', color: '#64748b', fontSize: '0.9375rem' }}>Sampaikan keluhan Anda mengenai hunian</p>
+              </div>
+
+              <form onSubmit={handleSubmitKeluhan}>
+                {/* Kost Auto-Detected */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>
+                    Kost <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <div
+                    style={{ 
+                      width: '100%', 
+                      padding: '0.75rem 1rem', 
+                      borderRadius: '12px', 
+                      border: '1px solid #10b981', 
+                      fontSize: '0.9375rem', 
+                      background: '#ecfdf5',
+                      color: '#047857',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                      <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    {keluhanForm.kost_nama}
+                  </div>
+                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: '#6b7280' }}>
+                    Terdeteksi otomatis dari booking aktif Anda
+                  </p>
+                </div>
+
+                {/* Kategori */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>
+                    Kategori <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <select
+                    value={keluhanForm.kategori}
+                    onChange={(e) => setKeluhanForm({...keluhanForm, kategori: e.target.value})}
+                    style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: '0.9375rem', background: '#fff' }}
+                  >
+                    <option value="Umum">Umum</option>
+                    <option value="Fasilitas">Fasilitas</option>
+                    <option value="Kebersihan">Kebersihan</option>
+                    <option value="Keamanan">Keamanan</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
+
+                {/* Judul */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>
+                    Judul Keluhan <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={keluhanForm.judul}
+                    onChange={(e) => setKeluhanForm({...keluhanForm, judul: e.target.value})}
+                    placeholder="Contoh: AC tidak dingin"
+                    required
+                    style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: '0.9375rem' }}
+                  />
+                </div>
+
+                {/* Deskripsi */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>
+                    Deskripsi <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <textarea
+                    value={keluhanForm.deskripsi}
+                    onChange={(e) => setKeluhanForm({...keluhanForm, deskripsi: e.target.value})}
+                    placeholder="Jelaskan detail keluhan Anda..."
+                    required
+                    rows={4}
+                    style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: '0.9375rem', resize: 'vertical' }}
+                  />
+                </div>
+
+                {/* Buttons */}
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsKeluhanModalOpen(false)}
+                    style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingKeluhan}
+                    style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', border: 'none', background: '#15803d', color: '#fff', fontWeight: 600, cursor: isSubmittingKeluhan ? 'not-allowed' : 'pointer', opacity: isSubmittingKeluhan ? 0.7 : 1 }}
+                  >
+                    {isSubmittingKeluhan ? 'Mengirim...' : 'Kirim Keluhan'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )
@@ -341,77 +639,190 @@ const Profile = () => {
 
 /* ─── Tabs Components ─── */
 
-const OverviewTab = ({ user, bookings, payments, complaints, onSelectTab }) => {
+const OverviewTab = ({ user, bookings, payments, complaints, kostList, onSelectTab, onOpenKeluhanModal }) => {
   const initial = (user?.name || user?.email || 'U').charAt(0).toUpperCase()
   const roleLabel = formatRoleLabel(user)
+  const rolePlain = formatRolePlain(user)
+  
+  // Get active hunian from bookings
+  const activeBooking = bookings?.find(b => b.status === 'confirmed' || b.status === 'aktif')
+  const kostFoto = activeBooking?.kost?.foto || activeBooking?.kost?.foto_url || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'
+  const kostNama = activeBooking?.kost?.nama_kost || activeBooking?.kost?.nama || 'Belum ada hunian'
+  const kostAlamat = activeBooking?.kost?.alamat || 'Anda belum memiliki hunian aktif'
+  
+  const bookingCount = bookings?.length || 0
+  const paidCount = bookings?.filter(b => b.status === 'paid' || b.status === 'confirmed').length || 0
+  
   return (
-    <>
-      <div className="profile-hero">
-        <div className="profile-hero-main">
-          <div className="profile-avatar-large">{initial}</div>
-          <div className="profile-hero-text">
-            <h1>{user?.name || 'Pengguna'}</h1>
-            <p className="profile-email">{user?.email}</p>
-            <span className="profile-role-pill">{roleLabel}</span>
+    <div className="profile-knack-layout">
+      {/* LEFT COLUMN - Profile Card + Menu */}
+      <div className="pk-left">
+        {/* Profile Card */}
+        <div className="pk-card pk-profile-card">
+          <div className="pk-avatar-wrap">
+            <div className="pk-avatar">{initial}</div>
+          </div>
+          <h3 className="pk-name">{user?.name || 'Pengguna'}</h3>
+          <span className="pk-role">{roleLabel}</span>
+          <p className="pk-email">{user?.email}</p>
+          <button className="pk-btn-primary" onClick={() => onSelectTab?.('settings')}>
+            <Edit3 size={16} />
+            Edit Profil
+          </button>
+        </div>
+        
+        {/* Menu Sidebar */}
+        <div className="pk-card pk-menu-card">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              className={`pk-menu-item ${tab.id === 'overview' ? 'pk-menu-item--active' : ''}`}
+              onClick={() => onSelectTab?.(tab.id)}
+            >
+              <tab.icon size={18} />
+              <span>{tab.label}</span>
+              {tab.id === 'overview' && <div className="pk-menu-dot" />}
+            </button>
+          ))}
+        </div>
+        
+        {/* Logout */}
+        <button className="pk-btn-logout">
+          <LogOut size={18} />
+          Keluar
+        </button>
+      </div>
+      
+      {/* CENTER COLUMN - Kost + Keluhan */}
+      <div className="pk-center">
+        {/* Kost Card */}
+        <div className="pk-card pk-kost-card">
+          <div className="pk-kost-header">
+            <Home size={18} />
+            <span>Hunian Saat Ini</span>
+          </div>
+          <div className="pk-kost-image-wrap">
+            <img src={kostFoto} alt="Kost" className="pk-kost-image" />
+          </div>
+          {activeBooking && (
+            <div className="pk-kost-info">
+              <div className="pk-kost-title-row">
+                <h4 className="pk-kost-name">{kostNama}</h4>
+                <span className="pk-status-badge">{activeBooking.status?.toUpperCase() || 'AKTIF'}</span>
+              </div>
+              <div className="pk-kost-address">
+                <span className="pk-location-icon">📍</span>
+                {kostAlamat}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Keluhan Section */}
+        <div className="pk-card pk-keluhan-card">
+          <div className="pk-keluhan-header">
+            <div className="pk-section-title">
+              <MessageSquare size={18} />
+              <span>Keluhan Saya</span>
+            </div>
+            <button className="pk-btn-link" onClick={onOpenKeluhanModal}>
+              <Plus size={14} />
+              Buat Keluhan
+            </button>
+          </div>
+          
+          {complaints?.length === 0 ? (
+            <div className="pk-empty-state">
+              <div className="pk-empty-icon">✓</div>
+              <p>Anda tidak pernah memberikan keluhan</p>
+            </div>
+          ) : (
+            <div className="pk-keluhan-list">
+              {complaints.slice(0, 3).map(k => (
+                <div key={k.id} className="pk-keluhan-item">
+                  <div className="pk-keluhan-row">
+                    <span className={`pk-kategori-badge pk-kategori--${(k.kategori || 'umum').toLowerCase()}`}>
+                      {k.kategori || 'Umum'}
+                    </span>
+                    <StatusBadge status={k.status} />
+                  </div>
+                  <h5 className="pk-keluhan-title">{k.judul || `Keluhan #${k.id}`}</h5>
+                  <p className="pk-keluhan-text">{k.isi || k.keterangan || '-'}</p>
+                </div>
+              ))}
+              {complaints.length > 3 && (
+                <button className="pk-btn-viewall" onClick={() => onSelectTab?.('complaints')}>
+                  Lihat Semua Keluhan
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* RIGHT COLUMN - Stats + Info */}
+      <div className="pk-right">
+        {/* Stats Card */}
+        <div className="pk-card pk-stats-card">
+          <div className="pk-section-title">
+            <span>Statistik</span>
+          </div>
+          <div className="pk-stats-grid">
+            <div className="pk-stat-box pk-stat--green">
+              <div className="pk-stat-icon"><Receipt size={20} /></div>
+              <div className="pk-stat-value">{bookingCount}</div>
+              <div className="pk-stat-label">Total Booking</div>
+            </div>
+            <div className="pk-stat-box pk-stat--purple">
+              <div className="pk-stat-icon"><CheckCircle size={20} /></div>
+              <div className="pk-stat-value">{paidCount}</div>
+              <div className="pk-stat-label">Selesai</div>
+            </div>
           </div>
         </div>
-        <div className="profile-hero-stats" aria-label="Ringkasan aktivitas">
-          <div className="profile-stat-unit">
-            <span className="profile-stat-value">{bookings?.length || 0}</span>
-            <span className="profile-stat-label">Booking</span>
+        
+        {/* Personal Info Card */}
+        <div className="pk-card pk-info-card">
+          <div className="pk-section-title">
+            <User size={18} />
+            <span>Informasi Pribadi</span>
           </div>
-          <div className="profile-stat-unit">
-            <span className="profile-stat-value">{payments?.length || 0}</span>
-            <span className="profile-stat-label">Transaksi</span>
-          </div>
-          <div className="profile-stat-unit">
-            <span className="profile-stat-value">{complaints?.length || 0}</span>
-            <span className="profile-stat-label">Keluhan</span>
+          <div className="pk-info-list">
+            <div className="pk-info-row">
+              <Mail size={16} />
+              <div>
+                <label>Email</label>
+                <span>{user?.email || '-'}</span>
+              </div>
+            </div>
+            <div className="pk-info-row">
+              <Phone size={16} />
+              <div>
+                <label>Telepon</label>
+                <span>{user?.phone || '-'}</span>
+              </div>
+            </div>
+            <div className="pk-info-row">
+              <Calendar size={16} />
+              <div>
+                <label>Bergabung</label>
+                <span>{user?.created_at ? new Date(user.created_at).toLocaleDateString('id-ID') : '-'}</span>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="profile-hero-actions">
-          <button type="button" className="btn-primary" onClick={() => onSelectTab?.('settings')}>
-            <Edit3 size={16} strokeWidth={2} />
-            Pengaturan
+        
+        {/* Quick Actions */}
+        <div className="pk-card pk-quick-card">
+          <div className="pk-section-title">Aksi Cepat</div>
+          <button className="pk-quick-item" onClick={() => onSelectTab?.('settings')}>
+            <Lock size={18} />
+            <span>Ubah Password</span>
+            <ChevronRight size={16} />
           </button>
         </div>
       </div>
-
-      <div className="profile-grid">
-        <div className="profile-card">
-          <div className="section-header">
-            <h2 className="section-title">Informasi pribadi</h2>
-          </div>
-          <div className="info-group">
-            <InfoItem icon={Mail} label="Email" value={user?.email} />
-            <InfoItem icon={Phone} label="Nomor HP" value={user?.phone || '-'} />
-            <InfoItem icon={IdCard} label="NIK" value={user?.nik || '-'} />
-            <InfoItem icon={User} label="Role" value={formatRolePlain(user)} />
-          </div>
-        </div>
-
-        <div className="profile-card">
-          <div className="section-header">
-            <h2 className="section-title">Booking terbaru</h2>
-            <button type="button" className="section-link" onClick={() => onSelectTab?.('bookings')}>
-              Lihat semua
-            </button>
-          </div>
-          <div className="data-list">
-            {bookings?.length > 0 ? bookings.slice(0, 2).map(b => (
-              <div key={b.id} className="data-item">
-                <div className="data-icon-box"><Calendar size={20} /></div>
-                <div className="data-detail">
-                  <div className="data-title">{b.kost?.nama_kost || 'Kost MyKost'}</div>
-                  <div className="data-subtitle">{new Date(b.tanggal_mulai).toLocaleDateString()}</div>
-                </div>
-                <StatusBadge status={b.status} />
-              </div>
-            )) : <p className="profile-empty">Belum ada booking.</p>}
-          </div>
-        </div>
-      </div>
-    </>
+    </div>
   )
 }
 
@@ -465,7 +876,7 @@ const BookingsTab = ({ bookings, onSync, syncingId }) => (
   </div>
 )
 
-const PaymentsTab = ({ payments, onSync, syncingId }) => (
+const PaymentsTab = ({ payments, onSync, syncingId, onViewInvoice, onDownloadInvoice }) => (
   <div className="profile-card profile-card--wide">
     <div className="section-header">
       <h2 className="section-title">Riwayat pembayaran</h2>
@@ -496,6 +907,26 @@ const PaymentsTab = ({ payments, onSync, syncingId }) => (
                       disabled={syncingId === p.nomor_referensi}
                     >
                       {syncingId === p.nomor_referensi ? '...' : 'Cek Status'}
+                    </button>
+                  </div>
+                )}
+                {(p.status === 'lunas' || p.status === 'Lunas') && (
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button 
+                      className="btn-ghost" 
+                      style={{ fontSize: '10px', padding: '4px 6px', height: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      onClick={() => onViewInvoice(p.id)}
+                    >
+                      <FileText size={12} />
+                      Lihat
+                    </button>
+                    <button 
+                      className="btn-ghost" 
+                      style={{ fontSize: '10px', padding: '4px 6px', height: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      onClick={() => onDownloadInvoice(p.id)}
+                    >
+                      <Download size={12} />
+                      PDF
                     </button>
                   </div>
                 )}

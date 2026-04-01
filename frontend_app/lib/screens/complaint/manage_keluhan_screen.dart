@@ -3,14 +3,14 @@ import 'package:frontend_app/utils/colors.dart';
 import 'package:frontend_app/api/api_service.dart';
 import 'package:intl/intl.dart';
 
-class ListKeluhanScreen extends StatefulWidget {
-  const ListKeluhanScreen({super.key});
+class ManageKeluhanScreen extends StatefulWidget {
+  const ManageKeluhanScreen({super.key});
 
   @override
-  State<ListKeluhanScreen> createState() => _ListKeluhanScreenState();
+  State<ManageKeluhanScreen> createState() => _ManageKeluhanScreenState();
 }
 
-class _ListKeluhanScreenState extends State<ListKeluhanScreen> {
+class _ManageKeluhanScreenState extends State<ManageKeluhanScreen> {
   List<dynamic> _listKeluhan = [];
   bool _isLoading = true;
   String? _error;
@@ -29,7 +29,6 @@ class _ListKeluhanScreenState extends State<ListKeluhanScreen> {
 
     try {
       final response = await ApiService.getKeluhan();
-      // Backend typically returns { data: [...] } or just the list
       final data = response['data'] ?? response;
       
       setState(() {
@@ -38,12 +37,7 @@ class _ListKeluhanScreenState extends State<ListKeluhanScreen> {
       });
     } catch (e) {
       setState(() {
-        if (e.toString().contains('DATA_KARYAWAN_NOT_FOUND')) {
-          _listKeluhan = [];
-          _error = null;
-        } else {
-          _error = e.toString();
-        }
+        _error = e.toString();
         _isLoading = false;
       });
     }
@@ -62,17 +56,117 @@ class _ListKeluhanScreenState extends State<ListKeluhanScreen> {
   Color _getStatusColor(String? status) {
     switch (status?.toLowerCase()) {
       case 'open':
-      case 'pending':
         return Colors.orange;
-      case 'proses':
       case 'diproses':
         return Colors.blue;
       case 'selesai':
-      case 'closed':
         return Colors.green;
       default:
         return Colors.grey;
     }
+  }
+
+  void _showResponseDialog(dynamic keluhan) {
+    final responController = TextEditingController();
+    String selectedStatus = 'diproses';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text("Respon Keluhan"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Judul: ${keluhan['judul'] ?? ''}",
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Kategori: ${keluhan['kategori'] ?? ''}",
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Status:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: selectedStatus,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'diproses', child: Text('Diproses')),
+                  DropdownMenuItem(value: 'selesai', child: Text('Selesai')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    selectedStatus = value!;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Respon:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: responController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: "Tulis respon Anda...",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Batal"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (responController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Harap isi respon")),
+                  );
+                  return;
+                }
+
+                try {
+                  await ApiService.responKeluhan(keluhan['id'], {
+                    'respon': responController.text,
+                    'status': selectedStatus,
+                  });
+
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Respon berhasil dikirim")),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Gagal mengirim respon: ${e.toString()}")),
+                  );
+                }
+              },
+              child: const Text("Kirim"),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -81,7 +175,7 @@ class _ListKeluhanScreenState extends State<ListKeluhanScreen> {
       backgroundColor: AppColors.surface,
       appBar: AppBar(
         title: const Text(
-          "Keluhan Saya",
+          "Keluhan Masuk",
           style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
@@ -102,7 +196,8 @@ class _ListKeluhanScreenState extends State<ListKeluhanScreen> {
                         itemBuilder: (context, index) {
                           final item = _listKeluhan[index];
                           final kost = item['kost'] ?? {};
-                          final status = item['status'] ?? 'Pending';
+                          final user = item['user'] ?? {};
+                          final status = item['status'] ?? 'open';
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -136,9 +231,19 @@ class _ListKeluhanScreenState extends State<ListKeluhanScreen> {
                                   item['judul'] ?? "Tanpa Judul",
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                 ),
-                                subtitle: Text(
-                                  "${item['kategori'] ?? 'Kategori'} • ${_formatDate(item['created_at'])}",
-                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "${item['kategori'] ?? 'Kategori'} • ${_formatDate(item['created_at'])}",
+                                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                    ),
+                                    if (user['name'] != null)
+                                      Text(
+                                        "Oleh: ${user['name']}",
+                                        style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                                      ),
+                                  ],
                                 ),
                                 trailing: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -177,7 +282,7 @@ class _ListKeluhanScreenState extends State<ListKeluhanScreen> {
                                           const SizedBox(height: 12),
                                         ],
                                         const Text(
-                                          "Deskripsi:",
+                                          "Keluhan:",
                                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
                                         ),
                                         const SizedBox(height: 4),
@@ -190,16 +295,16 @@ class _ListKeluhanScreenState extends State<ListKeluhanScreen> {
                                           Container(
                                             padding: const EdgeInsets.all(12),
                                             decoration: BoxDecoration(
-                                              color: Colors.grey.shade50,
+                                              color: Colors.green.shade50,
                                               borderRadius: BorderRadius.circular(12),
-                                              border: Border.all(color: Colors.grey.shade200),
+                                              border: Border.all(color: Colors.green.shade200),
                                             ),
                                             child: Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
                                                 const Text(
-                                                  "Tanggapan Pengelola:",
-                                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                                  "Respon Anda:",
+                                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
@@ -210,6 +315,19 @@ class _ListKeluhanScreenState extends State<ListKeluhanScreen> {
                                             ),
                                           ),
                                         ],
+                                        const SizedBox(height: 16),
+                                        if (status != 'selesai')
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: ElevatedButton(
+                                              onPressed: () => _showResponseDialog(item),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: AppColors.primary,
+                                                foregroundColor: Colors.white,
+                                              ),
+                                              child: const Text("Berikan Respon"),
+                                            ),
+                                          ),
                                       ],
                                     ),
                                   ),
@@ -228,15 +346,15 @@ class _ListKeluhanScreenState extends State<ListKeluhanScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.assignment_turned_in_outlined, size: 64, color: Colors.grey.shade300),
+          Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           const Text(
-            "Belum ada keluhan yang kirim",
+            "Belum ada keluhan masuk",
             style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           const Text(
-            "Keluhan yang Anda kirim akan muncul di sini",
+            "Keluhan dari pengguna akan muncul di sini",
             style: TextStyle(color: Colors.grey, fontSize: 12),
           ),
         ],

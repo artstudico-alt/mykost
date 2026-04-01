@@ -14,87 +14,94 @@ import AdminUsers from './pages/AdminUsers'
 import AdminPembayaran from './pages/AdminPembayaran'
 import AdminTracking from './pages/AdminTracking'
 import AdminLaporan from './pages/AdminLaporan'
+import AdminKeluhan from './pages/AdminKeluhan'
 import AdminLayout from './components/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import HRDashboard from './pages/HRDashboard'
 import OwnerDashboard from './pages/OwnerDashboard'
+import OwnerKeluhan from './pages/OwnerKeluhan'
 import Profile from './pages/Profile'
 import PaymentReturn from './pages/PaymentReturn'
 
 import { AuthProvider } from './context/AuthContext'
+import { ModalProvider } from './context/ModalContext'
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="min-h-screen">
-          <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/cari" element={<CariKost />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/kost/:kostId" element={<KostDetail />} />
+      <ModalProvider>
+        <Router>
+          <div className="min-h-screen">
+            <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/cari" element={<CariKost />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/kost/:kostId" element={<KostDetail />} />
 
-          {/* Super Admin Routes */}
-          <Route path="/admin" element={
-            <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
-              <AdminLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="kost" element={<AdminKost />} />
-            <Route path="karyawan" element={<AdminUsers />} />
-            <Route path="tracking" element={<AdminTracking />} />
-            <Route path="pembayaran" element={<AdminPembayaran />} />
-            <Route path="laporan" element={<AdminLaporan />} />
-          </Route>
-
-          {/* HR Routes */}
-          <Route path="/hr" element={
-            <ProtectedRoute allowedRoles={['hr']}>
-              <AdminLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<Navigate to="/hr/dashboard" replace />} />
-            <Route path="dashboard" element={<HRDashboard />} />
-            <Route path="karyawan" element={<AdminUsers />} />
-            <Route path="tracking" element={<AdminTracking />} />
-            <Route path="laporan" element={<AdminLaporan />} />
-          </Route>
-
-          {/* Owner Routes */}
-          <Route path="/owner" element={
-            <ProtectedRoute allowedRoles={['pemilik_kost']}>
-              <AdminLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<Navigate to="/owner/dashboard" replace />} />
-            <Route path="dashboard" element={<OwnerDashboard />} />
-            <Route path="kost" element={<AdminKost />} />
-            <Route path="pembayaran" element={<AdminPembayaran />} />
-          </Route>
-
-          {/* User / Fallback Routes */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <DashboardNavigator />
-            </ProtectedRoute>
-          } />
-          <Route path="/penyewa" element={<ProtectedRoute><Penyewa /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route
-            path="/pembayaran/:step"
-            element={
-              <ProtectedRoute>
-                <PaymentReturn />
+            {/* Super Admin Routes */}
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
+                <AdminLayout />
               </ProtectedRoute>
-            }
-          />
-          </Routes>
-        </div>
-      </Router>
+            }>
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="kost" element={<AdminKost />} />
+              <Route path="karyawan" element={<AdminUsers />} />
+              <Route path="tracking" element={<AdminTracking />} />
+              <Route path="pembayaran" element={<AdminPembayaran />} />
+              <Route path="keluhan" element={<AdminKeluhan />} />
+              <Route path="laporan" element={<AdminLaporan />} />
+            </Route>
+
+            {/* HR Routes */}
+            <Route path="/hr" element={
+              <ProtectedRoute allowedRoles={['hr']}>
+                <AdminLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Navigate to="/hr/dashboard" replace />} />
+              <Route path="dashboard" element={<HRDashboard />} />
+              <Route path="karyawan" element={<AdminUsers />} />
+              <Route path="tracking" element={<AdminTracking />} />
+              <Route path="laporan" element={<AdminLaporan />} />
+            </Route>
+
+            {/* Owner Routes */}
+            <Route path="/owner" element={
+              <ProtectedRoute allowedRoles={['pemilik_kost']}>
+                <AdminLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Navigate to="/owner/dashboard" replace />} />
+              <Route path="dashboard" element={<OwnerDashboard />} />
+              <Route path="kost" element={<AdminKost />} />
+              <Route path="pembayaran" element={<AdminPembayaran />} />
+              <Route path="keluhan" element={<OwnerKeluhan />} />
+            </Route>
+
+            {/* User / Fallback Routes */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <DashboardNavigator />
+              </ProtectedRoute>
+            } />
+            <Route path="/penyewa" element={<ProtectedRoute><Penyewa /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route
+              path="/pembayaran/:step"
+              element={
+                <ProtectedRoute>
+                  <PaymentReturn />
+                </ProtectedRoute>
+              }
+            />
+            </Routes>
+          </div>
+        </Router>
+      </ModalProvider>
     </AuthProvider>
   )
 }

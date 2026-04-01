@@ -8,6 +8,7 @@ use App\Models\Karyawan;
 use App\Models\Pembayaran;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use App\Services\NotifikasiService;
 use Midtrans\Config;
 use Midtrans\Transaction;
 
@@ -109,21 +110,25 @@ class MidtransPaymentService
 
     public static function markPembayaranBerhasil(Pembayaran $pembayaran, string $metode): Pembayaran
     {
-        if ($pembayaran->status === 'berhasil') {
+        if ($pembayaran->status === 'lunas') {
             return $pembayaran;
         }
 
         $pembayaran->update([
-            'status'        => 'berhasil',
+            'status'        => 'lunas',
             'tanggal_bayar' => Carbon::now(),
             'metode'        => $metode,
         ]);
 
         $booking = $pembayaran->booking;
+        // Buat hunian dan kirim notifikasi
         if ($booking && in_array($booking->status, ['pending', 'confirmed'], true)) {
             $booking->update(['status' => 'aktif']);
 
+            // Cari karyawan berdasarkan user_id
             $karyawan = Karyawan::where('user_id', $booking->user_id)->first();
+
+            // Hanya buat hunian jika karyawan sudah terdaftar
             if ($karyawan && ! Hunian::where('booking_id', $booking->id)->exists()) {
                 Hunian::where('karyawan_id', $karyawan->id)
                     ->where('status', 'aktif')
@@ -138,6 +143,16 @@ class MidtransPaymentService
                     'status'         => 'aktif',
                     'is_verified'    => false,
                 ]);
+            }
+
+            // Kirim notifikasi ke pemilik kost
+            if ($booking->kost && $booking->kost->user_id) {
+                NotifikasiService::pembayaranLunas(
+                    $booking->kost->user_id,
+                    $booking->kost->nama_kost,
+                    $booking->user?->name ?? 'Penyewa',
+                    $pembayaran->jumlah
+                );
             }
         }
 

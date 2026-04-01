@@ -19,7 +19,10 @@ class PembayaranController extends Controller
         $user  = $request->user();
         $query = Pembayaran::with(['booking.user', 'booking.kost']);
 
-        if ($user->hasRole('karyawan')) {
+        // Super admin bisa lihat semua pembayaran
+        if ($user->hasRole('super_admin')) {
+            // Tidak ada filter, lihat semua
+        } elseif ($user->hasRole('karyawan')) {
             $query->whereHas('booking', fn ($q) => $q->where('user_id', $user->id));
         } elseif ($user->hasRole('pemilik_kost')) {
             $query->whereHas('booking.kost', fn ($q) => $q->where('user_id', $user->id));
@@ -30,6 +33,17 @@ class PembayaranController extends Controller
         }
 
         $pembayarans = $query->latest()->get();
+
+        // Sinkronkan status pembayaran dengan status booking
+        $pembayarans->each(function ($p) {
+            $bookingStatus = $p->booking?->status;
+            // Jika booking aktif, pembayaran harus lunas
+            if ($bookingStatus === 'aktif' && $p->status !== 'lunas') {
+                $p->status = 'lunas';
+                // Update database juga untuk konsistensi
+                Pembayaran::where('id', $p->id)->update(['status' => 'lunas']);
+            }
+        });
 
         $response = response()->json([
             'message' => 'Data pembayaran berhasil diambil',
@@ -225,11 +239,11 @@ class PembayaranController extends Controller
         }
 
         $request->validate([
-            'status'     => 'required|in:berhasil,gagal,refund',
+            'status'     => 'required|in:lunas,gagal,refund',
             'keterangan' => 'nullable|string',
         ]);
 
-        if ($request->status === 'berhasil') {
+        if ($request->status === 'lunas') {
             if ($request->filled('keterangan')) {
                 $pembayaran->update(['keterangan' => $request->keterangan]);
             }
@@ -249,16 +263,173 @@ class PembayaranController extends Controller
     }
 
     /**
-     * POST /api/pembayaran/webhook — notifikasi Midtrans (verifikasi tanda tangan + sinkron status API).
+     * GET /api/pembayaran/debug/{orderId} — debug status dari Midtrans
      */
+    public function debugStatus(Request $request, string $orderId)
+    {
+        $user = $request->user();
+        if (! $user->hasAnyRole(['super_admin', 'pemilik_kost', 'hr'])) {
+            return response()->json(['message' => 'Akses ditolak'], 403);
+        }
+
+        $pembayaran = Pembayaran::with('booking.kost')->where('nomor_referensi', $orderId)->first();
+
+        MidtransPaymentService::configure();
+
+        try {
+            $remote = \Midtrans\Transaction::status($orderId);
+            $remoteData = json_decode(json_encode($remote), true);
+        } catch (\Throwable $e) {
+            $remoteData = ['error' => $e->getMessage()];
+        }
+
+        return response()->json([
+            'local' => $pembayaran,
+            'midtrans' => $remoteData,
+            'server_key_configured' => !empty(config('midtrans.server_key')),
+            'is_production' => config('midtrans.is_production'),
+        ]);
+    }
+
+    /**
+     * POST /api/pembayaran/force-sync/{orderId} — force sync status (bisa buat baru)
+     */
+    public function forceSync(Request $request, string $orderId)
+    {
+        $user = $request->user();
+        if (! $user->hasAnyRole(['super_admin', 'hr', 'pemilik_kost'])) {
+            return response()->json(['message' => 'Akses ditolak'], 403);
+        }
+
+        $pembayaran = Pembayaran::where('nomor_referensi', $orderId)->first();
+
+        // Jika pembayaran tidak ada, coba ambil dari Midtrans dan buat baru
+        if (! $pembayaran) {
+            MidtransPaymentService::configure();
+            try {
+                $remote = \Midtrans\Transaction::status($orderId);
+                $tx = json_decode(json_encode($remote), true);
+
+                $amount = $tx['gross_amount'] ?? 0;
+                $customerEmail = $tx['customer_details']['email'] ?? null;
+                $paymentType = strtolower($tx['payment_type'] ?? 'transfer');
+                $transactionStatus = $tx['transaction_status'] ?? '';
+
+                // Cari user
+                $payUser = \App\Models\User::where('email', $customerEmail)->first();
+                if (! $payUser) {
+                    return response()->json([
+                        'message' => 'User tidak ditemukan untuk email: ' . $customerEmail,
+                        'order_id' => $orderId,
+                    ], 404);
+                }
+
+                // Buat booking dummy - selalu pakai kost_id 1 yang sudah ada
+                $booking = \App\Models\Booking::create([
+                    'user_id' => $payUser->id,
+                    'kost_id' => 1, // Selalu pakai kost ID 1 yang sudah ada
+                    'tanggal_mulai' => now(),
+                    'tanggal_selesai' => now()->addMonth(),
+                    'durasi_bulan' => 1,
+                    'harga_per_bulan' => $amount,
+                    'total' => $amount,
+                    'status' => in_array($transactionStatus, ['settlement', 'capture']) ? 'aktif' : 'pending',
+                    'catatan' => 'Dibuat otomatis dari force-sync: ' . $orderId,
+                ]);
+
+                // Buat pembayaran
+                $pembayaran = Pembayaran::create([
+                    'booking_id' => $booking->id,
+                    'jumlah' => $amount,
+                    'metode' => $paymentType,
+                    'nomor_referensi' => $orderId,
+                    'status' => in_array($transactionStatus, ['settlement', 'capture']) ? 'lunas' : 'pending',
+                    'keterangan' => 'Dibuat dari force-sync Midtrans',
+                    'tanggal_bayar' => in_array($transactionStatus, ['settlement', 'capture']) ? now() : null,
+                ]);
+
+                // Buat hunian langsung jika sudah settlement/capture dan karyawan sudah ada
+                $karyawan = \App\Models\Karyawan::where('user_id', $payUser->id)->first();
+                if ($karyawan && in_array($transactionStatus, ['settlement', 'capture']) && !\App\Models\Hunian::where('booking_id', $booking->id)->exists()) {
+                    // Selesaikan hunian aktif sebelumnya
+                    \App\Models\Hunian::where('karyawan_id', $karyawan->id)
+                        ->where('status', 'aktif')
+                        ->update(['status' => 'selesai', 'tanggal_keluar' => now()]);
+
+                    // Buat hunian baru
+                    \App\Models\Hunian::create([
+                        'karyawan_id' => $karyawan->id,
+                        'kost_id' => $booking->kost_id,
+                        'booking_id' => $booking->id,
+                        'tanggal_masuk' => $booking->tanggal_mulai,
+                        'tanggal_keluar' => $booking->tanggal_selesai,
+                        'status' => 'aktif',
+                        'is_verified' => false,
+                    ]);
+                }
+
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'message' => 'Gagal mengambil data dari Midtrans: ' . $e->getMessage(),
+                    'order_id' => $orderId,
+                ], 500);
+            }
+        }
+
+        $updated = MidtransPaymentService::syncOrderStatus($orderId);
+
+        if (! $updated) {
+            return response()->json([
+                'message' => 'Sinkronisasi gagal setelah membuat pembayaran.',
+                'order_id' => $orderId,
+            ], 500);
+        }
+
+        // Jika pembayaran sudah lunas tapi belum ada hunian, coba buat hunian
+        if ($updated->status === 'lunas') {
+            $booking = $updated->booking;
+            if ($booking) {
+                $payUser = \App\Models\User::find($booking->user_id);
+                if ($payUser) {
+                    $karyawan = \App\Models\Karyawan::where('user_id', $payUser->id)->first();
+                    if ($karyawan && !\App\Models\Hunian::where('booking_id', $booking->id)->exists()) {
+                        // Selesaikan hunian aktif sebelumnya
+                        \App\Models\Hunian::where('karyawan_id', $karyawan->id)
+                            ->where('status', 'aktif')
+                            ->update(['status' => 'selesai', 'tanggal_keluar' => now()]);
+
+                        // Buat hunian baru
+                        \App\Models\Hunian::create([
+                            'karyawan_id' => $karyawan->id,
+                            'kost_id' => $booking->kost_id,
+                            'booking_id' => $booking->id,
+                            'tanggal_masuk' => $booking->tanggal_mulai,
+                            'tanggal_keluar' => $booking->tanggal_selesai,
+                            'status' => 'aktif',
+                            'is_verified' => false,
+                        ]);
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'message' => 'Status berhasil disinkronkan',
+            'data' => $updated->load('booking'),
+        ]);
+    }
     public function webhook(Request $request)
     {
         $payload = $request->all();
 
+        Log::info('Midtrans webhook received', [
+            'payload' => $payload,
+            'headers' => $request->headers->all(),
+        ]);
+
         $orderId = $payload['order_id'] ?? null;
         if (! $orderId) {
             Log::warning('Midtrans webhook tanpa order_id');
-
             return response()->json(['message' => 'invalid payload'], 400);
         }
 
@@ -267,17 +438,113 @@ class PembayaranController extends Controller
         $grossAmount   = (string) ($payload['gross_amount'] ?? '');
         $signatureKey  = (string) ($payload['signature_key'] ?? '');
 
+        Log::info('Midtrans webhook signature check', [
+            'order_id' => $orderId,
+            'status_code' => $statusCode,
+            'gross_amount' => $grossAmount,
+            'signature_received' => $signatureKey,
+            'server_key_configured' => !empty($serverKey),
+        ]);
+
         $expectedSig = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
         if ($signatureKey === '' || ! hash_equals($expectedSig, $signatureKey)) {
-            Log::warning('Midtrans webhook signature tidak cocok', ['order_id' => $orderId]);
-
+            Log::warning('Midtrans webhook signature tidak cocok', [
+                'order_id' => $orderId,
+                'expected' => $expectedSig,
+                'received' => $signatureKey,
+            ]);
             return response()->json(['message' => 'invalid signature'], 403);
+        }
+
+        // Cek apakah pembayaran sudah ada
+        $pembayaran = Pembayaran::where('nomor_referensi', $orderId)->first();
+
+        if (! $pembayaran) {
+            // Pembayaran tidak ditemukan - buat baru dari data Midtrans
+            Log::info('Membuat pembayaran baru dari webhook Midtrans', ['order_id' => $orderId]);
+
+            // Extract data dari payload
+            $customerEmail = $payload['customer_details']['email'] ?? null;
+            $customerName = $payload['customer_details']['first_name'] ?? 'Unknown';
+            $itemName = $payload['item_details'][0]['name'] ?? 'Sewa Kost';
+            $amount = $payload['gross_amount'] ?? 0;
+
+            // Cari user berdasarkan email
+            $user = \App\Models\User::where('email', $customerEmail)->first();
+
+            if (! $user) {
+                Log::warning('User tidak ditemukan untuk email', ['email' => $customerEmail, 'order_id' => $orderId]);
+                return response()->json(['message' => 'user not found'], 404);
+            }
+
+            // Cari kost dari nama item atau buat dummy booking
+            $kostId = null;
+            if (str_starts_with($itemName, 'Sewa Kost: ')) {
+                $kostName = substr($itemName, 11);
+                $kost = \App\Models\Kost::where('nama_kost', $kostName)->first();
+                $kostId = $kost?->id;
+            }
+
+            // Buat booking jika belum ada
+            $booking = \App\Models\Booking::firstOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'kost_id' => $kostId ?? 1, // fallback ke kost ID 1
+                    'status' => 'pending',
+                ],
+                [
+                    'tanggal_mulai' => now(),
+                    'tanggal_selesai' => now()->addMonth(),
+                    'durasi_bulan' => 1,
+                    'harga_per_bulan' => $amount,
+                    'total' => $amount,
+                    'catatan' => 'Dibuat otomatis dari webhook Midtrans: ' . $orderId,
+                ]
+            );
+
+            // Buat pembayaran
+            $pembayaran = Pembayaran::create([
+                'booking_id' => $booking->id,
+                'jumlah' => $amount,
+                'metode' => strtolower($payload['payment_type'] ?? 'transfer'),
+                'nomor_referensi' => $orderId,
+                'status' => 'pending',
+                'keterangan' => 'Dibuat dari webhook Midtrans',
+            ]);
+
+            Log::info('Pembayaran baru dibuat', ['pembayaran_id' => $pembayaran->id, 'booking_id' => $booking->id]);
+
+            // Buat hunian langsung jika karyawan sudah ada
+            $karyawan = \App\Models\Karyawan::where('user_id', $user->id)->first();
+            if ($karyawan && !\App\Models\Hunian::where('booking_id', $booking->id)->exists()) {
+                // Selesaikan hunian aktif sebelumnya
+                \App\Models\Hunian::where('karyawan_id', $karyawan->id)
+                    ->where('status', 'aktif')
+                    ->update(['status' => 'selesai', 'tanggal_keluar' => now()]);
+
+                // Buat hunian baru
+                \App\Models\Hunian::create([
+                    'karyawan_id' => $karyawan->id,
+                    'kost_id' => $booking->kost_id,
+                    'booking_id' => $booking->id,
+                    'tanggal_masuk' => $booking->tanggal_mulai,
+                    'tanggal_keluar' => $booking->tanggal_selesai,
+                    'status' => 'aktif',
+                    'is_verified' => false,
+                ]);
+            }
         }
 
         $updated = MidtransPaymentService::syncOrderStatus($orderId);
 
         if (! $updated) {
             Log::error('Midtrans webhook: sync gagal', ['order_id' => $orderId]);
+        } else {
+            Log::info('Midtrans webhook: sync berhasil', [
+                'order_id' => $orderId,
+                'pembayaran_id' => $updated->id,
+                'status' => $updated->status,
+            ]);
         }
 
         return response()->json(['message' => 'ok']);
