@@ -73,9 +73,13 @@ function LandingPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await api.get('/landing-page')
+      const response = await api.get(`/landing-page?t=${Date.now()}`)
       if (response.data.success) {
-        setSettings(prev => ({ ...prev, ...response.data.data }))
+        console.log('CMS Settings Loaded:', response.data.data);
+        setSettings(prev => ({ 
+          ...prev, 
+          ...response.data.data 
+        }))
       }
     } catch (error) {
       console.error('Gagal mengambil settings:', error)

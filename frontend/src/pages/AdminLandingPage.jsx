@@ -14,6 +14,8 @@ const AdminLandingPage = () => {
     site_name: 'mykost',
     hero_title: 'Cari Kos-Kosan Online Terpercaya',
     hero_subtitle: 'Ribuan pilihan hunian nyaman, aman, dan terjangkau tersebar di seluruh Bogor dan Indonesia. Proses mudah, booking sekarang!',
+    hero_image: null,
+    logo: null,
     search_placeholder: 'Cari lokasi, stasiun, atau universitas...',
     recommendation_title: 'Rekomendasi kos terbaru',
     feature_1_title: '100% Terverifikasi',
@@ -30,7 +32,7 @@ const AdminLandingPage = () => {
 
   const fetchSettings = async () => {
     try {
-      const response = await api.get('/landing-page');
+      const response = await api.get(`/landing-page?t=${Date.now()}`);
       if (response.data.success) {
         // Merge defaults with fetched data
         setSettings({ ...DEFAULT_VALUES, ...response.data.data });
@@ -71,19 +73,30 @@ const AdminLandingPage = () => {
 
     const formData = new FormData();
     Object.keys(settings).forEach(key => {
-        formData.append(key, settings[key]);
+        const value = settings[key];
+        // Hanya append jika ada nilainya (bukan null/undefined) atau jika itu adalah file
+        if (value !== null && value !== undefined) {
+            formData.append(key, value);
+        }
     });
 
     try {
-      await api.post('/landing-page', formData, {
+      const response = await api.post('/landing-page', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      alert('Landing Page berhasil diperbarui!');
-      fetchSettings(); // Refresh to get the new URLs
-      setPreviews({}); // Clear previews
+      
+      if (response.data.success) {
+        alert('Landing Page berhasil diperbarui!');
+        // Update state directly from response to bypass GET cache
+        setSettings({ ...DEFAULT_VALUES, ...response.data.data });
+        setPreviews({}); // Clear previews
+      } else {
+        alert('Gagal: ' + (response.data.message || 'Terjadi kesalahan sistem.'));
+      }
     } catch (error) {
       console.error('Gagal menyimpan settings:', error);
-      alert('Gagal menyimpan perubahan.');
+      const errorMsg = error.response?.data?.message || error.message || 'Koneksi ke server terputus.';
+      alert('Gagal menyimpan perubahan: ' + errorMsg);
     } finally {
       setIsSubmitting(false);
     }
