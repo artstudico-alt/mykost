@@ -123,6 +123,7 @@ const AdminLayout = () => {
       { id: 'pembayaran_admin', label: 'Pembayaran', path: '/admin/pembayaran', icon: CheckSquare, roles: ['super_admin', 'admin'] },
       { id: 'keluhan_admin', label: 'Keluhan', path: '/admin/keluhan', icon: MessageSquare, roles: ['super_admin', 'admin'] },
       { id: 'laporan_admin', label: 'Laporan', path: '/admin/laporan', icon: BarChart3, roles: ['super_admin', 'admin'] },
+      { id: 'landing_page_admin', label: 'Landing Page', path: '/admin/landing-page', icon: LayoutDashboard, roles: ['super_admin'] },
       // HR — dedicated paths
       { id: 'dashboard_hr', label: 'Dashboard', path: '/hr/dashboard', icon: LayoutDashboard, roles: ['hr'] },
       { id: 'karyawan_hr', label: 'Data Karyawan', path: '/hr/karyawan', icon: Users, roles: ['hr'] },

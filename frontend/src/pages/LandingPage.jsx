@@ -28,14 +28,60 @@ L.Icon.Default.mergeOptions({
 // Component to handle map center changes
 function ChangeView({ center }) {
   const map = useMap();
-  map.setView(center);
+  useEffect(() => {
+    map.setView(center);
+  }, [center, map]);
   return null;
 }
 
 function LandingPage() {
   const [kostData, setKostData] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [settings, setSettings] = useState({
+    site_name: 'mykost',
+    hero_title: 'Cari Kos-Kosan Online Terpercaya',
+    hero_subtitle: 'Ribuan pilihan hunian nyaman, aman, dan terjangkau tersebar di seluruh Bogor dan Indonesia. Proses mudah, booking sekarang!',
+    search_placeholder: 'Cari lokasi, stasiun, atau universitas...',
+    recommendation_title: 'Rekomendasi kos terbaru',
+    feature_1_title: '100% Terverifikasi',
+    feature_1_desc: 'Properti kami diverifikasi langsung oleh tim lapangan untuk menjamin keaslian data.',
+    feature_2_title: 'Harga Transparan',
+    feature_2_desc: 'Tidak ada biaya tersembunyi. Semua harga ditampilkan secara jujur sesuai kontrak.',
+    feature_3_title: 'Proses Cepat',
+    feature_3_desc: 'Mulai dari pencarian hingga akad sewa, semuanya bisa dilakukan dalam satu aplikasi.'
+  })
   const [searchLocation, setSearchLocation] = useState('')
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    setIsLoading(true)
+    await Promise.all([fetchKosts(), fetchSettings()])
+    setIsLoading(false)
+  }
+
+  const fetchKosts = async () => {
+    try {
+      const response = await api.get('/kost')
+      setKostData(Array.isArray(response.data?.data) ? response.data.data : [])
+    } catch (error) {
+      console.error('Gagal mengambil data kost:', error)
+    }
+  }
+
+  const fetchSettings = async () => {
+    try {
+      const response = await api.get('/landing-page')
+      if (response.data.success) {
+        setSettings(prev => ({ ...prev, ...response.data.data }))
+      }
+    } catch (error) {
+      console.error('Gagal mengambil settings:', error)
+    }
+  }
+
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
   const [isCaraSewaModalOpen, setIsCaraSewaModalOpen] = useState(false)
   const [isBantuanModalOpen, setIsBantuanModalOpen] = useState(false)
@@ -52,36 +98,7 @@ function LandingPage() {
   const navigate = useNavigate()
   const { isAuthenticated, logout, user } = useAuth()
 
-  useEffect(() => {
-    fetchKosts()
-  }, [])
 
-  const fetchKosts = async () => {
-    try {
-      console.log('Fetching kost data...')
-      const response = await api.get('/kost')
-      console.log('Kost API response:', response)
-      console.log('Response data:', response.data)
-      
-      const kostArray = response.data?.data
-      console.log('Kost array:', kostArray)
-      console.log('Is array:', Array.isArray(kostArray))
-      
-      if (Array.isArray(kostArray)) {
-        setKostData(kostArray)
-        console.log('Kost data set:', kostArray.length, 'items')
-      } else {
-        console.warn('Kost data is not an array:', kostArray)
-        setKostData([])
-      }
-    } catch (error) {
-      console.error('Gagal mengambil data kost:', error)
-      console.error('Error response:', error.response)
-      console.error('Error message:', error.message)
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const userInitial = (user?.name || user?.email || localStorage.getItem('userEmail') || 'U').charAt(0).toUpperCase()
   const userDisplayName = user?.name || user?.email || localStorage.getItem('userEmail') || 'User'
@@ -270,11 +287,15 @@ function LandingPage() {
         <div className="container landing-header-main-inner">
           <div className="landing-brand" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
             <div className="landing-brand-mark">
-              <svg viewBox="0 0 24 24">
-                <path d="M4 12.2L12 5l8 7.2V20a1 1 0 0 1-1 1h-5v-5h-4v5H5a1 1 0 0 1-1-1z"></path>
-              </svg>
+              {settings.logo ? (
+                <img src={settings.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              ) : (
+                <svg viewBox="0 0 24 24">
+                  <path d="M4 12.2L12 5l8 7.2V20a1 1 0 0 1-1 1h-5v-5h-4v5H5a1 1 0 0 1-1-1z"></path>
+                </svg>
+              )}
             </div>
-            <span className="landing-brand-text">mykost</span>
+            <span className="landing-brand-text">{settings.site_name || 'mykost'}</span>
           </div>
 
           <nav className="landing-main-nav">
@@ -309,12 +330,10 @@ function LandingPage() {
         <div className="container">
           <div className="landing-hero-layout">
             <div className="landing-hero-content">
-              <h1 className="landing-title">
-                Cari Kos-Kosan <br />
-                <span className="landing-title-accent">Online Terpercaya</span>
+              <h1 className="landing-title" dangerouslySetInnerHTML={{ __html: (settings.hero_title || '').replace('Online Terpercaya', '<span class="landing-title-accent">Online Terpercaya</span>') }}>
               </h1>
               <p className="landing-subtitle">
-                Solusi hunian lengkap untuk karyawan dan profesional. Temukan kost nyaman & apartemen strategis dekat kantor Anda. Booking mudah, langsung masuk!
+                {settings.hero_subtitle}
               </p>
 
               <div className="landing-search-card">
@@ -328,7 +347,7 @@ function LandingPage() {
                       type="text"
                       value={searchLocation}
                       onChange={(e) => setSearchLocation(e.target.value)}
-                      placeholder="Cari lokasi, stasiun, atau universitas..."
+                      placeholder={settings.search_placeholder}
                     />
                   </div>
                   <button type="submit" className="landing-search-btn">
@@ -339,7 +358,7 @@ function LandingPage() {
             </div>
             <div className="landing-hero-visual">
               <img
-                src="/hero-kost-illustration.png"
+                src={settings.hero_image || "/hero-kost-illustration.png"}
                 alt="MyKost Illustration"
                 className="landing-hero-image"
               />
@@ -364,8 +383,8 @@ function LandingPage() {
                   <polyline points="22 4 12 14.01 9 11.01"></polyline>
                 </svg>
               </div>
-              <h3 className="landing-feature-title">100% Terverifikasi</h3>
-              <p className="landing-feature-desc">Properti kami diverifikasi langsung oleh tim lapangan untuk menjamin keaslian data.</p>
+              <h3 className="landing-feature-title">{settings.feature_1_title}</h3>
+              <p className="landing-feature-desc">{settings.feature_1_desc}</p>
             </article>
 
             <article className="landing-feature-card">
@@ -375,8 +394,8 @@ function LandingPage() {
                   <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                 </svg>
               </div>
-              <h3 className="landing-feature-title">Harga Transparan</h3>
-              <p className="landing-feature-desc">Tidak ada biaya tersembunyi. Semua harga ditampilkan secara jujur sesuai kontrak.</p>
+              <h3 className="landing-feature-title">{settings.feature_2_title}</h3>
+              <p className="landing-feature-desc">{settings.feature_2_desc}</p>
             </article>
 
             <article className="landing-feature-card">
@@ -386,8 +405,8 @@ function LandingPage() {
                   <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
               </div>
-              <h3 className="landing-feature-title">Proses Cepat</h3>
-              <p className="landing-feature-desc">Mulai dari pencarian hingga akad sewa, semuanya bisa dilakukan dalam satu aplikasi.</p>
+              <h3 className="landing-feature-title">{settings.feature_3_title}</h3>
+              <p className="landing-feature-desc">{settings.feature_3_desc}</p>
             </article>
           </div>
         </div>
@@ -397,8 +416,7 @@ function LandingPage() {
       <section className="recommend-kost-section">
         <div className="container">
           <div className="recommend-kost-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h2 className="recommend-kost-title">
-              Rekomendasi kos <span className="recommend-kost-title-accent">terbaru</span>
+            <h2 className="recommend-kost-title" dangerouslySetInnerHTML={{ __html: (settings.recommendation_title || '').replace('terbaru', '<span class="recommend-kost-title-accent">terbaru</span>') }}>
             </h2>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
@@ -512,7 +530,7 @@ function LandingPage() {
 
                     <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)', color: '#059669', padding: '6px 14px', borderRadius: '12px', fontWeight: 800, fontSize: '0.75rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
-                      {String(k.tipe).toUpperCase()}
+                      {String(k.tipe || 'Campur').toUpperCase()}
                     </div>
 
                     <div style={{ position: 'absolute', bottom: '16px', right: '16px', background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', color: 'white', padding: '6px 12px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -542,12 +560,12 @@ function LandingPage() {
                     <div style={{ height: '1px', background: '#f1f5f9', margin: '0 0 16px 0' }} />
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '24px', marginTop: 'auto' }}>
-                      {(k.fasilitas_umum || ['WiFi', 'Parkir', 'CCTV']).slice(0, 3).map((f, idx) => (
+                      {(Array.isArray(k.fasilitas_umum) ? k.fasilitas_umum : ['WiFi', 'Parkir', 'CCTV']).slice(0, 3).map((f, idx) => (
                         <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600 }}>
                           {f}
                         </div>
                       ))}
-                      {(k.fasilitas_umum?.length > 3) && (
+                      {(Array.isArray(k.fasilitas_umum) && k.fasilitas_umum.length > 3) && (
                         <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', padding: '4px 8px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700 }}>
                           +{k.fasilitas_umum.length - 3}
                         </div>
@@ -732,3 +750,4 @@ function LandingPage() {
 }
 
 export default LandingPage
+

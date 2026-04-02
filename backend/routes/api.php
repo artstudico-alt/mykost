@@ -14,6 +14,11 @@ use App\Http\Controllers\Api\KeluhanController;
 use App\Http\Controllers\Api\NotifikasiController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\UploadController;
+use App\Http\Controllers\Api\LandingPageController;
+
+Route::get('/landing-page', [LandingPageController::class, 'index']);
+Route::post('/landing-page', [LandingPageController::class, 'update'])
+    ->middleware(['auth:sanctum', 'role:super_admin']);
 
 use App\Http\Controllers\Api\InvoiceController;
 
