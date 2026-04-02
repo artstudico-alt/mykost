@@ -15,6 +15,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey _semuaKostKey = GlobalKey();
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String _userName = ApiService.currentUser?['name'] ?? 'Guest User';
   String _userEmail = ApiService.currentUser?['email'] ?? '';
 
@@ -162,6 +163,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 _searchQuery = value;
               });
             },
+            onSubmitted: (_) => _scrollToSearchResults(),
+            textInputAction: TextInputAction.search,
             decoration: InputDecoration(
               hintText: "Cari nama kost...",
               hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 16),
@@ -394,6 +397,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeBody(BuildContext context) {
     return SingleChildScrollView(
+      controller: _scrollController,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -424,6 +428,30 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  // ─── Scroll to search results ─────────────────────────────────────────────
+  void _scrollToSearchResults() {
+    if (_searchQuery.isNotEmpty && _semuaKostKey.currentContext != null) {
+      // Delay sedikit agar UI selesai build dengan hasil search yang baru
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (_semuaKostKey.currentContext != null && mounted) {
+          Scrollable.ensureVisible(
+            _semuaKostKey.currentContext!,
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeInOutCubic,
+            alignment: 0.1, // Sedikit padding di atas
+          );
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   // ─── Sort bottom sheet ────────────────────────────────────────────────────

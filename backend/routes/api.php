@@ -44,6 +44,119 @@ Route::get('/debug/kost', function () {
     ]);
 });
 
+// DEBUG: Check user permissions for kost creation
+Route::get('/debug/kost-permissions', function () {
+    $user = request()->user();
+    if (!$user) {
+        return response()->json(['message' => 'Not authenticated'], 401);
+    }
+
+    $user->load('role');
+    $kostCount = \App\Models\Kost::where('user_id', $user->id)->count();
+    $userKosts = \App\Models\Kost::where('user_id', $user->id)->get();
+
+    return response()->json([
+        'user_id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+        'role' => $user->role->name,
+        'can_create_kost' => $user->hasRole('pemilik_kost') || $user->hasRole('super_admin'),
+        'kost_count' => $kostCount,
+        'kost_limit' => 'unlimited', // No limit on kost creation
+        'user_kosts' => $userKosts,
+    ]);
+});
+
+// DEBUG: Test kost API with mine parameter
+Route::middleware('auth:sanctum')->get('/debug/kost-mine', function () {
+    $user = request()->user();
+    $user->load('role');
+
+    // Test with mine=1
+    $query = \App\Models\Kost::with('user');
+    $onlyMine = request()->boolean('mine');
+
+    if ($user && $user->hasRole('pemilik_kost') && $onlyMine) {
+        $query->where('user_id', $user->id);
+    } else {
+        $query->where('status', 'aktif');
+    }
+
+    $kosts = $query->latest()->get();
+
+    return response()->json([
+        'user_id' => $user->id,
+        'role' => $user->role->name,
+        'mine_parameter' => $onlyMine,
+        'total_kosts' => $kosts->count(),
+        'kosts' => $kosts,
+    ]);
+});
+
+// CRITICAL DEBUG: Check Budi vs Santoso data isolation issue
+Route::middleware('auth:sanctum')->get('/debug/budi-santoso-issue', function () {
+    $user = request()->user();
+    $user->load('role');
+
+    // Get all kosts with their owners
+    $allKosts = \App\Models\Kost::with('user')->get();
+
+    // Get Budi's kosts specifically
+    $budiKosts = \App\Models\Kost::with('user')->where('user_id', $user->id)->get();
+
+    // Check if there are any kosts owned by someone else that might be showing
+    $otherKosts = \App\Models\Kost::with('user')->where('user_id', '!=', $user->id)->get();
+
+    // Simulate the exact query that should be run
+    $simulatedQuery = \App\Models\Kost::with('user')->where('user_id', $user->id);
+    $simulatedResults = $simulatedQuery->get();
+
+    return response()->json([
+        'current_user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role->name
+        ],
+        'all_kosts_count' => $allKosts->count(),
+        'budi_kosts_count' => $budiKosts->count(),
+        'other_kosts_count' => $otherKosts->count(),
+        'simulated_query_results' => $simulatedResults->count(),
+        'all_kosts_with_owners' => $allKosts->map(function($kost) {
+            return [
+                'kost_id' => $kost->id,
+                'kost_name' => $kost->nama_kost,
+                'owner_id' => $kost->user_id,
+                'owner_name' => $kost->user?->name,
+                'owner_email' => $kost->user?->email,
+                'status' => $kost->status
+            ];
+        })->toArray(),
+        'budi_kosts_only' => $budiKosts->map(function($kost) {
+            return [
+                'kost_id' => $kost->id,
+                'kost_name' => $kost->nama_kost,
+                'owner_id' => $kost->user_id,
+                'owner_name' => $kost->user?->name,
+                'status' => $kost->status
+            ];
+        })->toArray(),
+        'simulated_query_details' => [
+            'sql' => $simulatedQuery->toSql(),
+            'bindings' => $simulatedQuery->getBindings(),
+            'results' => $simulatedResults->map(function($kost) {
+                return [
+                    'kost_id' => $kost->id,
+                    'kost_name' => $kost->nama_kost,
+                    'owner_id' => $kost->user_id,
+                    'owner_name' => $kost->user?->name,
+                    'status' => $kost->status
+                ];
+            })->toArray()
+        ]
+    ]);
+});
+
 // ============================================================
 // AUTH — Public
 // ============================================================
@@ -171,6 +284,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/hunian/{karyawanId}',  [TrackingController::class, 'detailKaryawan']);
         Route::get('/radius',               [TrackingController::class, 'radius']);
         Route::get('/laporan',              [TrackingController::class, 'laporan']);
+        Route::post('/sync-pembayaran',     [TrackingController::class, 'syncPembayaran']);
     });
 
     Route::prefix('keluhan')->group(function () {

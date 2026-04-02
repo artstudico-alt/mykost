@@ -190,10 +190,15 @@ const HRDashboard = () => {
   const filteredKary = karyawanList.filter(k => {
     const name = (k.user?.name || k.nama || '').toLowerCase();
     const match = name.includes(searchKary.toLowerCase());
-    const hunianKary = hunianList.find(h => h.karyawan_id === k.id);
+    // Robust matching: check both karyawan_id and nested karyawan.id
+    const hunianKary = hunianList.find(h => {
+      const hKaryawanId = h.karyawan_id ?? h.karyawan?.id;
+      return hKaryawanId === k.id || hKaryawanId === k.user_id;
+    });
     
-    // Filter by account type
-    if (filterAccountType !== 'all' && k.role !== filterAccountType) return false;
+    // Filter by account type - fix role comparison (role is object with name property)
+    const roleName = k.role?.name || k.role;
+    if (filterAccountType !== 'all' && roleName !== filterAccountType) return false;
     
     if (filterRadius === 'dekat') return match && hunianKary?.jarakKm !== null && hunianKary?.jarakKm <= 5;
     if (filterRadius === 'jauh') return match && (!hunianKary?.jarakKm || hunianKary?.jarakKm > 7);
@@ -502,7 +507,11 @@ const HRDashboard = () => {
                 {karyawanList.length === 0 ? (
                   <tr><td colSpan={5} style={{ padding: 60, textAlign: 'center', color: '#94a3b8', fontSize: 14, fontWeight: 500 }}>Tidak ada data karyawan.</td></tr>
                 ) : karyawanList.map(k => {
-                  const hunianKary = hunianList.find(h => h.karyawan_id === k.id || h.karyawan?.id === k.id);
+                  // Robust matching for hunian data
+                  const hunianKary = hunianList.find(h => {
+                    const hKaryawanId = h.karyawan_id ?? h.karyawan?.id;
+                    return hKaryawanId === k.id || hKaryawanId === k.user_id;
+                  });
                   const nama = k.user?.name || k.nama || '-';
                   return (
                     <tr key={k.id} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.15s' }}
@@ -547,7 +556,7 @@ const HRDashboard = () => {
             <div>
               <h2 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>Data Akun</h2>
               <p style={{ color: '#64748b', fontSize: 14, margin: '6px 0 0', fontWeight: 500 }}>
-                Total {totalKaryawan} akun ({karyawanList.filter(k => k.role === 'karyawan' || k.role === 'karyawan').length} Karyawan, {karyawanList.filter(k => k.role === 'pemilik_kost').length} Pemilik Kost).
+                Total {totalKaryawan} akun ({karyawanList.filter(k => (k.role?.name || k.role) === 'karyawan').length} Karyawan, {karyawanList.filter(k => (k.role?.name || k.role) === 'pemilik_kost').length} Pemilik Kost).
               </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -605,9 +614,13 @@ const HRDashboard = () => {
                   </td></tr>
                 ) : filteredKary.map(k => {
                   const nama = k.user?.name || k.nama || '-';
-                  const hunianKary = hunianList.find(h => h.karyawan_id === k.id || h.karyawan?.id === k.id);
+                  // Robust matching for hunian data
+                  const hunianKary = hunianList.find(h => {
+                    const hKaryawanId = h.karyawan_id ?? h.karyawan?.id;
+                    return hKaryawanId === k.id || hKaryawanId === k.user_id;
+                  });
                   const statusColor = k.status === 'aktif' ? { bg: '#f0fdf4', color: GD, border: '#bbf7d0' } : { bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' };
-                  const isPemilikKost = k.role === 'pemilik_kost';
+                  const isPemilikKost = (k.role?.name || k.role) === 'pemilik_kost';
                   const roleBadgeColor = isPemilikKost ? { bg: '#fef3c7', color: '#d97706', border: '#fde68a' } : { bg: '#e0e7ff', color: '#6366f1', border: '#c7d2fe' };
                   return (
                     <tr key={k.id} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.15s' }}

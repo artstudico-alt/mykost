@@ -19,6 +19,9 @@ class KeluhanController extends Controller
             $query->where('user_id', $user->id);
         } elseif ($user->hasRole('pemilik_kost')) {
             $query->whereHas('kost', fn($q) => $q->where('user_id', $user->id));
+        } elseif ($user->hasRole('super_admin')) {
+            // Super admin can see all complaints
+            // No additional filter needed
         }
 
         if ($request->filled('status')) {
@@ -62,6 +65,15 @@ class KeluhanController extends Controller
             );
         }
 
+        // Kirim notifikasi ke super admin
+        NotifikasiService::createForRole(
+            'super_admin',
+            'Keluhan Baru',
+            "Ada keluhan baru dari " . ($request->user()->name ?? 'Penyewa') . " untuk " . ($keluhan->kost ? $keluhan->kost->nama_kost : 'Kost') . ".",
+            'warning',
+            '/#/admin/keluhan'
+        );
+
         return response()->json([
             'message' => 'Keluhan berhasil dikirim',
             'data'    => $keluhan->load(['kost', 'user']),
@@ -80,7 +92,7 @@ class KeluhanController extends Controller
         $user = $request->user();
 
         $isOwner       = $keluhan->user_id === $user->id;
-        $isPemilikKost = $user->hasRole('pemilik_kost') && $keluhan->kost->user_id === $user->id;
+        $isPemilikKost = $user->hasRole('pemilik_kost') && $keluhan->kost && $keluhan->kost->user_id === $user->id;
         $isAdmin       = $user->hasAnyRole(['super_admin', 'hr']);
 
         if (!$isOwner && !$isPemilikKost && !$isAdmin) {

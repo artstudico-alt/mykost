@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Karyawan;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -70,6 +71,25 @@ class AuthController extends Controller
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Auto-create karyawan record jika user punya role karyawan tapi belum ada data karyawan
+        if ($user->role?->name === 'karyawan') {
+            $karyawanExists = Karyawan::where('user_id', $user->id)->exists();
+            if (!$karyawanExists) {
+                Karyawan::create([
+                    'user_id' => $user->id,
+                    'nik' => 'KAR-' . time() . '-' . $user->id,
+                    'nama' => $user->name,
+                    'email' => $user->email,
+                    'no_hp' => $user->phone ?? null,
+                    'jabatan' => 'Karyawan',
+                    'divisi' => 'Umum',
+                    'status' => 'aktif',
+                    'tanggal_bergabung' => now(),
+                ]);
+                Log::info('Auto-created karyawan record for user', ['user_id' => $user->id, 'email' => $user->email]);
+            }
+        }
 
         return response()->json([
             'message' => 'Login berhasil.',

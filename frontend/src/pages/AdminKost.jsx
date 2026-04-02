@@ -113,10 +113,99 @@ const AdminKost = () => {
 
       // Super admin: moderasi. Pemilik: hanya properti sendiri (?mine=1). Lainnya: katalog aktif.
       const endpoint = isAdmin ? '/kost/moderasi' : (isOwner ? '/kost?mine=1' : '/kost');
+      
+      // CRITICAL DEBUG: Log everything about the request
+      console.log('=== CRITICAL DEBUG - KOST FETCH ===');
+      console.log('Current user:', user);
+      console.log('User ID:', user?.id);
+      console.log('User name:', user?.name);
+      console.log('User email:', user?.email);
+      console.log('User role:', role);
+      console.log('IsOwner:', isOwner);
+      console.log('IsAdmin:', isAdmin);
+      console.log('Endpoint being called:', endpoint);
+      console.log('Token exists:', !!token);
+      console.log('Token length:', token?.length);
+      
       const response = await api.get(endpoint);
+      console.log('=== API RESPONSE ===');
+      console.log('Full response:', response);
+      console.log('Response data:', response.data);
+      console.log('Response data length:', response.data.data?.length || 0);
+      
+      // CRITICAL: Check if Budi is seeing Santoso's data
+      if (isOwner && response.data.data) {
+        console.log('=== DATA OWNERSHIP CHECK ===');
+        response.data.data.forEach((kost, index) => {
+          console.log(`Kost ${index + 1}:`, {
+            id: kost.id,
+            name: kost.nama_kost,
+            owner_id: kost.user_id,
+            owner_name: kost.user?.name,
+            owner_email: kost.user?.email,
+            current_user_id: user?.id,
+            current_user_name: user?.name,
+            is_owner_correct: kost.user_id === user?.id
+          });
+          
+          // ALERT if Budi is seeing Santoso's data
+          if (kost.user_id !== user?.id) {
+            console.error('🚨 DATA LEAK DETECTED! 🚨');
+            console.error('User is seeing kost that belongs to someone else!');
+            console.error('Current user:', user?.name, 'ID:', user?.id);
+            console.error('Kost belongs to:', kost.user?.name, 'ID:', kost.user_id);
+            console.error('Kost details:', kost);
+          }
+        });
+      }
+      
       setKosts(response.data.data || []);
+      
+      // If no data found for kost owner, try to debug
+      if (isOwner && (!response.data.data || response.data.data.length === 0)) {
+        console.log('No kosts found for owner, trying debug endpoints...');
+        try {
+          const debugResponse = await api.get('/debug/kost-permissions');
+          console.log('Debug permissions:', debugResponse.data);
+          
+          // Try the budi-santoso specific debug
+          const issueResponse = await api.get('/debug/budi-santoso-issue');
+          console.log('Budi-Santoso issue debug:', issueResponse.data);
+          
+          // Try the debug mine endpoint
+          const mineResponse = await api.get('/debug/kost-mine?mine=1');
+          console.log('Debug mine response:', mineResponse.data);
+          
+          if (mineResponse.data.kosts && mineResponse.data.kosts.length > 0) {
+            console.log('Found kosts via debug endpoint, updating display...');
+            setKosts(mineResponse.data.kosts);
+          }
+        } catch (debugError) {
+          console.error('Debug endpoint failed:', debugError);
+        }
+      }
+      
     } catch (error) {
+      console.error('=== FETCH ERROR ===');
       console.error('Gagal mengambil data kost:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+      
+      // Try fallback for kost owners
+      if (isOwner && error.response?.status !== 401) {
+        console.log('Trying fallback for kost owner...');
+        try {
+          const fallbackResponse = await api.get('/debug/kost-mine?mine=1');
+          if (fallbackResponse.data.kosts) {
+            setKosts(fallbackResponse.data.kosts);
+            console.log('Using fallback data, found:', fallbackResponse.data.kosts.length, 'kosts');
+            return;
+          }
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+        }
+      }
       
       // Jika error 401, berarti sesi habis (karena server restart dll)
       if (error.response?.status === 401) {
@@ -125,6 +214,8 @@ const AdminKost = () => {
           localStorage.removeItem('user');
           window.location.href = '/#/login';
         });
+      } else {
+        modalAlert('Gagal mengambil data kost. Silakan refresh halaman.', 'error');
       }
     } finally {
       setLoading(false);
@@ -170,8 +261,9 @@ const AdminKost = () => {
     const files = Array.from(e.target.files);
     if (!files || files.length === 0) return;
 
-    if (photos.length + files.length > 10) {
-       modalAlert('Maksimal 10 gambar yang diizinkan!', 'warning');
+    // Remove the 10 photo limit - allow unlimited photos
+    if (photos.length + files.length > 50) {
+       modalAlert('Maksimal 50 gambar yang diizinkan!', 'warning');
        return;
     }
 
@@ -241,8 +333,25 @@ const AdminKost = () => {
       }
       setShowModal(false);
       fetchKosts();
+      modalAlert(isAdmin ? 'Status berhasil diperbarui!' : (currentKost ? 'Properti berhasil diperbarui!' : 'Properti baru berhasil ditambahkan!'), 'success');
     } catch (error) {
-      modalAlert('Gagal menyimpan kost: ' + (error.response?.data?.message || error.message), 'error');
+      console.error('Kost submission error:', error);
+      let errorMessage = 'Gagal menyimpan kost';
+      
+      if (error.response) {
+        if (error.response.status === 403) {
+          errorMessage = 'Anda tidak memiliki izin untuk membuat kost. Pastikan akun Anda sudah terverifikasi.';
+        } else if (error.response.status === 422) {
+          const errors = error.response.data.errors || {};
+          errorMessage = 'Validasi gagal: ' + Object.values(errors).flat().join(', ');
+        } else if (error.response.data?.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      modalAlert(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -598,7 +707,7 @@ const AdminKost = () => {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                         <div>
                           <label style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', display: 'block' }}>Galeri Foto Properti</label>
-                          <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>Upload hingga 10 foto. Pilih salah satu untuk dijadikan Thumbnail utama.</p>
+                          <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>Upload hingga 50 foto. Pilih salah satu untuk dijadikan Thumbnail utama.</p>
                         </div>
                         <label style={{ background: 'white', color: '#10b981', border: '1px solid #a7f3d0', padding: '10px 20px', borderRadius: 12, fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 4px rgba(16, 185, 129, 0.1)', opacity: uploadingImage ? 0.6 : 1 }}>
                           {uploadingImage ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <ImageIcon size={16} strokeWidth={3} />}

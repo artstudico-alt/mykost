@@ -644,8 +644,14 @@ const OverviewTab = ({ user, bookings, payments, complaints, kostList, onSelectT
   const roleLabel = formatRoleLabel(user)
   const rolePlain = formatRolePlain(user)
   
-  // Get active hunian from bookings
-  const activeBooking = bookings?.find(b => b.status === 'confirmed' || b.status === 'aktif')
+  // Get active hunian from bookings - only truly active rentals
+  const activeBooking = bookings?.find(b => 
+    b.status === 'confirmed' || 
+    b.status === 'aktif' || 
+    b.status === 'paid' || 
+    b.status === 'lunas' ||
+    b.status === 'active'
+  )
   const kostFoto = activeBooking?.kost?.foto || activeBooking?.kost?.foto_url || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'
   const kostNama = activeBooking?.kost?.nama_kost || activeBooking?.kost?.nama || 'Belum ada hunian'
   const kostAlamat = activeBooking?.kost?.alamat || 'Anda belum memiliki hunian aktif'
@@ -685,26 +691,20 @@ const OverviewTab = ({ user, bookings, payments, complaints, kostList, onSelectT
             </button>
           ))}
         </div>
-        
-        {/* Logout */}
-        <button className="pk-btn-logout">
-          <LogOut size={18} />
-          Keluar
-        </button>
       </div>
       
       {/* CENTER COLUMN - Kost + Keluhan */}
       <div className="pk-center">
-        {/* Kost Card */}
-        <div className="pk-card pk-kost-card">
-          <div className="pk-kost-header">
-            <Home size={18} />
-            <span>Hunian Saat Ini</span>
-          </div>
-          <div className="pk-kost-image-wrap">
-            <img src={kostFoto} alt="Kost" className="pk-kost-image" />
-          </div>
-          {activeBooking && (
+        {/* Kost Card - Only show if user has active booking */}
+        {activeBooking ? (
+          <div className="pk-card pk-kost-card">
+            <div className="pk-kost-header">
+              <Home size={18} />
+              <span>Hunian Saat Ini</span>
+            </div>
+            <div className="pk-kost-image-wrap">
+              <img src={kostFoto} alt="Kost" className="pk-kost-image" />
+            </div>
             <div className="pk-kost-info">
               <div className="pk-kost-title-row">
                 <h4 className="pk-kost-name">{kostNama}</h4>
@@ -715,8 +715,23 @@ const OverviewTab = ({ user, bookings, payments, complaints, kostList, onSelectT
                 {kostAlamat}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          /* Empty state when no active booking */
+          <div className="pk-card pk-kost-card">
+            <div className="pk-kost-header">
+              <Home size={18} />
+              <span>Hunian Saat Ini</span>
+            </div>
+            <div className="pk-empty-state">
+              <div className="pk-empty-icon">🏠</div>
+              <p>Anda belum memiliki hunian aktif</p>
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                Booking kost terlebih dahulu untuk menampilkan hunian Anda
+              </p>
+            </div>
+          </div>
+        )}
         
         {/* Keluhan Section */}
         <div className="pk-card pk-keluhan-card">

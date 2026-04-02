@@ -114,7 +114,8 @@ function DashboardNavigator() {
   if (role === 'pemilik_kost') return <Navigate to="/owner/dashboard" replace />
   if (role === 'super_admin' || role === 'admin') return <Navigate to="/admin/dashboard" replace />
   
-  return <Navigate to="/profile" replace />
+  // For regular users, show the Dashboard component, not redirect to profile
+  return <Dashboard />
 }
 
 export default App

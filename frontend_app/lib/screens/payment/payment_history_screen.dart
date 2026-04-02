@@ -90,14 +90,29 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
 
   void _downloadInvoice(int pembayaranId) async {
     try {
-      // Download dengan autentikasi menggunakan external browser
-      // Karena download PDF butuh handling khusus, pakai url dengan token di query param
+      // Build download URL dengan token di query parameter untuk compatibilitas backend
       final url = "${ApiService.baseUrl}/invoice/$pembayaranId/download?token=${ApiService.token}";
       final uri = Uri.parse(url);
+      
+      // Coba berbagai mode launch untuk cross-platform compatibility
+      LaunchMode launchMode = LaunchMode.platformDefault;
+      
+      // Prefer external application untuk Android/iOS agar PDF viewer terbuka
+      launchMode = LaunchMode.externalApplication;
+      
       if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        final success = await launchUrl(
+          uri, 
+          mode: launchMode,
+          webOnlyWindowName: '_blank',
+        );
+        
+        if (!success) {
+          // Fallback ke platform default jika external application gagal
+          await launchUrl(uri, mode: LaunchMode.platformDefault);
+        }
       } else {
-        _showError("Tidak dapat mengunduh invoice");
+        _showError("Tidak dapat membuka URL. Pastikan ada browser/pdf viewer yang tersedia.");
       }
     } catch (e) {
       _showError("Gagal mengunduh invoice: $e");

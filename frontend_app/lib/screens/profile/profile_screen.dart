@@ -28,38 +28,124 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadAllData();
   }
 
+  String? _errorMessage;
+  bool _hasError = false;
+
   Future<void> _loadAllData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+      _errorMessage = null;
+    });
+    
+    final List<String> failedLoads = [];
+    final List<String> errorDetails = [];
+    
+    debugPrint('=== Starting _loadAllData ===');
+    debugPrint('Token: ${ApiService.token != null ? "Present" : "NULL"}');
+    
     try {
       if (ApiService.token != null) {
-        final userResponse = await ApiService.me();
-        if (userResponse != null && userResponse['data'] != null) {
-          _userData = userResponse['data'];
+        try {
+          debugPrint('Loading user data...');
+          final userResponse = await ApiService.me();
+          debugPrint('User response: $userResponse');
+          if (userResponse != null && userResponse['data'] != null) {
+            _userData = userResponse['data'];
+          }
+        } catch (e, stackTrace) {
+          debugPrint('Error loading user data: $e');
+          debugPrint('Stack trace: $stackTrace');
         }
+      } else {
+        debugPrint('WARNING: No token available!');
+        errorDetails.add('Token tidak tersedia');
       }
 
       try {
+        debugPrint('Loading hunian data...');
         final hunianResponse = await ApiService.getHunianSaya();
+        debugPrint('Hunian response: $hunianResponse');
         if (hunianResponse != null && hunianResponse['data'] != null) {
           _hunianList = hunianResponse['data'] as List;
+          debugPrint('Hunian loaded: ${_hunianList.length} items');
+        } else {
+          debugPrint('Hunian response empty or null');
         }
-      } catch (_) {}
+      } catch (e, stackTrace) {
+        debugPrint('Error loading hunian: $e');
+        debugPrint('Stack trace: $stackTrace');
+        failedLoads.add('Hunian');
+        errorDetails.add('Hunian: $e');
+      }
 
       try {
+        debugPrint('Loading keluhan data...');
         final keluhanResponse = await ApiService.getKeluhan();
+        debugPrint('Keluhan response: $keluhanResponse');
         if (keluhanResponse != null && keluhanResponse['data'] != null) {
           _keluhanList = keluhanResponse['data'] as List;
+          debugPrint('Keluhan loaded: ${_keluhanList.length} items');
+        } else {
+          debugPrint('Keluhan response empty or null');
         }
-      } catch (_) {}
+      } catch (e, stackTrace) {
+        debugPrint('Error loading keluhan: $e');
+        debugPrint('Stack trace: $stackTrace');
+        failedLoads.add('Keluhan');
+        errorDetails.add('Keluhan: $e');
+      }
 
       try {
+        debugPrint('Loading booking data...');
         final bookingResponse = await ApiService.getBooking();
+        debugPrint('Booking response: $bookingResponse');
         if (bookingResponse != null && bookingResponse['data'] != null) {
           _bookingList = bookingResponse['data'] as List;
+          debugPrint('Booking loaded: ${_bookingList.length} items');
+        } else {
+          debugPrint('Booking response empty or null');
         }
-      } catch (_) {}
-    } catch (e) {
+      } catch (e, stackTrace) {
+        debugPrint('Error loading booking: $e');
+        debugPrint('Stack trace: $stackTrace');
+        failedLoads.add('Booking');
+        errorDetails.add('Booking: $e');
+      }
+      
+      debugPrint('=== _loadAllData complete ===');
+      debugPrint('Failed loads: $failedLoads');
+      debugPrint('Error details: $errorDetails');
+      
+      if (failedLoads.isNotEmpty && mounted) {
+        setState(() {
+          _hasError = true;
+          _errorMessage = 'Gagal memuat: ${failedLoads.join(', ')}';
+        });
+        
+        // Show snackbar with retry option
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_errorMessage!),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _loadAllData,
+            ),
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
       debugPrint('Error loading data: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _errorMessage = 'Gagal memuat data: $e';
+        });
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -110,31 +196,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+        ),
+        actions: [
+          // Settings button placeholder (can be enabled later)
+          const SizedBox(width: 8),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : SafeArea(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 16),
-                    _buildProfileHeader(name, email, role),
-                    const SizedBox(height: 24),
-                    _buildMenuGrid(),
-                    const SizedBox(height: 24),
-                    _buildStatsSection(),
-                    const SizedBox(height: 24),
-                    _buildHunianCard(),
-                    const SizedBox(height: 24),
-                    _buildKeluhanSection(),
-                    const SizedBox(height: 24),
-                    _buildPersonalInfo(phone, email),
-                    const SizedBox(height: 24),
-                    _buildLogoutButton(),
-                    const SizedBox(height: 32),
-                  ],
+              child: RefreshIndicator(
+                onRefresh: _loadAllData,
+                color: AppColors.primary,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
+                      _buildProfileHeader(name, email, role),
+                      const SizedBox(height: 24),
+                      _buildMenuGrid(),
+                      const SizedBox(height: 24),
+                      _buildStatsSection(),
+                      const SizedBox(height: 24),
+                      _buildHunianCard(),
+                      const SizedBox(height: 24),
+                      _buildKeluhanSection(),
+                      const SizedBox(height: 24),
+                      _buildPersonalInfo(phone, email),
+                      const SizedBox(height: 24),
+                      _buildLogoutButton(),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -264,6 +378,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
+          if (_hasError && _errorMessage != null) ...[
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: _loadAllData,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 16),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.refresh, color: Colors.white, size: 16),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -333,8 +480,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatsSection() {
+    // Safely calculate stats with null checks
     final bookingCount = _bookingList.length;
-    final paidCount = _bookingList.where((b) => b['status'] == 'paid').length;
+    final paidCount = _bookingList.where((b) {
+      if (b == null || b is! Map) return false;
+      final status = b['status'];
+      return status != null && status.toString().toLowerCase() == 'paid';
+    }).length;
 
     return Row(
       children: [
@@ -415,7 +567,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildHunianCard() {
-    final currentHunian = _hunianList.isNotEmpty ? _hunianList.first : null;
+    // Safely check if hunian data exists and is valid
+    final currentHunian = (_hunianList.isNotEmpty && _hunianList.first != null && _hunianList.first is Map) 
+        ? _hunianList.first as Map 
+        : null;
+    
+    // Debug: Log the hunian data structure untuk membantu debugging
+    if (currentHunian != null) {
+      debugPrint('Hunian data: $currentHunian');
+      debugPrint('Kost data: ${currentHunian['kost']}');
+    }
+
+    // Helper untuk extract kost data dengan berbagai kemungkinan struktur
+    Map<String, dynamic> getKostData(dynamic hunian) {
+      if (hunian == null) return {};
+      
+      // Coba ambil dari field 'kost' (nested)
+      if (hunian['kost'] is Map) {
+        return Map<String, dynamic>.from(hunian['kost']);
+      }
+      
+      // Coba ambil dari field 'booking' -> 'kost'
+      if (hunian['booking']?['kost'] is Map) {
+        return Map<String, dynamic>.from(hunian['booking']['kost']);
+      }
+      
+      // Coba ambil dari field 'rental' -> 'kost'
+      if (hunian['rental']?['kost'] is Map) {
+        return Map<String, dynamic>.from(hunian['rental']['kost']);
+      }
+      
+      // Jika kost data flat langsung di hunian
+      return {
+        'nama_kost': hunian['nama_kost'] ?? hunian['nama'] ?? hunian['kost_name'],
+        'alamat': hunian['alamat'] ?? hunian['alamat_kost'],
+        'foto_url': hunian['foto_url'] ?? hunian['foto'] ?? hunian['foto_kost'],
+      };
+    }
+    
+    final kostData = getKostData(currentHunian);
+    
+    // Extract fields dengan fallback chain
+    final String kostName = kostData['nama_kost'] ?? 
+                           kostData['nama'] ?? 
+                           kostData['name'] ?? 
+                           currentHunian?['nama_kost'] ?? 
+                           currentHunian?['kost_name'] ?? 
+                           'Kost Tidak Diketahui';
+    
+    final String kostAddress = kostData['alamat'] ?? 
+                                kostData['alamat_lengkap'] ?? 
+                                kostData['kecamatan'] ?? 
+                                currentHunian?['alamat'] ?? 
+                                currentHunian?['alamat_kost'] ?? 
+                                'Alamat tidak tersedia';
+    
+    final String? fotoUrl = kostData['foto_url'] ?? 
+                            kostData['foto'] ?? 
+                            kostData['foto_kost'] ?? 
+                            kostData['gambar'] ?? 
+                            kostData['thumbnail'] ??
+                            currentHunian?['foto_url'] ??
+                            currentHunian?['foto'];
 
     return Container(
       decoration: BoxDecoration(
@@ -459,7 +672,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      currentHunian['status']?.toString().toUpperCase() ?? 'AKTIF',
+                      (currentHunian['status']?.toString() ?? 'aktif').toUpperCase(),
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -474,9 +687,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ClipRRect(
               borderRadius: BorderRadius.zero,
               child: Image.network(
-                currentHunian['kost']?['foto_url'] ?? 
-                currentHunian['kost']?['foto'] ?? 
-                'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
+                fotoUrl ?? 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
                 height: 160,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -493,12 +704,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    currentHunian['kost']?['nama'] ?? 'Kost Tidak Diketahui',
+                    kostName,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -507,7 +720,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          currentHunian['kost']?['alamat'] ?? 'Alamat tidak tersedia',
+                          kostAddress,
                           style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -616,7 +829,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
-                children: _keluhanList.take(2).map((keluhan) {
+                children: _keluhanList.take(2).where((k) => k != null && k is Map).map((keluhan) {
+                  final safeKeluhan = keluhan as Map;
+                  final kategori = safeKeluhan['kategori']?.toString() ?? 'Umum';
+                  final status = safeKeluhan['status']?.toString() ?? 'menunggu';
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
@@ -630,25 +846,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: _getKategoriColor(keluhan['kategori']).withOpacity(0.1),
+                            color: _getKategoriColor(kategori).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            keluhan['kategori'] ?? 'Umum',
+                            kategori,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: _getKategoriColor(keluhan['kategori']),
+                              color: _getKategoriColor(kategori),
                             ),
                           ),
                         ),
                         const Spacer(),
                         Text(
-                          keluhan['status']?.toString().toUpperCase() ?? 'MENUNGGU',
+                          status.toUpperCase(),
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: _getStatusColor(keluhan['status']),
+                            color: _getStatusColor(status),
                           ),
                         ),
                       ],

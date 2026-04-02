@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Loader2, CheckCircle, Clock, Users, Home, XCircle } from 'lucide-react';
+import { MapPin, Loader2, CheckCircle, Clock, Users, Home, XCircle, CreditCard, RefreshCw } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 
@@ -10,6 +10,7 @@ const AdminTracking = () => {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -27,6 +28,26 @@ const AdminTracking = () => {
       console.error('Gagal ambil tracking:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSyncPembayaran = async () => {
+    if (syncing) return;
+    
+    setSyncing(true);
+    try {
+      const res = await api.post('/tracking/sync-pembayaran');
+      if (res.data.created > 0) {
+        alert(`Berhasil menambahkan ${res.data.created} data hunian baru`);
+        await fetchTracking(); // Refresh data
+      } else {
+        alert('Tidak ada data baru yang perlu disinkronkan');
+      }
+    } catch (e) {
+      console.error('Gagal sinkronkan pembayaran:', e);
+      alert('Gagal sinkronkan data pembayaran');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -80,50 +101,82 @@ const AdminTracking = () => {
 
       {/* Table */}
       <div style={{ background: 'white', borderRadius: 28, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.03)' }}>
-        <div style={{ padding: '20px 32px', borderBottom: '1px solid #f8fafc', display: 'flex', gap: 16, flexWrap: 'wrap', background: '#fcfcfd' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, padding: '10px 18px', flex: 1, maxWidth: 400 }}>
-            <MapPin size={18} color="#94a3b8" />
-            <input type="text" placeholder="Cari nama karyawan atau kost..." value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              style={{ border: 'none', outline: 'none', fontSize: 14, background: 'transparent', width: '100%', color: '#1e293b', fontWeight: 500 }} />
+        <div style={{ padding: '20px 32px', borderBottom: '1px solid #f8fafc', display: 'flex', gap: 16, flexWrap: 'wrap', background: '#fcfcfd', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, padding: '10px 18px', flex: 1, maxWidth: 400 }}>
+              <MapPin size={18} color="#94a3b8" />
+              <input type="text" placeholder="Cari nama karyawan atau kost..." value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                style={{ border: 'none', outline: 'none', fontSize: 14, background: 'transparent', width: '100%', color: '#1e293b', fontWeight: 500 }} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, background: '#f1f5f9', padding: 4, borderRadius: 14 }}>
+              {['all', 'aktif', 'selesai', 'pending'].map(s => (
+                <button key={s} onClick={() => setFilterStatus(s)} style={{
+                  padding: '8px 16px', borderRadius: 11, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                  border: 'none',
+                  background: filterStatus === s ? 'white' : 'transparent',
+                  color: filterStatus === s ? '#0f172a' : '#64748b',
+                  boxShadow: filterStatus === s ? '0 4px 12px rgba(0,0,0,0.05)' : 'none'
+                }}>
+                  {s === 'all' ? 'Semua' : s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, background: '#f1f5f9', padding: 4, borderRadius: 14 }}>
-            {['all', 'aktif', 'selesai', 'pending'].map(s => (
-              <button key={s} onClick={() => setFilterStatus(s)} style={{
-                padding: '8px 16px', borderRadius: 11, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                border: 'none',
-                background: filterStatus === s ? 'white' : 'transparent',
-                color: filterStatus === s ? '#0f172a' : '#64748b',
-                boxShadow: filterStatus === s ? '0 4px 12px rgba(0,0,0,0.05)' : 'none'
-              }}>
-                {s === 'all' ? 'Semua' : s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
-            ))}
-          </div>
+          
+          {/* Sync Button for HR and Super Admin */}
+          {(user?.role?.name === 'hr' || user?.role?.name === 'super_admin') && (
+            <button 
+              onClick={handleSyncPembayaran}
+              disabled={syncing}
+              style={{
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 8, 
+                padding: '10px 18px', 
+                borderRadius: 12, 
+                border: '1px solid #22c55e', 
+                background: syncing ? '#f0fdf4' : '#22c55e', 
+                color: syncing ? '#64748b' : 'white', 
+                fontSize: 13, 
+                fontWeight: 700, 
+                cursor: syncing ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                opacity: syncing ? 0.7 : 1
+              }}
+            >
+              <RefreshCw size={16} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+              {syncing ? 'Sinkron...' : 'Sync Pembayaran'}
+            </button>
+          )}
         </div>
 
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
-                {['Karyawan', 'Kantor', 'Kost / Kamar', 'Tanggal Masuk', 'Status', 'Verifikasi'].map(h => (
+                {['Karyawan', 'Kantor', 'Kost / Kamar', 'Tanggal Masuk', 'Pembayaran', 'Status', 'Verifikasi'].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '16px 32px', color: '#94a3b8', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: '1px solid #f1f5f9' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} style={{ padding: 80, textAlign: 'center', color: '#94a3b8' }}>
+                <tr><td colSpan={7} style={{ padding: 80, textAlign: 'center', color: '#94a3b8' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                     <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
                     <span style={{ fontSize: 15, fontWeight: 600 }}>Memuat data tracking...</span>
                   </div>
                 </td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: 80, textAlign: 'center', color: '#94a3b8', fontSize: 15, fontWeight: 500 }}>Belum ada data hunian karyawan.</td></tr>
+                <tr><td colSpan={7} style={{ padding: 80, textAlign: 'center', color: '#94a3b8', fontSize: 15, fontWeight: 500 }}>Belum ada data hunian karyawan.</td></tr>
               ) : filtered.map(h => {
                 const sc = statusCfg[h.status] || statusCfg.pending;
                 const nama = h.karyawan?.user?.name || h.karyawan?.nama_karyawan || '-';
+                const paymentInfo = h.payment_info || {};
+                const paymentStatus = paymentInfo.status || 'unknown';
+                const paymentDate = paymentInfo.tanggal_bayar ? new Date(paymentInfo.tanggal_bayar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+                
                 return (
                   <tr key={h.id} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.2s' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
@@ -150,6 +203,19 @@ const AdminTracking = () => {
                     </td>
                     <td style={{ padding: '20px 32px', fontSize: 13, color: '#64748b', fontWeight: 600 }}>
                       {h.tanggal_mulai ? new Date(h.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                    </td>
+                    <td style={{ padding: '20px 32px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <CreditCard size={14} color="#94a3b8" />
+                        <div>
+                          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: paymentStatus === 'lunas' ? '#16a34a' : paymentStatus === 'pending' ? '#d97706' : '#64748b' }}>
+                            {paymentStatus === 'lunas' ? 'LUNAS' : paymentStatus === 'pending' ? 'PENDING' : paymentStatus.toUpperCase()}
+                          </p>
+                          <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>
+                            {paymentDate !== '-' ? paymentDate : 'Belum bayar'}
+                          </p>
+                        </div>
+                      </div>
                     </td>
                     <td style={{ padding: '20px 32px' }}>
                       <span style={{ display: 'inline-block', padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 800, background: sc.bg, color: sc.color, textTransform: 'uppercase', letterSpacing: '0.3px', border: `1px solid ${sc.color}15` }}>

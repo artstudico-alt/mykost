@@ -18,7 +18,15 @@ class TrackingController extends Controller
         $query = Hunian::with([
             'karyawan.user',
             'kost',
+            'booking',
+            'booking.pembayaran'
         ]);
+
+        // Filter berdasarkan role
+        if ($user->hasRole('hr')) {
+            // HR hanya bisa lihat data karyawan yang masih aktif
+            $query->whereHas('karyawan', fn($q) => $q->where('status', 'aktif'));
+        }
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -28,6 +36,18 @@ class TrackingController extends Controller
         }
 
         $hunians = $query->latest()->get();
+
+        // Tambah data pembayaran untuk tracking lebih detail
+        $hunians = $hunians->map(function ($hunian) {
+            $pembayaran = $hunian->booking?->pembayaran;
+            $hunian->payment_info = [
+                'status' => $pembayaran?->status ?? 'unknown',
+                'tanggal_bayar' => $pembayaran?->tanggal_bayar,
+                'jumlah' => $pembayaran?->jumlah,
+                'metode' => $pembayaran?->metode,
+            ];
+            return $hunian;
+        });
 
         $stats = [
             'total_hunian'     => $hunians->count(),
@@ -145,6 +165,68 @@ class TrackingController extends Controller
         return response()->json([
             'message' => 'Laporan hunian berhasil dibuat',
             'data'    => $byKota,
+        ]);
+    }
+
+    /**
+     * POST /api/tracking/sync-pembayaran
+     * Sinkronkan hunian dari pembayaran yang sudah lunas tapi belum ada hunian
+     */
+    public function syncPembayaran(Request $request)
+    {
+        $user = $request->user();
+        if (! $user->hasAnyRole(['super_admin', 'hr'])) {
+            return response()->json(['message' => 'Akses ditolak'], 403);
+        }
+
+        // Cari pembayaran yang sudah lunas tapi belum ada hunian
+        $pembayarans = \App\Models\Pembayaran::with(['booking.user', 'booking.kost'])
+            ->where('status', 'lunas')
+            ->whereHas('booking', function ($query) {
+                $query->whereIn('status', ['aktif', 'confirmed', 'paid']);
+            })
+            ->whereDoesntHave('booking.hunian')
+            ->get();
+
+        $created = 0;
+        $skipped = 0;
+
+        foreach ($pembayarans as $pembayaran) {
+            $booking = $pembayaran->booking;
+            $user = $booking->user;
+
+            // Cari karyawan
+            $karyawan = \App\Models\Karyawan::where('user_id', $user->id)->first();
+
+            if (! $karyawan) {
+                $skipped++;
+                continue;
+            }
+
+            // Selesaikan hunian aktif sebelumnya
+            \App\Models\Hunian::where('karyawan_id', $karyawan->id)
+                ->where('status', 'aktif')
+                ->update(['status' => 'selesai', 'tanggal_keluar' => now()]);
+
+            // Buat hunian baru
+            \App\Models\Hunian::create([
+                'karyawan_id'    => $karyawan->id,
+                'kost_id'        => $booking->kost_id,
+                'booking_id'     => $booking->id,
+                'tanggal_masuk'  => $booking->tanggal_mulai,
+                'tanggal_keluar' => $booking->tanggal_selesai,
+                'status'         => 'aktif',
+                'is_verified'    => false,
+            ]);
+
+            $created++;
+        }
+
+        return response()->json([
+            'message' => 'Sinkronisasi selesai',
+            'created' => $created,
+            'skipped' => $skipped,
+            'total_processed' => $pembayarans->count(),
         ]);
     }
 
