@@ -18,7 +18,39 @@ export const AuthProvider = ({ children }) => {
         setUser(response.data.user)
       } catch (error) {
         console.error('Failed to fetch user data:', error)
+        console.error('Error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message
+        })
+        
         if (error.response && error.response.status === 401) {
+          authService.logout()
+          setIsAuthenticated(false)
+          setUser(null)
+        } else if (error.response && error.response.status === 500) {
+          // 500 error - server issue, don't logout user
+          console.error('Server error in /auth/me - keeping user logged in')
+          // Try to get user from localStorage as fallback
+          const storedUser = localStorage.getItem('user')
+          if (storedUser) {
+            try {
+              setUser(JSON.parse(storedUser))
+            } catch (parseError) {
+              console.error('Failed to parse stored user data:', parseError)
+              authService.logout()
+              setIsAuthenticated(false)
+              setUser(null)
+            }
+          } else {
+            // No fallback data, logout user
+            authService.logout()
+            setIsAuthenticated(false)
+            setUser(null)
+          }
+        } else {
+          // Other errors, logout for safety
           authService.logout()
           setIsAuthenticated(false)
           setUser(null)

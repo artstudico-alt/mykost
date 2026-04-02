@@ -92,59 +92,143 @@ const Profile = () => {
   const fetchData = async () => {
     setLoading(true)
     setFetchError('')
-    const results = await Promise.allSettled([
-      api.get('/auth/me'),
-      api.get('/booking'),
-      api.get('/pembayaran'),
-      api.get('/keluhan'),
-      api.get('/kost'),
-    ])
-
-    const [meRes, bookingRes, payRes, keluhanRes, kostRes] = results
-
-    if (meRes.status === 'fulfilled' && meRes.value?.data?.user) {
-      setUser(meRes.value.data.user)
-    } else {
-      setUser(authUser ?? null)
-      if (meRes.status === 'rejected') {
-        console.error('auth/me:', meRes.reason)
-        setFetchError((prev) => prev || 'Data profil tidak bisa dimuat. ')
-      }
-    }
-
-    setBookings(normalizeList(bookingRes))
-    setPayments(normalizeList(payRes))
-    setComplaints(normalizeList(keluhanRes))
     
-    // Set kost list from API or bookings
-    if (kostRes.status === 'fulfilled' && kostRes.value?.data) {
-      const kostData = Array.isArray(kostRes.value.data) ? kostRes.value.data : kostRes.value.data.data || []
-      setKostList(kostData)
-    } else {
-      // Fallback: extract unique kosts from bookings
-      const uniqueKosts = [...new Map(bookings.map(b => [b.kost?.id, b.kost]).filter(([id, kost]) => id && kost)).values()]
-      setKostList(uniqueKosts)
-    }
+    try {
+      // Always fetch user profile
+      const meRes = await api.get('/auth/me')
+      if (meRes?.data?.user) {
+        setUser(meRes.data.user)
+      } else {
+        setUser(authUser ?? null)
+      }
 
-    const parts = []
-    if (bookingRes.status === 'rejected') {
-      console.error('booking:', bookingRes.reason)
-      parts.push('booking')
-    }
-    if (payRes.status === 'rejected') {
-      console.error('pembayaran:', payRes.reason)
-      parts.push('pembayaran')
-    }
-    if (keluhanRes.status === 'rejected') {
-      console.error('keluhan:', keluhanRes.reason)
-      parts.push('keluhan')
-    }
-    if (parts.length) {
-      setFetchError(
-        (prev) =>
-          prev +
-          `Gagal memuat: ${parts.join(', ')}. Tab terkait mungkin kosong.`
+      // Get user role to determine which data to fetch
+      const currentUser = meRes?.data?.user || authUser
+      const userRole = formatRolePlain(currentUser)
+      
+      console.log('Profile fetch - User role:', userRole, 'User:', currentUser)
+      
+      // Fetch data based on user role
+      const fetchPromises = []
+      
+      // Only karyawan, hr, super_admin can see bookings
+      if (['karyawan', 'hr', 'super_admin', 'pemilik_kost'].includes(userRole)) {
+        fetchPromises.push(
+          api.get('/booking').catch(err => {
+            console.log('Booking fetch failed:', err.response?.status, err.response?.data || err.message)
+            return { status: 'rejected', reason: err }
+          })
+        )
+      } else {
+        fetchPromises.push(Promise.resolve({ status: 'fulfilled', value: { data: { data: [] } } }))
+      }
+      
+      // Only karyawan, hr, super_admin, pemilik_kost can see payments
+      if (['karyawan', 'hr', 'super_admin', 'pemilik_kost'].includes(userRole)) {
+        fetchPromises.push(
+          api.get('/pembayaran').catch(err => {
+            console.log('Pembayaran fetch failed:', err.response?.status, err.response?.data || err.message)
+            return { status: 'rejected', reason: err }
+          })
+        )
+      } else {
+        fetchPromises.push(Promise.resolve({ status: 'fulfilled', value: { data: { data: [] } } }))
+      }
+      
+      // All authenticated users can see their own complaints
+      fetchPromises.push(
+        api.get('/keluhan').catch(err => {
+          console.log('Keluhan fetch failed:', err.response?.status, err.response?.data || err.message)
+          return { status: 'rejected', reason: err }
+        })
       )
+      
+      // Fetch kost list based on role
+      if (['pemilik_kost', 'super_admin'].includes(userRole)) {
+        fetchPromises.push(
+          api.get(userRole === 'pemilik_kost' ? '/kost?mine=1' : '/kost/moderasi').catch(err => {
+            console.log('Kost fetch failed:', err.response?.status, err.response?.data || err.message)
+            return { status: 'rejected', reason: err }
+          })
+        )
+      } else {
+        fetchPromises.push(Promise.resolve({ status: 'fulfilled', value: { data: { data: [] } } }))
+      }
+
+      const results = await Promise.allSettled(fetchPromises)
+      const [, bookingRes, payRes, keluhanRes, kostRes] = results
+
+      // Set data with proper error handling
+      setBookings(normalizeList(bookingRes))
+      setPayments(normalizeList(payRes))
+      setComplaints(normalizeList(keluhanRes))
+      
+      // Set kost list from API or bookings
+      if (kostRes && kostRes.status === 'fulfilled' && kostRes.value?.data) {
+        const kostData = Array.isArray(kostRes.value.data) ? kostRes.value.data : kostRes.value.data.data || []
+        setKostList(kostData)
+      } else {
+        // Fallback: extract unique kosts from bookings
+        const bookingData = normalizeList(bookingRes)
+        const uniqueKosts = [...new Map(bookingData.map(b => [b.kost?.id, b.kost]).filter(([id, kost]) => id && kost)).values()]
+        setKostList(uniqueKosts)
+      }
+
+      // Collect errors for user feedback
+      const parts = []
+      if (bookingRes.status === 'rejected' && bookingRes.reason?.response?.status !== 403) {
+        console.error('booking:', bookingRes.reason)
+        parts.push('booking')
+      }
+      if (payRes.status === 'rejected' && payRes.reason?.response?.status !== 403) {
+        console.error('pembayaran:', payRes.reason)
+        parts.push('pembayaran')
+      }
+      if (keluhanRes.status === 'rejected' && keluhanRes.reason?.response?.status !== 403) {
+        console.error('keluhan:', keluhanRes.reason)
+        parts.push('keluhan')
+      }
+      
+      if (parts.length) {
+        setFetchError(`Gagal memuat: ${parts.join(', ')}. Tab terkait mungkin kosong.`)
+      } else if (bookingRes.status === 'rejected' || payRes.status === 'rejected' || keluhanRes.status === 'rejected') {
+        // Some data is not accessible due to permissions, but that's expected
+        console.log('Some data not accessible due to user permissions - this is normal')
+      }
+      
+      // Debug: Log profile access for troubleshooting
+      console.log('Profile data loaded:', {
+        userRole,
+        bookingsCount: bookings.length,
+        paymentsCount: payments.length,
+        complaintsCount: complaints.length,
+        kostCount: kostList.length,
+        bookingStatus: bookingRes?.status || 'unknown',
+        paymentStatus: payRes?.status || 'unknown',
+        keluhanStatus: keluhanRes?.status || 'unknown',
+        kostStatus: kostRes?.status || 'unknown'
+      })
+      
+      // If there are still issues, try debug endpoint
+      if (bookingRes.status === 'rejected' || payRes.status === 'rejected' || keluhanRes.status === 'rejected') {
+        try {
+          const debugRes = await api.get('/debug/profile-access')
+          console.log('Profile access debug:', debugRes.data)
+        } catch (debugErr) {
+          console.log('Debug endpoint failed:', debugErr)
+        }
+      }
+      
+    } catch (error) {
+      console.error('Profile data fetch error:', error)
+      setFetchError('Data profil tidak bisa dimuat. Silakan refresh halaman.')
+      
+      // Set fallback data
+      setUser(authUser ?? null)
+      setBookings([])
+      setPayments([])
+      setComplaints([])
+      setKostList([])
     }
 
     setLoading(false)

@@ -110,10 +110,38 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         try {
+            \Log::info('Auth/me request received', [
+                'has_token' => $request->bearerToken() ? true : false,
+                'token_length' => $request->bearerToken() ? strlen($request->bearerToken()) : 0,
+                'request_headers' => $request->headers->all()
+            ]);
+
             $user = $request->user();
 
             if (!$user) {
+                \Log::warning('Auth/me: No user found in request');
                 return response()->json(['message' => 'User tidak ditemukan.'], 401);
+            }
+
+            \Log::info('Auth/me: User found', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'user_name' => $user->name
+            ]);
+
+            // Load role relationship safely
+            try {
+                $user->load('role');
+                \Log::info('Auth/me: Role loaded successfully', [
+                    'role_id' => $user->role?->id,
+                    'role_name' => $user->role?->name
+                ]);
+            } catch (\Exception $roleError) {
+                \Log::error('Auth/me: Error loading role', [
+                    'error' => $roleError->getMessage(),
+                    'user_id' => $user->id
+                ]);
+                // Continue without role
             }
 
             return response()->json([
@@ -126,8 +154,20 @@ class AuthController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error in me(): ' . $e->getMessage());
-            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
+            \Log::error('Error in AuthController me(): ' . $e->getMessage(), [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'error_trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Server error: ' . $e->getMessage(),
+                'debug_info' => config('app.debug') ? [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString()
+                ] : null
+            ], 500);
         }
     }
 

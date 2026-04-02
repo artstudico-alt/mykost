@@ -157,6 +157,158 @@ Route::middleware('auth:sanctum')->get('/debug/budi-santoso-issue', function () 
     ]);
 });
 
+// DEBUG: Profile data access check
+Route::middleware('auth:sanctum')->get('/debug/profile-access', function () {
+    $user = request()->user();
+    $user->load('role');
+
+    // Test access to each endpoint that profile tries to fetch
+    $endpoints = [
+        'booking' => '/api/booking',
+        'pembayaran' => '/api/pembayaran',
+        'keluhan' => '/api/keluhan',
+        'kost' => $user->hasRole('pemilik_kost') ? '/api/kost?mine=1' : ($user->hasRole('super_admin') ? '/api/kost/moderasi' : '/api/kost')
+    ];
+
+    $results = [];
+
+    foreach ($endpoints as $name => $url) {
+        try {
+            // Simulate the API call logic
+            $response = null;
+            $error = null;
+
+            if ($name === 'booking') {
+                $query = \App\Models\Booking::with(['user', 'kost', 'pembayarans']);
+                if ($user->hasRole('karyawan')) {
+                    $query->where('user_id', $user->id);
+                } elseif ($user->hasRole('pemilik_kost')) {
+                    $query->whereHas('kost', fn($q) => $q->where('user_id', $user->id));
+                }
+                $data = $query->get();
+                $response = ['data' => $data, 'count' => $data->count()];
+
+            } elseif ($name === 'pembayaran') {
+                $query = \App\Models\Pembayaran::with(['booking.user', 'booking.kost']);
+                if ($user->hasRole('super_admin')) {
+                    // No filter
+                } elseif ($user->hasRole('karyawan')) {
+                    $query->whereHas('booking', fn ($q) => $q->where('user_id', $user->id));
+                } elseif ($user->hasRole('pemilik_kost')) {
+                    $query->whereHas('booking.kost', fn ($q) => $q->where('user_id', $user->id));
+                }
+                $data = $query->get();
+                $response = ['data' => $data, 'count' => $data->count()];
+
+            } elseif ($name === 'keluhan') {
+                $query = \App\Models\Keluhan::with(['user', 'kost']);
+                if ($user->hasRole('karyawan')) {
+                    $query->where('user_id', $user->id);
+                } elseif ($user->hasRole('pemilik_kost')) {
+                    $query->whereHas('kost', fn($q) => $q->where('user_id', $user->id));
+                } elseif ($user->hasRole('super_admin')) {
+                    // No filter
+                }
+                $data = $query->get();
+                $response = ['data' => $data, 'count' => $data->count()];
+
+            } elseif ($name === 'kost') {
+                $query = \App\Models\Kost::with('user');
+                if ($user->hasRole('pemilik_kost') && str_contains($url, 'mine=1')) {
+                    $query->where('user_id', $user->id);
+                } elseif ($user->hasRole('super_admin') && str_contains($url, 'moderasi')) {
+                    // All kosts for moderation
+                } else {
+                    $query->where('status', 'aktif');
+                }
+                $data = $query->get();
+                $response = ['data' => $data, 'count' => $data->count()];
+            }
+
+            $results[$name] = [
+                'accessible' => true,
+                'url' => $url,
+                'response' => $response,
+                'error' => null
+            ];
+
+        } catch (\Exception $e) {
+            $results[$name] = [
+                'accessible' => false,
+                'url' => $url,
+                'response' => null,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    return response()->json([
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role->name
+        ],
+        'endpoint_access' => $results
+    ]);
+});
+
+// DEBUG: Test auth/me endpoint directly
+Route::middleware('auth:sanctum')->get('/debug/auth-me', function () {
+    try {
+        $user = request()->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No user found in request',
+                'has_token' => request()->bearerToken() ? true : false,
+                'token_length' => request()->bearerToken() ? strlen(request()->bearerToken()) : 0
+            ], 401);
+        }
+
+        // Test role loading
+        $roleLoaded = false;
+        $roleError = null;
+        try {
+            $user->load('role');
+            $roleLoaded = true;
+        } catch (\Exception $e) {
+            $roleError = $e->getMessage();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Auth/me debug successful',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role_loaded' => $roleLoaded,
+                'role_name' => $user->role?->name ?? 'unknown',
+                'role_error' => $roleError
+            ],
+            'debug_info' => [
+                'has_token' => request()->bearerToken() ? true : false,
+                'token_length' => request()->bearerToken() ? strlen(request()->bearerToken()) : 0,
+                'user_model_class' => get_class($user),
+                'sanctum_tokens_count' => $user->tokens()->count()
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Debug endpoint failed: ' . $e->getMessage(),
+            'error_details' => [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]
+        ], 500);
+    }
+});
+
 // ============================================================
 // AUTH — Public
 // ============================================================
@@ -304,4 +456,108 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/{id}/read', [NotifikasiController::class, 'markAsRead']);
         Route::delete('/{id}', [NotifikasiController::class, 'destroy']);
     });
+});
+
+// DEBUG: Check booking-payment synchronization issue
+Route::middleware('auth:sanctum')->get('/debug/booking-payment-sync', function () {
+    $user = request()->user();
+    $user->load('role');
+
+    try {
+        // Get user's bookings
+        $bookings = \App\Models\Booking::with(['kost', 'pembayarans'])
+            ->when($user->hasRole('karyawan'), fn($q) => $q->where('user_id', $user->id))
+            ->when($user->hasRole('pemilik_kost'), fn($q) => $q->whereHas('kost', fn($q) => $q->where('user_id', $user->id)))
+            ->latest()
+            ->get();
+
+        // Get user's payments
+        $payments = \App\Models\Pembayaran::with(['booking.user', 'booking.kost'])
+            ->when($user->hasRole('karyawan'), fn($q) => $q->whereHas('booking', fn($q) => $q->where('user_id', $user->id)))
+            ->when($user->hasRole('pemilik_kost'), fn($q) => $q->whereHas('booking.kost', fn($q) => $q->where('user_id', $user->id)))
+            ->latest()
+            ->get();
+
+        // Analyze synchronization issues
+        $syncIssues = [];
+        foreach ($bookings as $booking) {
+            $hasPayment = $booking->pembayarans->count() > 0;
+
+            if (!$hasPayment && in_array($booking->status, ['confirmed', 'aktif'])) {
+                $syncIssues[] = [
+                    'type' => 'missing_payment',
+                    'booking_id' => $booking->id,
+                    'booking_status' => $booking->status,
+                    'kost_name' => $booking->kost->nama_kost,
+                    'user_name' => $booking->user->name,
+                    'issue' => 'Booking confirmed/active but no payment record'
+                ];
+            }
+
+            if ($hasPayment && $booking->status === 'pending') {
+                $syncIssues[] = [
+                    'type' => 'payment_without_confirmation',
+                    'booking_id' => $booking->id,
+                    'booking_status' => $booking->status,
+                    'payment_status' => $booking->pembayarans->first()->status,
+                    'issue' => 'Payment exists but booking still pending'
+                ];
+            }
+        }
+
+        // Check for orphaned payments
+        foreach ($payments as $payment) {
+            if (!$payment->booking) {
+                $syncIssues[] = [
+                    'type' => 'orphaned_payment',
+                    'payment_id' => $payment->id,
+                    'booking_id' => $payment->booking_id,
+                    'issue' => 'Payment exists but booking not found'
+                ];
+            }
+        }
+
+        return response()->json([
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'role' => $user->role->name
+            ],
+            'bookings_count' => $bookings->count(),
+            'payments_count' => $payments->count(),
+            'sync_issues_count' => count($syncIssues),
+            'bookings' => $bookings->map(function($booking) {
+                return [
+                    'id' => $booking->id,
+                    'status' => $booking->status,
+                    'kost_name' => $booking->kost->nama_kost,
+                    'payments_count' => $booking->pembayarans->count(),
+                    'total_harga' => $booking->total_harga,
+                    'user_name' => $booking->user->name
+                ];
+            })->toArray(),
+            'payments' => $payments->map(function($payment) {
+                return [
+                    'id' => $payment->id,
+                    'status' => $payment->status,
+                    'jumlah' => $payment->jumlah,
+                    'booking_id' => $payment->booking_id,
+                    'booking_status' => $payment->booking?->status,
+                    'order_id' => $payment->order_id
+                ];
+            })->toArray(),
+            'sync_issues' => $syncIssues
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Debug endpoint failed: ' . $e->getMessage(),
+            'error_details' => [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]
+        ], 500);
+    }
 });

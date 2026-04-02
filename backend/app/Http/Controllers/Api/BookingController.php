@@ -158,11 +158,45 @@ class BookingController extends Controller
             ], 422);
         }
 
+        // Update booking status
         $booking->update(['status' => 'confirmed']);
 
+        // Buat pembayaran otomatis setelah konfirmasi
+        try {
+            $pembayaran = \App\Models\Pembayaran::create([
+                'booking_id' => $booking->id,
+                'jumlah' => $booking->total_harga,
+                'metode' => 'transfer',
+                'status' => 'pending',
+                'order_id' => 'BOOK-' . $booking->id . '-' . time(),
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            \Log::info('Pembayaran otomatis dibuat untuk booking', [
+                'booking_id' => $booking->id,
+                'pembayaran_id' => $pembayaran->id,
+                'jumlah' => $booking->total_harga,
+                'user_id' => $booking->user_id
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Gagal membuat pembayaran otomatis: ' . $e->getMessage(), [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage()
+            ]);
+
+            // Continue meskipun pembayaran gagal dibuat
+            return response()->json([
+                'message' => 'Booking berhasil dikonfirmasi, tapi pembayaran gagal dibuat otomatis',
+                'data'    => $booking,
+                'warning' => 'Pembayaran perlu dibuat manual'
+            ]);
+        }
+
         return response()->json([
-            'message' => 'Booking berhasil dikonfirmasi',
-            'data'    => $booking,
+            'message' => 'Booking berhasil dikonfirmasi dan pembayaran dibuat',
+            'data'    => $booking->load(['kost', 'user']),
         ]);
     }
 
@@ -212,7 +246,32 @@ class BookingController extends Controller
             ], 422);
         }
 
+        // Update booking status
         $booking->update(['status' => 'aktif']);
+
+        // Update pembayaran status menjadi lunas
+        try {
+            $pembayaran = \App\Models\Pembayaran::where('booking_id', $booking->id)->first();
+            if ($pembayaran) {
+                $pembayaran->update(['status' => 'lunas']);
+
+                \Log::info('Pembayaran status updated to lunas', [
+                    'booking_id' => $booking->id,
+                    'pembayaran_id' => $pembayaran->id,
+                    'old_status' => $pembayaran->getOriginal('status'),
+                    'new_status' => 'lunas'
+                ]);
+            } else {
+                \Log::warning('Pembayaran tidak ditemukan untuk booking', [
+                    'booking_id' => $booking->id
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Gagal update status pembayaran: ' . $e->getMessage(), [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         $karyawan = Karyawan::where('user_id', $booking->user_id)->first();
 
@@ -233,8 +292,8 @@ class BookingController extends Controller
         }
 
         return response()->json([
-            'message' => 'Booking diaktifkan. Data hunian karyawan berhasil dibuat.',
-            'data'    => $booking->load('hunian'),
+            'message' => 'Booking berhasil diaktifkan',
+            'data'    => $booking->load(['kost', 'user']),
         ]);
     }
 }
