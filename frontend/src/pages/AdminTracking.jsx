@@ -155,7 +155,7 @@ const AdminTracking = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
-                {['Karyawan', 'Kantor', 'Kost / Kamar', 'Tanggal Masuk', 'Pembayaran', 'Status', 'Verifikasi'].map(h => (
+                {['Karyawan', 'Kantor', 'Kost / Kamar', 'Tanggal Masuk', 'Tanggal Keluar', 'Pembayaran', 'Status', 'Verifikasi'].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '16px 32px', color: '#94a3b8', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: '1px solid #f1f5f9' }}>{h}</th>
                 ))}
               </tr>
@@ -169,13 +169,14 @@ const AdminTracking = () => {
                   </div>
                 </td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: 80, textAlign: 'center', color: '#94a3b8', fontSize: 15, fontWeight: 500 }}>Belum ada data hunian karyawan.</td></tr>
+                <tr><td colSpan={8} style={{ padding: 80, textAlign: 'center', color: '#94a3b8', fontSize: 15, fontWeight: 500 }}>Belum ada data hunian karyawan.</td></tr>
               ) : filtered.map(h => {
                 const sc = statusCfg[h.status] || statusCfg.pending;
                 const nama = h.karyawan?.user?.name || h.karyawan?.nama_karyawan || '-';
                 const paymentInfo = h.payment_info || {};
                 const paymentStatus = paymentInfo.status || 'unknown';
                 const paymentDate = paymentInfo.tanggal_bayar ? new Date(paymentInfo.tanggal_bayar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+                const tanggalKeluar = h.tanggal_keluar ? new Date(h.tanggal_keluar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
                 
                 return (
                   <tr key={h.id} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.2s' }}
@@ -203,6 +204,9 @@ const AdminTracking = () => {
                     </td>
                     <td style={{ padding: '20px 32px', fontSize: 13, color: '#64748b', fontWeight: 600 }}>
                       {h.tanggal_mulai ? new Date(h.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                    </td>
+                    <td style={{ padding: '20px 32px', fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+                      {tanggalKeluar}
                     </td>
                     <td style={{ padding: '20px 32px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

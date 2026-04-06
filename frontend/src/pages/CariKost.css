@@ -620,3 +620,175 @@
   .search-sidebar { padding: 20px; }
   .filter-bar { padding: 0 20px; overflow-x: auto; }
 }
+
+/* New Components for Enhanced Radius Feature */
+.nearest-kost-badge {
+  margin: 12px 0;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 16px rgba(16, 185, 129, 0.15);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.nearest-kost-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  font-weight: 800;
+  font-size: 0.875rem;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nearest-kost-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.nearest-kost-content:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.nearest-kost-info h4 {
+  margin: 0;
+  color: white;
+  font-weight: 800;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.nearest-kost-info p {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.nearest-kost-price {
+  color: white;
+  font-weight: 800;
+  font-size: 0.85rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.filter-location-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #dcfce7;
+  color: #16a34a;
+  padding: 8px 20px;
+  border-radius: 9999px;
+  font-weight: 800;
+  font-size: 0.8125rem;
+  box-shadow: 0 2px 4px rgba(22, 164, 74, 0.1);
+  margin-top: 8px;
+}
+
+.kost-distance-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.k-distance-current {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #fef3c7;
+  color: #d97706;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  box-shadow: 0 2px 4px rgba(217, 119, 6, 0.1);
+}
+
+.k-distance-office {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #eff6ff;
+  color: #2563eb;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1);
+}
+
+/* Room Info Styles */
+.kost-room-info {
+  margin: 16px 0;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.room-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.room-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.room-available {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.room-available.available {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.room-available.full {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.room-progress {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.room-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}

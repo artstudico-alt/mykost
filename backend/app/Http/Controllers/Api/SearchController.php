@@ -81,15 +81,39 @@ class SearchController extends Controller
 
         $kosts = $query->get();
 
-        $kosts = $kosts->map(function ($kost) use ($refLat, $refLng) {
+        // Hitung jarak dari referensi dan lokasi pengguna
+        $kosts = $kosts->map(function ($kost) use ($refLat, $refLng, $request) {
+            // Jarak dari titik referensi (Bogor)
             $kost->jarak_dari_referensi = round($this->hitungJarak(
                 $refLat,
                 $refLng,
                 (float) $kost->latitude,
                 (float) $kost->longitude
             ), 2);
+            
+            // Jarak dari lokasi pengguna saat ini (jika ada)
+            if ($request->filled('latitude') && $request->filled('longitude')) {
+                $kost->jarak_dari_lokasi_saat_ini = round($this->hitungJarak(
+                    (float) $request->latitude,
+                    (float) $request->longitude,
+                    (float) $kost->latitude,
+                    (float) $kost->longitude
+                ), 2);
+            } else {
+                $kost->jarak_dari_lokasi_saat_ini = null;
+            }
+            
             return $kost;
         });
+
+        // Cari kost terdekat dari lokasi pengguna saat ini
+        $nearestKost = null;
+        if ($request->filled('latitude') && $request->filled('longitude')) {
+            $nearestKost = $kosts
+                ->whereNotNull('jarak_dari_lokasi_saat_ini')
+                ->sortBy('jarak_dari_lokasi_saat_ini')
+                ->first();
+        }
 
         return response()->json([
             'message' => 'Hasil pencarian kost',
@@ -104,6 +128,21 @@ class SearchController extends Controller
                 'latitude'  => $refLat,
                 'longitude' => $refLng,
             ],
+            'lokasi_pengguna' => [
+                'nama'      => 'Lokasi Anda saat ini',
+                'latitude'  => $request->latitude ?? null,
+                'longitude' => $request->longitude ?? null,
+                'active'    => $request->filled('latitude') && $request->filled('longitude'),
+            ],
+            'kost_terdekat' => $nearestKost ? [
+                'id' => $nearestKost->id,
+                'nama_kost' => $nearestKost->nama_kost,
+                'jarak_km' => $nearestKost->jarak_dari_lokasi_saat_ini,
+                'alamat' => $nearestKost->alamat,
+                'harga_min' => $nearestKost->harga_min,
+                'latitude' => $nearestKost->latitude,
+                'longitude' => $nearestKost->longitude,
+            ] : null,
             'data'    => $kosts,
         ])->header('Cache-Control', 'no-cache, no-store, must-revalidate')
           ->header('Pragma', 'no-cache')

@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, MessageCircle, Ruler, Send, ShowerHead, Snowflake, Loader2 } from 'lucide-react'
+import { Activity, MessageCircle, Ruler, Send, ShowerHead, Snowflake, Loader2, MapPin, Navigation, Footprints, Bike, Car } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import api from '../utils/api'
 import Footer from '../components/Footer'
@@ -48,6 +48,12 @@ function KostDetail() {
   const [isHubungiModalOpen, setIsHubungiModalOpen] = useState(false)
   const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false)
   const [galleryActiveIndex, setGalleryActiveIndex] = useState(0)
+  
+  // Distance calculation states
+  const [userLocation, setUserLocation] = useState(null)
+  const [distanceInfo, setDistanceInfo] = useState(null)
+  const [isCalculatingDistance, setIsCalculatingDistance] = useState(false)
+  const [locationError, setLocationError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -214,6 +220,13 @@ function KostDetail() {
   const mapLng = kost ? parseFloat(kost.longitude) : 106.7892
   const mapName = kost?.nama_kost || 'Kost'
 
+  // Speed constants for travel time calculation (km/h)
+  const TRAVEL_SPEEDS = {
+    walking: 5,
+    motorcycle: 30,
+    car: 40
+  }
+
   const handleActualGoogleMapsRedirect = () => {
     window.open(`https://www.google.com/maps?q=${mapLat},${mapLng}`, '_blank', 'noopener,noreferrer')
   }
@@ -235,6 +248,78 @@ function KostDetail() {
 
   const handlePrevGalleryPhoto = () => {
     setGalleryActiveIndex((prev) => (prev - 1 + displayPhotos.length) % displayPhotos.length)
+  }
+
+  // Haversine formula to calculate distance between two coordinates
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371 // Radius of earth in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * c // Distance in km
+  }
+
+  // Calculate travel time for different modes
+  const calculateTravelTime = (distanceKm) => {
+    return {
+      walking: Math.round((distanceKm / TRAVEL_SPEEDS.walking) * 60), // minutes
+      motorcycle: Math.round((distanceKm / TRAVEL_SPEEDS.motorcycle) * 60),
+      car: Math.round((distanceKm / TRAVEL_SPEEDS.car) * 60)
+    }
+  }
+
+  // Get user location and calculate distance to kost
+  const handleGetDistance = () => {
+    setIsCalculatingDistance(true)
+    setLocationError(null)
+    
+    if (!navigator.geolocation) {
+      setLocationError('Browser Anda tidak mendukung geolocation')
+      setIsCalculatingDistance(false)
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLat = position.coords.latitude
+        const userLng = position.coords.longitude
+        const kostLat = parseFloat(kost.latitude)
+        const kostLng = parseFloat(kost.longitude)
+        
+        // Calculate distance
+        const distance = calculateDistance(userLat, userLng, kostLat, kostLng)
+        
+        // Calculate travel times
+        const travelTimes = calculateTravelTime(distance)
+        
+        setUserLocation({ lat: userLat, lng: userLng })
+        setDistanceInfo({
+          distance: distance.toFixed(2),
+          times: travelTimes
+        })
+        setIsCalculatingDistance(false)
+      },
+      (error) => {
+        let errorMsg = 'Gagal mendapatkan lokasi'
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            errorMsg = 'Izin lokasi ditolak. Mohon izinkan akses lokasi.'
+            break
+          case error.POSITION_UNAVAILABLE:
+            errorMsg = 'Informasi lokasi tidak tersedia'
+            break
+          case error.TIMEOUT:
+            errorMsg = 'Waktu permintaan lokasi habis'
+            break
+        }
+        setLocationError(errorMsg)
+        setIsCalculatingDistance(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    )
   }
 
   if (loading) {
@@ -642,6 +727,145 @@ function KostDetail() {
                       </div>
                     )
                   })()}
+                </div>
+              </div>
+
+              {/* === LOKASI SAYA — Jarak dari Lokasi Pengguna === */}
+              <div style={{ background: '#fff', border: '1px solid #e8ecf0', borderRadius: 16, overflow: 'hidden', marginBottom: '1.5rem' }}>
+                {/* Header */}
+                <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f1f5f9' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.4 }}>
+                        Jarak dari Lokasi Anda
+                      </h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b', fontSize: 13 }}>
+                        <MapPin size={13} color="#3b82f6" />
+                        Hitung jarak real-time ke kost ini
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div style={{ padding: '20px' }}>
+                  {!distanceInfo ? (
+                    <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                      <button
+                        onClick={handleGetDistance}
+                        disabled={isCalculatingDistance}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          margin: '0 auto',
+                          padding: '12px 24px',
+                          background: isCalculatingDistance ? '#94a3b8' : '#3b82f6',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 12,
+                          fontSize: 14,
+                          fontWeight: 700,
+                          cursor: isCalculatingDistance ? 'not-allowed' : 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {isCalculatingDistance ? (
+                          <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                        ) : (
+                          <Navigation size={18} />
+                        )}
+                        {isCalculatingDistance ? 'Mendeteksi Lokasi...' : 'Gunakan Lokasi Saya'}
+                      </button>
+                      
+                      {locationError && (
+                        <p style={{ marginTop: 12, fontSize: 12, color: '#ef4444', fontWeight: 500 }}>
+                          {locationError}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {/* Total Jarak */}
+                      <div style={{ 
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 
+                        padding: '16px 20px', 
+                        borderRadius: 12,
+                        marginBottom: 8
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <MapPin size={24} color="#fff" />
+                            <div>
+                              <p style={{ margin: 0, fontSize: 12, color: '#bfdbfe', fontWeight: 600 }}>Total Jarak</p>
+                              <p style={{ margin: 0, fontSize: 20, color: '#fff', fontWeight: 800 }}>{distanceInfo.distance} km</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleGetDistance}
+                            style={{
+                              background: 'rgba(255,255,255,0.2)',
+                              border: 'none',
+                              borderRadius: 8,
+                              padding: '6px 12px',
+                              color: '#fff',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Update
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Estimasi Waktu - Jalan Kaki */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Footprints size={18} color="#f59e0b" />
+                          </div>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Jalan Kaki</span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{distanceInfo.times.walking} menit</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8' }}>~{TRAVEL_SPEEDS.walking} km/jam</div>
+                        </div>
+                      </div>
+
+                      {/* Estimasi Waktu - Motor */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#f0fdf4', borderRadius: 10, border: '1px solid #dcfce7' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Bike size={18} color="#3b82f6" />
+                          </div>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Motor</span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#059669' }}>{distanceInfo.times.motorcycle} menit</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8' }}>~{TRAVEL_SPEEDS.motorcycle} km/jam</div>
+                        </div>
+                      </div>
+
+                      {/* Estimasi Waktu - Mobil */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#eff6ff', borderRadius: 10, border: '1px solid #dbeafe' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Car size={18} color="#6366f1" />
+                          </div>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Mobil</span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#2563eb' }}>{distanceInfo.times.car} menit</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8' }}>~{TRAVEL_SPEEDS.car} km/jam</div>
+                        </div>
+                      </div>
+
+                      <p style={{ margin: '8px 0 0', fontSize: 11, color: '#cbd5e1', lineHeight: 1.4, textAlign: 'center' }}>
+                        * Estimasi waktu berdasarkan kecepatan rata-rata
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

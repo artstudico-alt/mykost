@@ -45,6 +45,7 @@ class BookingController extends Controller
             'tanggal_mulai' => 'required|date|after_or_equal:today',
             'durasi_bulan'  => 'required|integer|min:1|max:24',
             'catatan'       => 'nullable|string',
+            'nomor_kamar'   => 'required|string',
         ]);
 
         $kost = Kost::find($validated['kost_id']);
@@ -55,19 +56,36 @@ class BookingController extends Controller
             ], 422);
         }
 
+        // Check if room is available
+        if (!$kost->isKamarAvailable($validated['nomor_kamar'])) {
+            return response()->json([
+                'message' => 'Kamar ' . $validated['nomor_kamar'] . ' sudah tidak tersedia atau sudah disewa',
+            ], 422);
+        }
+
+        // Check if kost is full
+        if ($kost->is_full) {
+            return response()->json([
+                'message' => 'Semua kamar sudah terisi, tidak bisa melakukan booking',
+            ], 422);
+        }
+
         // Hapus atau anggap kadaluarsa booking 'pending' yang sudah lebih dari 60 menit
         // agar tidak mengunci kost selamanya jika orang tidak jadi bayar.
         $expiredThreshold = now()->subMinutes(60);
 
         $conflict = Booking::where('kost_id', $kost->id)
-            ->where(function ($q) use ($expiredThreshold, $request) {
+            ->where(function ($q) use ($expiredThreshold, $request, $validated) {
                 $q->where('status', 'aktif')
                   ->orWhere('status', 'confirmed')
-                  ->orWhere(function ($sq) use ($expiredThreshold, $request) {
+                  ->orWhere(function ($sq) use ($expiredThreshold, $request, $validated) {
                       $sq->where('status', 'pending')
                          ->where('created_at', '>=', $expiredThreshold)
                          ->where('user_id', '!=', $request->user()->id);
                   });
+            })
+            ->when(isset($validated['nomor_kamar']), function ($q) use ($validated) {
+                $q->where('nomor_kamar', $validated['nomor_kamar']);
             })
             ->exists();
 
@@ -161,6 +179,9 @@ class BookingController extends Controller
         // Update booking status
         $booking->update(['status' => 'confirmed']);
 
+        // Update kamar terisi di kost
+        $booking->kost->updateKamarTerisi();
+
         // Buat pembayaran otomatis setelah konfirmasi
         try {
             $pembayaran = \App\Models\Pembayaran::create([
@@ -248,6 +269,9 @@ class BookingController extends Controller
 
         // Update booking status
         $booking->update(['status' => 'aktif']);
+
+        // Update kamar terisi di kost (final update)
+        $booking->kost->updateKamarTerisi();
 
         // Update pembayaran status menjadi lunas
         try {

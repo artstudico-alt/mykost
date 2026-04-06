@@ -47,6 +47,11 @@ export default function CariKost() {
   });
 
   const [mapCenter, setMapCenter] = useState([defaultLocation.lat, defaultLocation.lng]);
+  const [nearestKost, setNearestKost] = useState(null);
+  const [lokasiInfo, setLokasiInfo] = useState({
+    titik_referensi: null,
+    lokasi_pengguna: null,
+  });
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -83,6 +88,15 @@ export default function CariKost() {
 
       const response = await api.get('/search/kost', { params: payload });
       setKosts(response.data.data || []);
+      
+      // Update lokasi info
+      setLokasiInfo({
+        titik_referensi: response.data.titik_referensi,
+        lokasi_pengguna: response.data.lokasi_pengguna,
+      });
+      
+      // Update kost terdekat
+      setNearestKost(response.data.kost_terdekat);
       
       if (response.data.center?.latitude && response.data.center?.longitude) {
          setMapCenter([response.data.center.latitude, response.data.center.longitude]);
@@ -181,11 +195,38 @@ export default function CariKost() {
         
         <span className="filter-stats">{kosts.length} kost ditemukan</span>
 
+        {/* Kost Terdekat dari Lokasi Pengguna */}
+        {nearestKost && lokasiInfo?.lokasi_pengguna?.active && (
+          <div className="nearest-kost-badge">
+            <div className="nearest-kost-header">
+              <Navigation size={16} />
+              <span>Kost Terdekat dari Lokasi Anda</span>
+            </div>
+            <div className="nearest-kost-content" onClick={() => navigate(`/kost/${nearestKost.id}`)}>
+              <div className="nearest-kost-info">
+                <h4>{nearestKost.nama_kost}</h4>
+                <p>{nearestKost.jarak_km} km</p>
+              </div>
+              <div className="nearest-kost-price">
+                Rp {parseFloat(nearestKost.harga_min || 0).toLocaleString('id-ID')}/bln
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Info titik pusat */}
         <div className="filter-center-badge">
           <Building2 size={16} />
           Titik Pusat: Kantor Kedung Waringin, Bogor
         </div>
+        
+        {/* Info lokasi pengguna */}
+        {lokasiInfo?.lokasi_pengguna?.active && (
+          <div className="filter-location-badge">
+            <MapPin size={16} />
+            Lokasi Anda: Aktif
+          </div>
+        )}
       </div>
 
       {/* MAIN CONTENT SPLIT SCREEN */}
@@ -245,6 +286,29 @@ export default function CariKost() {
                            <span className="facility-item"><Shield size={16}/> Aman</span>
                         </div>
 
+                        {/* Room Info */}
+                        {(kost.jumlah_kamar !== undefined && kost.jumlah_kamar > 0) && (
+                           <div className="kost-room-info">
+                              <div className="room-stats">
+                                 <span className="room-count">
+                                    <Building2 size={14} />
+                                    {kost.jumlah_kamar} Kamar
+                                 </span>
+                                 <span className={`room-available ${kost.kamar_tersedia > 0 ? 'available' : 'full'}`}>
+                                    {kost.kamar_tersedia > 0 ? `${kost.kamar_tersedia} Tersedia` : 'Penuh'}
+                                 </span>
+                              </div>
+                              {kost.jumlah_kamar > 0 && (
+                                 <div className="room-progress">
+                                    <div 
+                                      className="room-progress-bar" 
+                                      style={{ width: `${(kost.kamar_terisi / kost.jumlah_kamar) * 100}%` }}
+                                    ></div>
+                                 </div>
+                              )}
+                           </div>
+                        )}
+
                         <div className="kost-card-footer">
                            <div className="kost-price-wrap">
                               <div>
@@ -262,12 +326,24 @@ export default function CariKost() {
                               )}
                            </div>
 
-                           {kost.jarak_dari_referensi !== undefined && (
-                              <div className="k-distance-office">
-                                 <Building2 size={16} />
-                                 <span>{parseFloat(kost.jarak_dari_referensi).toFixed(1)} km dari titik referensi</span>
-                              </div>
-                           )}
+                           {/* Dual Distance Display */}
+                           <div className="kost-distance-info">
+                              {/* Jarak dari titik referensi */}
+                              {kost.jarak_dari_referensi !== undefined && (
+                                 <div className="k-distance-office">
+                                    <Building2 size={16} />
+                                    <span>{parseFloat(kost.jarak_dari_referensi).toFixed(1)} km dari titik referensi</span>
+                                 </div>
+                              )}
+                              
+                              {/* Jarak dari lokasi pengguna saat ini */}
+                              {kost.jarak_dari_lokasi_saat_ini !== undefined && kost.jarak_dari_lokasi_saat_ini !== null && (
+                                 <div className="k-distance-current">
+                                    <MapPin size={16} />
+                                    <span>{parseFloat(kost.jarak_dari_lokasi_saat_ini).toFixed(1)} km dari lokasi Anda</span>
+                                 </div>
+                              )}
+                           </div>
                         </div>
                      </div>
                    </div>

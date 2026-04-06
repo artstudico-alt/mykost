@@ -226,6 +226,7 @@ class KostController extends Controller
                 'foto_utama'     => 'nullable|string',
                 'foto_tambahan'  => 'nullable|array',
                 'foto_tambahan.*'=> 'string',
+                'jumlah_kamar'   => 'required|integer|min:1',
             ], [
                 'nama_kost.required' => 'Nama kost wajib diisi',
                 'tipe.required' => 'Tipe kost wajib dipilih',
@@ -236,12 +237,36 @@ class KostController extends Controller
                 'longitude.required' => 'Longitude wajib diisi (pilih di peta)',
                 'harga_min.required' => 'Harga sewa wajib diisi',
                 'harga_min.min' => 'Harga sewa tidak boleh negatif',
+                'jumlah_kamar.required' => 'Jumlah kamar wajib diisi',
+                'jumlah_kamar.min' => 'Jumlah kamar minimal 1',
             ]);
 
             $validated['user_id'] = $request->user()->id;
             $validated['status']  = 'pending'; // default pending, perlu disetujui super_admin
+            $validated['kamar_terisi'] = 0; // default 0 kamar terisi saat baru dibuat
 
             $kost = Kost::create($validated);
+
+            // Create kamar records based on jumlah_kamar
+            if ($request->has('kode_kamar_list') && is_array($request->kode_kamar_list)) {
+                // Use provided kode kamar list
+                foreach ($request->kode_kamar_list as $kode) {
+                    if (!empty($kode)) {
+                        $kost->kamars()->create([
+                            'kode_kamar' => $kode,
+                            'status' => 'tersedia',
+                        ]);
+                    }
+                }
+            } else {
+                // Auto-generate kode kamar (K001, K002, etc.)
+                for ($i = 1; $i <= $validated['jumlah_kamar']; $i++) {
+                    $kost->kamars()->create([
+                        'kode_kamar' => 'K' . str_pad($i, 3, '0', STR_PAD_LEFT),
+                        'status' => 'tersedia',
+                    ]);
+                }
+            }
 
             return response()->json([
                 'message' => 'Data kost berhasil ditambahkan, menunggu persetujuan admin',

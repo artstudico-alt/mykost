@@ -78,7 +78,7 @@ const AdminKost = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const [formData, setFormData] = useState({
-    nama_kost: '', alamat: '', kota: '', provinsi: 'Jawa Barat', tipe: 'campur', harga_min: '', status: 'pending', deskripsi: '', latitude: -6.1751, longitude: 106.8650
+    nama_kost: '', alamat: '', kota: '', provinsi: 'Jawa Barat', tipe: 'campur', harga_min: '', status: 'pending', deskripsi: '', latitude: -6.1751, longitude: 106.8650, jumlah_kamar: '', kode_kamar_list: []
   });
 
   const inputStyle = {
@@ -244,14 +244,15 @@ const AdminKost = () => {
         status: kost.status || 'pending',
         deskripsi: kost.deskripsi || '',
         latitude: kost.latitude || -6.1751,
-        longitude: kost.longitude || 106.8650
+        longitude: kost.longitude || 106.8650,
+        jumlah_kamar: kost.jumlah_kamar || ''
       });
     } else {
       setCurrentKost(null);
       setPhotos([]);
       setThumbnailIndex(0);
       setFormData({
-        nama_kost: '', alamat: '', kota: '', provinsi: 'Jawa Barat', tipe: 'campur', harga_min: '', status: 'pending', deskripsi: '', latitude: -6.1751, longitude: 106.8650
+        nama_kost: '', alamat: '', kota: '', provinsi: 'Jawa Barat', tipe: 'campur', harga_min: '', status: 'pending', deskripsi: '', latitude: -6.1751, longitude: 106.8650, jumlah_kamar: '', kode_kamar_list: []
       });
     }
     setShowModal(true);
@@ -318,7 +319,7 @@ const AdminKost = () => {
         }
     }
 
-    const payload = { ...formData, foto_utama, foto_tambahan };
+    const payload = { ...formData, foto_utama, foto_tambahan, kode_kamar_list: formData.kode_kamar_list };
 
     try {
       if (isAdmin && currentKost) {
@@ -471,7 +472,7 @@ const AdminKost = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
-                {['Properti', 'Pemilik', 'Lokasi', 'Tipe', 'Harga / Bulan', 'Status', 'Aksi'].map(h => (
+                {['Properti', 'Pemilik', 'Lokasi', 'Tipe', 'Kamar', 'Harga / Bulan', 'Status', 'Aksi'].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '16px 32px', color: '#94a3b8', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: '1px solid #f1f5f9' }}>
                     {h}
                   </th>
@@ -481,7 +482,7 @@ const AdminKost = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: '80px 0', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan="7" style={{ padding: '80px 0', textAlign: 'center', color: '#94a3b8' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
                       <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
                       <span style={{ fontSize: 15, fontWeight: 600 }}>Memuat data properti...</span>
@@ -490,7 +491,7 @@ const AdminKost = () => {
                 </tr>
               ) : filteredKosts.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: '80px 0', textAlign: 'center', color: '#94a3b8', fontSize: 15, fontWeight: 500 }}>
+                  <td colSpan="7" style={{ padding: '80px 0', textAlign: 'center', color: '#94a3b8', fontSize: 15, fontWeight: 500 }}>
                     Tidak ada properti ditemukan.
                   </td>
                 </tr>
@@ -534,6 +535,34 @@ const AdminKost = () => {
                       <span className={tc.cls} style={{ padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                         {tc.label}
                       </span>
+                    </td>
+                    <td style={{ padding: '20px 32px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b', fontSize: 12, fontWeight: 600 }}>
+                          <Home size={14} />
+                          <span>{k.jumlah_kamar || 0} Total</span>
+                        </div>
+                        {k.jumlah_kamar > 0 && (
+                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 11, color: '#94a3b8' }}>Terisi:</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: (k.kamar_terisi || 0) >= k.jumlah_kamar ? '#dc2626' : '#059669' }}>
+                                 {k.kamar_terisi || 0}/{k.jumlah_kamar}
+                              </span>
+                           </div>
+                        )}
+                        {k.jumlah_kamar > 0 && (
+                           <div style={{ height: 4, background: '#f1f5f9', borderRadius: 2, overflow: 'hidden', marginTop: 2 }}>
+                              <div 
+                                 style={{ 
+                                   height: '100%', 
+                                   background: (k.kamar_terisi || 0) >= k.jumlah_kamar ? '#dc2626' : '#10b981',
+                                   width: `${Math.min((k.kamar_terisi || 0) / k.jumlah_kamar * 100, 100)}%`,
+                                   transition: 'width 0.3s ease'
+                                 }}
+                              ></div>
+                           </div>
+                        )}
+                      </div>
                     </td>
                     <td style={{ padding: '20px 32px', fontWeight: 800, color: '#0f172a', fontSize: 14 }}>
                       Rp {parseInt(k.harga_min || 0).toLocaleString('id-ID')}
@@ -664,6 +693,84 @@ const AdminKost = () => {
                         onBlur={e => e.target.style.borderColor = '#e2e8f0'}
                       />
                     </div>
+
+                    {/* Jumlah Kamar */}
+                    <div>
+                      <label style={labelStyle}>Jumlah Kamar</label>
+                      <input type="number" placeholder="5"
+                        value={formData.jumlah_kamar || ''}
+                        onChange={e => {
+                          const jumlah = parseInt(e.target.value) || 0;
+                          setFormData(prev => {
+                            // Generate default kode kamar if not exists
+                            const currentList = prev.kode_kamar_list || [];
+                            const newList = [];
+                            for (let i = 0; i < jumlah; i++) {
+                              newList.push(currentList[i] || `K${String(i + 1).padStart(3, '0')}`);
+                            }
+                            return { ...prev, jumlah_kamar: jumlah, kode_kamar_list: newList };
+                          });
+                        }}
+                        required min="1"
+                        style={inputStyle}
+                        onFocus={e => e.target.style.borderColor = '#22c55e'}
+                        onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                      />
+                      <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0', fontWeight: 600 }}>
+                        Total kamar yang tersedia di properti ini
+                      </p>
+                    </div>
+
+                    {/* Kode Kamar */}
+                    {formData.jumlah_kamar > 0 && (
+                      <div style={{ gridColumn: 'span 2', background: '#f0fdf4', padding: 20, borderRadius: 16, border: '1px solid #bbf7d0', marginTop: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                          <Home size={18} color="#16a34a" />
+                          <label style={{ ...labelStyle, margin: 0 }}>Kode Kamar</label>
+                        </div>
+                        <p style={{ fontSize: 13, color: '#166534', margin: '0 0 16px', fontWeight: 500 }}>
+                          Masukkan kode unik untuk setiap kamar (contoh: A01, B02, 101, 102, K001)
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 12 }}>
+                          {formData.kode_kamar_list?.map((kode, index) => (
+                            <div key={index} style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 8, 
+                              background: 'white', 
+                              padding: '12px 14px', 
+                              borderRadius: 12, 
+                              border: '2px solid #22c55e',
+                              boxShadow: '0 2px 8px rgba(34, 197, 94, 0.1)'
+                            }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', minWidth: 20 }}>
+                                #{index + 1}
+                              </span>
+                              <input
+                                type="text"
+                                placeholder={`K${String(index + 1).padStart(3, '0')}`}
+                                value={kode}
+                                onChange={e => {
+                                  const newList = [...formData.kode_kamar_list];
+                                  newList[index] = e.target.value.toUpperCase();
+                                  setFormData({ ...formData, kode_kamar_list: newList });
+                                }}
+                                style={{ 
+                                  width: '100%', 
+                                  border: 'none', 
+                                  background: 'transparent', 
+                                  fontSize: 14, 
+                                  fontWeight: 800, 
+                                  color: '#0f172a', 
+                                  textAlign: 'center',
+                                  outline: 'none'
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Alamat */}
                     <div style={{ gridColumn: 'span 2' }}>

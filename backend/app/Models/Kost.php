@@ -24,6 +24,8 @@ class Kost extends Model
         'foto_utama',
         'foto_tambahan',
         'status',
+        'jumlah_kamar',
+        'kamar_terisi',
     ];
 
     protected $casts = [
@@ -32,6 +34,8 @@ class Kost extends Model
         'longitude'      => 'float',
         'harga_min'      => 'float',
         'foto_tambahan'  => 'array',
+        'jumlah_kamar'   => 'integer',
+        'kamar_terisi'   => 'integer',
     ];
 
     // === Relasi ===
@@ -54,5 +58,58 @@ class Kost extends Model
     public function keluhans()
     {
         return $this->hasMany(Keluhan::class);
+    }
+
+    public function kamars()
+    {
+        return $this->hasMany(Kamar::class);
+    }
+
+    // === Accessors & Mutators ===
+
+    public function getKamarTersediaAttribute()
+    {
+        return max(0, $this->jumlah_kamar - $this->kamar_terisi);
+    }
+
+    public function getPersentaseTerisiAttribute()
+    {
+        if ($this->jumlah_kamar == 0) return 0;
+        return round(($this->kamar_terisi / $this->jumlah_kamar) * 100, 1);
+    }
+
+    public function getIsFullAttribute()
+    {
+        return $this->kamar_terisi >= $this->jumlah_kamar;
+    }
+
+    public function getIsAvailableAttribute()
+    {
+        return $this->kamar_terisi < $this->jumlah_kamar;
+    }
+
+    // === Methods ===
+
+    public function updateKamarTerisi()
+    {
+        $this->kamar_terisi = $this->bookings()
+            ->whereIn('status', ['aktif', 'confirmed'])
+            ->count();
+        $this->save();
+    }
+
+    public function isKamarAvailable($nomorKamar = null)
+    {
+        if ($this->is_full) return false;
+
+        if ($nomorKamar) {
+            // Check if specific room is already booked
+            return !$this->bookings()
+                ->whereIn('status', ['aktif', 'confirmed'])
+                ->where('nomor_kamar', $nomorKamar)
+                ->exists();
+        }
+
+        return true;
     }
 }
