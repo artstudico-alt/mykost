@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import api from '../utils/api'
 import Footer from '../components/Footer'
 import BookingModal from '../components/BookingModal'
+import GoogleMapDirections from '../components/GoogleMapDirections'
 import {
   loadMidtransSnap,
   payWithSnap,
@@ -13,20 +14,6 @@ import {
   openSnapRedirect,
 } from '../utils/midtrans'
 
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
-import 'leaflet/dist/leaflet.css'
-import L from 'leaflet'
-
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
-import markerIcon from 'leaflet/dist/images/marker-icon.png'
-import markerShadow from 'leaflet/dist/images/marker-shadow.png'
-
-delete L.Icon.Default.prototype._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-})
 
 function KostDetail() {
   const navigate = useNavigate()
@@ -627,245 +614,14 @@ function KostDetail() {
                   </div>
                 </div>
 
-                {/* Body: peta kiri + panel kanan */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px' }}>
-                  {/* Peta */}
-                  <div style={{ position: 'relative', height: 300, borderRight: '1px solid #f1f5f9' }}>
-                    <div
-                      onClick={() => setIsMapModalOpen(true)}
-                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 400, cursor: 'pointer' }}
-                      role="presentation"
-                    />
-                    <MapContainer
-                      center={[-6.5950, 106.8040]}
-                      zoom={14}
-                      scrollWheelZoom={false}
-                      zoomControl={false}
-                      dragging={false}
-                      style={{ height: '100%', width: '100%' }}
-                    >
-                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                      <Marker position={[mapLat, mapLng]}>
-                        <Popup><strong>📍 {kost.nama_kost}</strong></Popup>
-                      </Marker>
-                      <Marker
-                        position={[-6.5950, 106.8040]}
-                        icon={new L.Icon({
-                          iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-                          shadowUrl: markerShadow,
-                          iconSize: [25, 41],
-                          iconAnchor: [12, 41],
-                        })}
-                      >
-                        <Popup><strong>🏢 Kantor Wan Teknologi Internasional</strong></Popup>
-                      </Marker>
-                    </MapContainer>
-                    <button
-                      type="button"
-                      onClick={() => setIsMapModalOpen(true)}
-                      style={{ position: 'absolute', bottom: 12, right: 12, zIndex: 1000, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '7px 14px', fontSize: 13, fontWeight: 600, color: '#0f172a', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-                    >
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0M12 8v4l3 3" /></svg>
-                      Buka Peta
-                    </button>
-                  </div>
-
-                  {/* Panel info kanan — Jarak ke Kantor, gaya Pinhome */}
-                  {(() => {
-                    const KANTOR_LAT = -6.5950
-                    const KANTOR_LNG = 106.8040
-                    const toRad = (deg) => deg * Math.PI / 180
-                    const R = 6371
-                    const dLat = toRad(mapLat - KANTOR_LAT)
-                    const dLng = toRad(mapLng - KANTOR_LNG)
-                    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(KANTOR_LAT)) * Math.cos(toRad(mapLat)) * Math.sin(dLng / 2) ** 2
-                    const jarak_km = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-                    const menitJalan = Math.round((jarak_km / 5) * 60)
-                    const menitMotor = Math.round((jarak_km / 30) * 60)
-                    return (
-                      <div style={{ padding: '20px 20px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {/* Tab header — gaya Pinhome */}
-                        <div style={{ display: 'flex', borderBottom: '2px solid #f1f5f9', marginBottom: 12 }}>
-                          <div style={{ padding: '6px 4px 10px', fontSize: 13, fontWeight: 700, color: '#059669', borderBottom: '2px solid #059669', marginBottom: -2 }}>
-                            Akses Kantor
-                          </div>
-                        </div>
-
-                        {/* Label kantor */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
-                          <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Wan Teknologi Internasional</span>
-                        </div>
-
-                        {/* Baris: Jalan Kaki */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e8ecf0' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 18 }}>🚶</span>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Jalan Kaki</span>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{menitJalan} menit</div>
-                            <div style={{ fontSize: 11, color: '#94a3b8' }}>{jarak_km.toFixed(1)} km</div>
-                          </div>
-                        </div>
-
-                        {/* Baris: Naik Motor */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#f0fdf4', borderRadius: 10, border: '1px solid #dcfce7' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 18 }}>🛵</span>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Naik Motor</span>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>{menitMotor} menit</div>
-                            <div style={{ fontSize: 11, color: '#94a3b8' }}>{jarak_km.toFixed(1)} km</div>
-                          </div>
-                        </div>
-
-                        <p style={{ margin: '8px 0 0', fontSize: 11, color: '#cbd5e1', lineHeight: 1.4 }}>
-                          * Estimasi jarak lurus. Waktu nyata tergantung kondisi jalan.
-                        </p>
-                      </div>
-                    )
-                  })()}
-                </div>
-              </div>
-
-              {/* === LOKASI SAYA — Jarak dari Lokasi Pengguna === */}
-              <div style={{ background: '#fff', border: '1px solid #e8ecf0', borderRadius: 16, overflow: 'hidden', marginBottom: '1.5rem' }}>
-                {/* Header */}
-                <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f1f5f9' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <h3 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.4 }}>
-                        Jarak dari Lokasi Anda
-                      </h3>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b', fontSize: 13 }}>
-                        <MapPin size={13} color="#3b82f6" />
-                        Hitung jarak real-time ke kost ini
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Body */}
-                <div style={{ padding: '20px' }}>
-                  {!distanceInfo ? (
-                    <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                      <button
-                        onClick={handleGetDistance}
-                        disabled={isCalculatingDistance}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          margin: '0 auto',
-                          padding: '12px 24px',
-                          background: isCalculatingDistance ? '#94a3b8' : '#3b82f6',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: 12,
-                          fontSize: 14,
-                          fontWeight: 700,
-                          cursor: isCalculatingDistance ? 'not-allowed' : 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {isCalculatingDistance ? (
-                          <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
-                        ) : (
-                          <Navigation size={18} />
-                        )}
-                        {isCalculatingDistance ? 'Mendeteksi Lokasi...' : 'Gunakan Lokasi Saya'}
-                      </button>
-                      
-                      {locationError && (
-                        <p style={{ marginTop: 12, fontSize: 12, color: '#ef4444', fontWeight: 500 }}>
-                          {locationError}
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {/* Total Jarak */}
-                      <div style={{ 
-                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 
-                        padding: '16px 20px', 
-                        borderRadius: 12,
-                        marginBottom: 8
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <MapPin size={24} color="#fff" />
-                            <div>
-                              <p style={{ margin: 0, fontSize: 12, color: '#bfdbfe', fontWeight: 600 }}>Total Jarak</p>
-                              <p style={{ margin: 0, fontSize: 20, color: '#fff', fontWeight: 800 }}>{distanceInfo.distance} km</p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={handleGetDistance}
-                            style={{
-                              background: 'rgba(255,255,255,0.2)',
-                              border: 'none',
-                              borderRadius: 8,
-                              padding: '6px 12px',
-                              color: '#fff',
-                              fontSize: 11,
-                              fontWeight: 600,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Update
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Estimasi Waktu - Jalan Kaki */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Footprints size={18} color="#f59e0b" />
-                          </div>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Jalan Kaki</span>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{distanceInfo.times.walking} menit</div>
-                          <div style={{ fontSize: 11, color: '#94a3b8' }}>~{TRAVEL_SPEEDS.walking} km/jam</div>
-                        </div>
-                      </div>
-
-                      {/* Estimasi Waktu - Motor */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#f0fdf4', borderRadius: 10, border: '1px solid #dcfce7' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Bike size={18} color="#3b82f6" />
-                          </div>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Motor</span>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: '#059669' }}>{distanceInfo.times.motorcycle} menit</div>
-                          <div style={{ fontSize: 11, color: '#94a3b8' }}>~{TRAVEL_SPEEDS.motorcycle} km/jam</div>
-                        </div>
-                      </div>
-
-                      {/* Estimasi Waktu - Mobil */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#eff6ff', borderRadius: 10, border: '1px solid #dbeafe' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Car size={18} color="#6366f1" />
-                          </div>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Mobil</span>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: '#2563eb' }}>{distanceInfo.times.car} menit</div>
-                          <div style={{ fontSize: 11, color: '#94a3b8' }}>~{TRAVEL_SPEEDS.car} km/jam</div>
-                        </div>
-                      </div>
-
-                      <p style={{ margin: '8px 0 0', fontSize: 11, color: '#cbd5e1', lineHeight: 1.4, textAlign: 'center' }}>
-                        * Estimasi waktu berdasarkan kecepatan rata-rata
-                      </p>
-                    </div>
-                  )}
+                {/* Body: Google Maps dengan Routing */}
+                <div style={{ height: 400 }}>
+                  <GoogleMapDirections
+                    kostLat={mapLat}
+                    kostLng={mapLng}
+                    kostName={kost.nama_kost}
+                    kostAddress={`${kost.kota}, ${kost.provinsi}`}
+                  />
                 </div>
               </div>
             </div>
@@ -935,31 +691,6 @@ function KostDetail() {
 
       {/* Footer */}
       <Footer />
-
-      {isMapModalOpen && (
-        <div className="kost-map-modal-overlay">
-          <div className="kost-map-modal-header">
-            <h3 className="kost-map-modal-title">{mapName}</h3>
-            <button type="button" className="kost-map-modal-btn-close" onClick={() => setIsMapModalOpen(false)}>
-              Tutup
-            </button>
-          </div>
-          <div className="kost-map-modal-body">
-            <MapContainer center={[mapLat, mapLng]} zoom={17} style={{ height: '100%', width: '100%' }}>
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              <Marker position={[mapLat, mapLng]}>
-                <Popup>
-                  <strong>{mapName}</strong>
-                  <br />
-                  <button type="button" onClick={handleActualGoogleMapsRedirect}>
-                    Google Maps
-                  </button>
-                </Popup>
-              </Marker>
-            </MapContainer>
-          </div>
-        </div>
-      )}
 
       <BookingModal
         isOpen={isBookingModalOpen}
