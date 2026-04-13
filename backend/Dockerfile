@@ -55,10 +55,10 @@ RUN echo 'server { \
     } \
 }' > /etc/nginx/http.d/default.conf
 
-# Start script
-RUN echo '#!/bin/sh \
-php-fpm -D \
-nginx -g "daemon off;" \
+# Start script dengan path lengkap
+RUN printf '#!/bin/sh\n\
+/usr/local/sbin/php-fpm -D\n\
+/usr/sbin/nginx -g "daemon off;"\n\
 ' > /start.sh && chmod +x /start.sh
 
 EXPOSE ${PORT:-8000}
