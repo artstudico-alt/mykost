@@ -36,31 +36,32 @@ RUN php artisan config:cache && \
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Nginx config
-RUN echo 'server { \
-    listen ${PORT:-8000}; \
-    server_name localhost; \
-    root /var/www/html/public; \
-    index index.php; \
-    \
-    location / { \
-        try_files $uri $uri/ /index.php?$query_string; \
-    } \
-    \
-    location ~ \.php$ { \
-        fastcgi_pass 127.0.0.1:9000; \
-        fastcgi_index index.php; \
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; \
-        include fastcgi_params; \
-    } \
-}' > /etc/nginx/http.d/default.conf
-
-# Start script dengan path lengkap
+# Start script dengan generate nginx config
 RUN printf '#!/bin/sh\n\
+PORT=${PORT:-8000}\n\
+cat > /etc/nginx/http.d/default.conf << NGINX\n\
+server {\n\
+    listen ${PORT};\n\
+    server_name localhost;\n\
+    root /var/www/html/public;\n\
+    index index.php;\n\
+    \n\
+    location / {\n\
+        try_files \$uri \$uri/ /index.php?\$query_string;\n\
+    }\n\
+    \n\
+    location ~ \\.php$ {\n\
+        fastcgi_pass 127.0.0.1:9000;\n\
+        fastcgi_index index.php;\n\
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;\n\
+        include fastcgi_params;\n\
+    }\n\
+}\n\
+NGINX\n\
 /usr/local/sbin/php-fpm -D\n\
 /usr/sbin/nginx -g "daemon off;"\n\
 ' > /start.sh && chmod +x /start.sh
 
-EXPOSE ${PORT:-8000}
+EXPOSE 8000
 
 CMD ["/start.sh"]
