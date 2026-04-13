@@ -2,7 +2,27 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Api\AuthController;
+
+// Health check untuk monitoring deployment
+Route::get('/health', function () {
+    try {
+        DB::connection()->getPdo();
+        return response()->json([
+            'status' => 'healthy',
+            'timestamp' => now()->toIso8601String(),
+            'database' => 'connected'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'unhealthy',
+            'timestamp' => now()->toIso8601String(),
+            'database' => 'disconnected',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
 use App\Http\Controllers\Api\KaryawanController;
 use App\Http\Controllers\Api\KostController;
 use App\Http\Controllers\Api\BookingController;

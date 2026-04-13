@@ -16,9 +16,10 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $period = $request->get('period', 'week'); // today, week, month, year
 
         $response = match ($user->role?->name) {
-            'super_admin'  => $this->dashboardSuperAdmin(),
+            'super_admin'  => $this->dashboardSuperAdmin($period),
             'hr'           => $this->dashboardHr($user),
             'pemilik_kost' => $this->dashboardPemilikKost($user),
             'karyawan'     => $this->dashboardKaryawan($user),
@@ -31,15 +32,31 @@ class DashboardController extends Controller
                         ->header('Expires', '0');
     }
 
-    private function dashboardSuperAdmin()
+    private function dashboardSuperAdmin($period = 'week')
     {
+        $totalKost = Kost::count();
+        $kostAktif = Kost::where('status', 'aktif')->count();
+        $kostPending = Kost::where('status', 'pending')->count();
+        $kostNonaktif = Kost::where('status', 'nonaktif')->orWhereNull('status')->count();
+
+        // Cash flow berdasarkan periode yang dipilih
+        $cashFlow = $this->getCashFlowByPeriod($period);
+
+        // Property distribution percentages
+        $propertyDistribution = [
+            'aktif' => $totalKost > 0 ? round(($kostAktif / $totalKost) * 100, 1) : 0,
+            'pending' => $totalKost > 0 ? round(($kostPending / $totalKost) * 100, 1) : 0,
+            'nonaktif' => $totalKost > 0 ? round(($kostNonaktif / $totalKost) * 100, 1) : 0,
+        ];
+
         return response()->json([
             'message' => 'Dashboard Super Admin',
             'data'    => [
                 'total_user'       => User::count(),
-                'total_kost'       => Kost::count(),
-                'kost_pending'     => Kost::where('status', 'pending')->count(),
-                'kost_aktif'       => Kost::where('status', 'aktif')->count(),
+                'total_kost'       => $totalKost,
+                'kost_pending'     => $kostPending,
+                'kost_aktif'       => $kostAktif,
+                'kost_nonaktif'    => $kostNonaktif,
                 'total_karyawan'   => Karyawan::count(),
                 'total_booking'    => Booking::count(),
                 'booking_pending'  => Booking::where('status', 'pending')->count(),
@@ -47,8 +64,105 @@ class DashboardController extends Controller
                 'total_pembayaran' => Pembayaran::count(),
                 'pembayaran_berhasil' => Pembayaran::where('status', 'berhasil')->sum('jumlah'),
                 'hunian_aktif'     => Hunian::where('status', 'aktif')->count(),
+                // New real data for charts
+                'cash_flow' => $cashFlow,
+                'property_distribution' => $propertyDistribution,
+                'period' => $period,
             ],
         ]);
+    }
+
+    private function getCashFlowByPeriod($period)
+    {
+        $cashFlow = [];
+
+        switch ($period) {
+            case 'today':
+                // 24 jam terakhir, per 4 jam
+                $labels = ['00-04', '04-08', '08-12', '12-16', '16-20', '20-24'];
+                for ($i = 0; $i < 6; $i++) {
+                    $startHour = $i * 4;
+                    $endHour = ($i + 1) * 4;
+                    $amount = Pembayaran::where('status', 'berhasil')
+                        ->whereDate('created_at', today())
+                        ->whereRaw('HOUR(created_at) >= ? AND HOUR(created_at) < ?', [$startHour, $endHour])
+                        ->sum('jumlah');
+                    $cashFlow[] = [
+                        'day' => $labels[$i],
+                        'amount' => round($amount / 1000, 0),
+                        'full_amount' => $amount,
+                    ];
+                }
+                break;
+
+            case 'week':
+                // 7 hari terakhir
+                $days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                for ($i = 6; $i >= 0; $i--) {
+                    $date = now()->subDays($i);
+                    $amount = Pembayaran::where('status', 'berhasil')
+                        ->whereDate('created_at', $date)
+                        ->sum('jumlah');
+                    $cashFlow[] = [
+                        'day' => $days[6 - $i],
+                        'amount' => round($amount / 1000, 0),
+                        'full_amount' => $amount,
+                    ];
+                }
+                break;
+
+            case 'month':
+                // 30 hari terakhir, per 5 hari
+                $labels = ['1-5', '6-10', '11-15', '16-20', '21-25', '26-30'];
+                for ($i = 0; $i < 6; $i++) {
+                    $startDay = ($i * 5) + 1;
+                    $endDay = ($i + 1) * 5;
+                    $amount = Pembayaran::where('status', 'berhasil')
+                        ->whereMonth('created_at', now()->month)
+                        ->whereYear('created_at', now()->year)
+                        ->whereRaw('DAY(created_at) >= ? AND DAY(created_at) <= ?', [$startDay, $endDay])
+                        ->sum('jumlah');
+                    $cashFlow[] = [
+                        'day' => $labels[$i],
+                        'amount' => round($amount / 1000, 0),
+                        'full_amount' => $amount,
+                    ];
+                }
+                break;
+
+            case 'year':
+                // 12 bulan dalam tahun ini
+                $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                for ($i = 1; $i <= 12; $i++) {
+                    $amount = Pembayaran::where('status', 'berhasil')
+                        ->whereMonth('created_at', $i)
+                        ->whereYear('created_at', now()->year)
+                        ->sum('jumlah');
+                    $cashFlow[] = [
+                        'day' => $months[$i - 1],
+                        'amount' => round($amount / 1000, 0),
+                        'full_amount' => $amount,
+                    ];
+                }
+                break;
+
+            default:
+                // Default 7 hari
+                $days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                for ($i = 6; $i >= 0; $i--) {
+                    $date = now()->subDays($i);
+                    $amount = Pembayaran::where('status', 'berhasil')
+                        ->whereDate('created_at', $date)
+                        ->sum('jumlah');
+                    $cashFlow[] = [
+                        'day' => $days[6 - $i],
+                        'amount' => round($amount / 1000, 0),
+                        'full_amount' => $amount,
+                    ];
+                }
+        }
+
+        return $cashFlow;
     }
 
     private function dashboardHr(User $user)

@@ -216,9 +216,6 @@ function Login() {
                 <input type="checkbox" name="remember" disabled={loading} />
                 Ingat saya
               </label>
-              <Link to="/forgot-password" className={`auth-link-muted ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
-                Lupa password?
-              </Link>
             </div>
 
             <button type="submit" className={`auth-btn-primary ${loading ? 'is-loading' : ''}`} disabled={loading}>

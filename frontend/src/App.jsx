@@ -4,7 +4,6 @@ import LandingPage from './pages/LandingPage'
 import CariKost from './pages/CariKost'
 import Login from './pages/Login'
 import Register from './pages/Register'
-import ForgotPassword from './pages/ForgotPassword'
 import Dashboard from './pages/Dashboard'
 import Penyewa from './pages/Penyewa'
 import KostDetail from './pages/KostDetail'
@@ -38,7 +37,6 @@ function App() {
               <Route path="/cari" element={<CariKost />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/kost/:kostId" element={<KostDetail />} />
 
               {/* Super Admin Routes */}

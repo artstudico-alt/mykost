@@ -5,7 +5,6 @@ import 'package:frontend_app/screens/auth/login_screen.dart';
 import 'package:frontend_app/screens/payment/payment_history_screen.dart';
 import 'package:frontend_app/screens/profile/hunian_saya_screen.dart';
 import 'package:frontend_app/screens/complaint/list_keluhan_screen.dart';
-import 'package:frontend_app/screens/auth/password_otp_screen.dart';
 import 'package:frontend_app/screens/complaint/complaint_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -421,7 +420,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _MenuItem(icon: Icons.home_work_outlined, label: 'Hunian', color: AppColors.primary, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HunianSayaScreen()))),
       _MenuItem(icon: Icons.receipt_long_outlined, label: 'Pembayaran', color: const Color(0xFF6C63FF), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentHistoryScreen()))),
       _MenuItem(icon: Icons.report_problem_outlined, label: 'Keluhan', color: Colors.orange, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ListKeluhanScreen()))),
-      _MenuItem(icon: Icons.lock_outline, label: 'Password', color: Colors.redAccent, onTap: _handleUbahPassword),
     ];
 
     return GridView.builder(
@@ -1040,53 +1038,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: const Text('Keluar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handleUbahPassword() {
-    final email = _userData?['email'];
-    if (email == null) return;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Ubah Password', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Kode verifikasi akan dikirim ke $email'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                await ApiService.forgotPassword(email);
-                if (mounted) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PasswordOtpScreen(email: email),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.red),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Kirim'),
           ),
         ],
       ),

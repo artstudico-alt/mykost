@@ -916,7 +916,7 @@ const OverviewTab = ({ user, bookings, payments, complaints, kostList, onSelectT
           <div className="pk-section-title">Aksi Cepat</div>
           <button className="pk-quick-item" onClick={() => onSelectTab?.('settings')}>
             <Lock size={18} />
-            <span>Ubah Password</span>
+            <span>Pengaturan</span>
             <ChevronRight size={16} />
           </button>
         </div>
@@ -1079,14 +1079,6 @@ const SettingsTab = ({ user }) => (
   <div className="profile-card profile-card--wide">
     <div className="section-header">
       <h2 className="section-title">Pengaturan akun</h2>
-    </div>
-    <div className="settings-block">
-      <span className="info-label">Keamanan</span>
-      <div className="settings-row" style={{ marginTop: 10 }}>
-        <button type="button" className="btn-ghost">
-          Ubah kata sandi
-        </button>
-      </div>
     </div>
     <div className="settings-block">
       <span className="info-label">Notifikasi</span>

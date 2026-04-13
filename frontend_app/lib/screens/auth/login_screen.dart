@@ -4,7 +4,6 @@ import 'package:frontend_app/widgets/custom_button.dart';
 import 'package:frontend_app/widgets/custom_text_field.dart';
 import 'package:frontend_app/api/api_service.dart';
 import 'package:frontend_app/screens/home/home_screen.dart';
-import 'package:frontend_app/screens/auth/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -205,46 +204,24 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 20),
                           
-                          // Remember me & Forgot password
+                          // Remember me
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: Checkbox(
-                                      value: rememberMe,
-                                      onChanged: (v) => setState(() => rememberMe = v ?? false),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                      activeColor: AppColors.primary,
-                                      side: BorderSide(color: AppColors.border),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    "Ingat saya",
-                                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                                  ),
-                                ],
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
-                                  );
-                                },
-                                style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                                child: const Text(
-                                  "Lupa password?",
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: Checkbox(
+                                  value: rememberMe,
+                                  onChanged: (v) => setState(() => rememberMe = v ?? false),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                  activeColor: AppColors.primary,
+                                  side: BorderSide(color: AppColors.border),
                                 ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                "Ingat saya",
+                                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                               ),
                             ],
                           ),
