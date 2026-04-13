@@ -20,12 +20,12 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy composer.json first (composer.lock mungkin tidak ada di repo)
-COPY composer.json ./
+# Copy dari backend folder (Railway build context = root)
+COPY backend/composer.json ./
 RUN composer install --no-dev --optimize-autoloader --no-scripts
 
-# Copy application code
-COPY . .
+# Copy semua code dari backend folder
+COPY backend/ .
 
 # Generate Laravel optimizations
 RUN php artisan config:cache && \
