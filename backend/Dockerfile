@@ -20,8 +20,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy composer files first (for better caching)
-COPY composer.json composer.lock ./
+# Copy composer.json first (composer.lock mungkin tidak ada di repo)
+COPY composer.json ./
 RUN composer install --no-dev --optimize-autoloader --no-scripts
 
 # Copy application code
