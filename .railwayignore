@@ -1,0 +1,7 @@
+# Ignore folders yang tidak perlu di build
+frontend/
+frontend_app/
+DEPLOY.md
+*.md
+.git/
+.gitignore

@@ -1,0 +1,8 @@
+services:
+  backend:
+    build:
+      dockerfilePath: ./backend/Dockerfile
+    deploy:
+      startCommand: /start.sh
+      healthcheckPath: /api/health
+      healthcheckTimeout: 100
