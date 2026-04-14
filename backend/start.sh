@@ -11,11 +11,11 @@ server {
     server_name localhost;
     root /var/www/html/public;
     index index.php;
-    
+
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
     }
-    
+
     location ~ \\.php$ {
         fastcgi_pass 127.0.0.1:9000;
         fastcgi_index index.php;
@@ -28,12 +28,13 @@ EOF
 echo "=== Nginx config generated ==="
 cat /etc/nginx/http.d/default.conf
 
-# Cache Laravel configs
+# Cache Laravel configs (skip errors if env not configured)
 echo "=== Caching Laravel configs ==="
 cd /var/www/html
-php artisan config:cache 2>/dev/null || echo "config:cache skipped"
-php artisan route:cache 2>/dev/null || echo "route:cache skipped"  
+php artisan config:cache 2>/dev/null || echo "config:cache skipped (check APP_KEY)"
+php artisan route:cache 2>/dev/null || echo "route:cache skipped"
 php artisan view:cache 2>/dev/null || echo "view:cache skipped"
+echo "=== Laravel cache done ==="
 
 # Start php-fpm
 echo "=== Starting php-fpm ==="
@@ -46,6 +47,14 @@ if ! pgrep php-fpm > /dev/null 2>&1; then
     exit 1
 fi
 echo "=== php-fpm is running ==="
+
+# Test nginx config
+echo "=== Testing nginx config ==="
+/usr/sbin/nginx -t || echo "WARNING: nginx config test failed"
+
+# Check if we can bind to the port
+echo "=== Checking port availability ==="
+netstat -tlnp 2>/dev/null | grep -E "(tcp|${PORT})" || echo "Port check skipped"
 
 # Start nginx
 echo "=== Starting nginx ==="

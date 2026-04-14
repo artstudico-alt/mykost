@@ -39,6 +39,5 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 COPY backend/start.sh /start.sh
 RUN chmod +x /start.sh && cat /start.sh | head -5
 
-EXPOSE 8000
-
+# Railway assigns PORT dynamically, no need to EXPOSE
 CMD ["/start.sh"]
