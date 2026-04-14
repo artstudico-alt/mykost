@@ -239,16 +239,7 @@ function Login() {
             </button>
           </form>
 
-          <p className="auth-card__footer" style={{ color: '#64748b', fontSize: '0.9rem' }}>
-            Akun karyawan hanya dapat dibuat oleh HR.
-          </p>
-        </div>
-
-        <div className="auth-page__demo-hint" style={{ textAlign: 'center', marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <p style={{ margin: 0 }}><span>Super Admin:</span> superadmin@mykost.com · password123</p>
-          <p style={{ margin: 0 }}><span>HR Manager:</span> hr@mykost.com · password123</p>
-          <p style={{ margin: 0 }}><span>Pemilik Kost:</span> pemilik@mykost.com · password123</p>
-        </div>
+          </div>
       </main>
     </div>
   )
