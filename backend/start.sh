@@ -31,6 +31,9 @@ cat /etc/nginx/http.d/default.conf
 # Cache Laravel configs (skip errors if env not configured)
 echo "=== Caching Laravel configs ==="
 cd /var/www/html
+php artisan config:clear 2>/dev/null || echo "config:clear skipped"
+php artisan route:clear 2>/dev/null || echo "route:clear skipped"
+php artisan view:clear 2>/dev/null || echo "view:clear skipped"
 php artisan config:cache 2>/dev/null || echo "config:cache skipped (check APP_KEY)"
 php artisan route:cache 2>/dev/null || echo "route:cache skipped"
 php artisan view:cache 2>/dev/null || echo "view:cache skipped"
