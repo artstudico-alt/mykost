@@ -28,9 +28,14 @@ EOF
 echo "=== Nginx config generated ==="
 cat /etc/nginx/http.d/default.conf
 
+# Run database migration
+echo "=== Running database migration ==="
+cd /var/www/html
+php artisan migrate --force 2>/dev/null || echo "migration skipped (check DB connection)"
+echo "=== Migration done ==="
+
 # Cache Laravel configs (skip errors if env not configured)
 echo "=== Caching Laravel configs ==="
-cd /var/www/html
 php artisan config:clear 2>/dev/null || echo "config:clear skipped"
 php artisan route:clear 2>/dev/null || echo "route:clear skipped"
 php artisan view:clear 2>/dev/null || echo "view:clear skipped"
