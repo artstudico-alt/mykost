@@ -33,19 +33,5 @@
       "url": "/dashboard",
       "icons": [{ "src": "/favicon.svg", "sizes": "96x96" }]
     }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshot-desktop.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/screenshot-mobile.png", 
-      "sizes": "640x1136",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
   ]
 }
