@@ -5,6 +5,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Api\AuthController;
 
+// Simple ping route for Railway health check (no DB)
+Route::get('/ping', function () {
+    return response()->json(['status' => 'pong', 'time' => now()->toIso8601String()]);
+});
+
 // Health check untuk monitoring deployment
 Route::get('/health', function () {
     try {

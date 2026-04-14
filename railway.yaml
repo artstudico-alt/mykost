@@ -4,5 +4,5 @@ services:
       dockerfilePath: ./backend/Dockerfile
     deploy:
       startCommand: /start.sh
-      healthcheckPath: /api/health
+      healthcheckPath: /api/ping
       healthcheckTimeout: 100
