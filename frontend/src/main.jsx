@@ -7,6 +7,33 @@ import App from './App.jsx'
  * Midtrans mengarahkan balik ke URL callback dengan query (?order_id=...) di depan hash.
  * HashRouter hanya membaca hash — tanpa normalisasi ini user tetap di route "/" (beranda).
  */
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => {
+        console.log('SW registered: ', registration);
+        
+        // Check for updates
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // New version available, show update notification
+              if (confirm('Versi baru MyKost tersedia! Update sekarang?')) {
+                newWorker.postMessage({ action: 'skipWaiting' });
+                window.location.reload();
+              }
+            }
+          });
+        });
+      })
+      .catch(error => {
+        console.log('SW registration failed: ', error);
+      });
+  });
+}
+
 ;(function normalizeMidtransReturnUrl() {
   const { search, hash, pathname, origin } = window.location
   if (!search || !search.includes('order_id=')) return
