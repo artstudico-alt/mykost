@@ -34,6 +34,11 @@ cd /var/www/html
 php artisan migrate --force 2>/dev/null || echo "migration skipped (check DB connection)"
 echo "=== Migration done ==="
 
+# Seed initial data
+echo "=== Seeding initial data ==="
+php artisan db:seed --force 2>/dev/null || echo "seeding skipped"
+echo "=== Seeding done ==="
+
 # Cache Laravel configs (skip errors if env not configured)
 echo "=== Caching Laravel configs ==="
 php artisan config:clear 2>/dev/null || echo "config:clear skipped"
