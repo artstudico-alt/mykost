@@ -1,4 +1,6 @@
 # Laravel Dockerfile for Railway
+# Build argument to bust cache
+ARG CACHE_BUST=1
 FROM php:8.2-fpm-alpine
 
 # Install system dependencies
@@ -33,9 +35,9 @@ RUN php artisan storage:link || true
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Copy start script
+# Copy start script - force rebuild
 COPY backend/start.sh /start.sh
-RUN chmod +x /start.sh
+RUN chmod +x /start.sh && cat /start.sh | head -5
 
 EXPOSE 8000
 
