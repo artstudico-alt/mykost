@@ -94,12 +94,19 @@ self.addEventListener('fetch', event => {
         // Fetch from network and cache
         return fetch(request)
           .then(response => {
-            if (response.status === 200) {
+            if (response && response.status === 200) {
               console.log('Service Worker: Caching static file', request.url);
               return caches.open(CACHE_NAME)
-                .then(cache => cache.put(request, response.clone()));
+                .then(cache => cache.put(request, response.clone()))
+                .then(() => response);
             }
             return response;
+          })
+          .catch(() => {
+            return new Response('Offline', { 
+              status: 503, 
+              statusText: 'Service Unavailable' 
+            });
           });
       })
   );
