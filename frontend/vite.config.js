@@ -16,7 +16,9 @@ export default defineConfig({
         chunkFileNames: 'assets/[name].[hash].js',
         entryFileNames: 'assets/[name].[hash].js'
       }
-    }
+    },
+    // Disable image assets temporarily
+    assetsInlineLimit: 0
   },
   define: {
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '1.0.0')

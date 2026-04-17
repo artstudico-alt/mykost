@@ -361,15 +361,10 @@ function LandingPage() {
               </div>
             </div>
             <div className="landing-hero-visual">
-              <img
-                src={settings.hero_image || "/hero-kost-illustration.png"}
-                alt="MyKost Illustration"
-                className="landing-hero-image"
-                onError={(e) => {
-                  e.target.src = "/assets/hero.png";
-                  e.target.onerror = null;
-                }}
-              />
+              <div className="landing-hero-placeholder">
+                <h2>MyKost</h2>
+                <p>Manajemen Kost Terpercaya</p>
+              </div>
             </div>
           </div>
         </div>
