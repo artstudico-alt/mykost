@@ -1,5 +1,5 @@
-const CACHE_NAME = 'mykost-cache-v1';
-const API_CACHE_NAME = 'mykost-api-cache-v1';
+const CACHE_NAME = 'mykost-cache-v2';
+const API_CACHE_NAME = 'mykost-api-cache-v2';
 
 // Files to cache for offline
 const STATIC_CACHE_URLS = [
