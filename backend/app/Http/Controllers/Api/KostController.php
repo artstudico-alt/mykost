@@ -32,17 +32,32 @@ class KostController extends Controller
     public function index(Request $request)
     {
         try {
-            // Test basic response first
+            $user = $request->user();
+
+            // Query dasar
+            $query = Kost::query();
+
+            // Filter berdasarkan parameter mine atau status aktif
+            $onlyMine = $request->boolean('mine');
+
+            if ($user && $user->hasRole('pemilik_kost') && $onlyMine) {
+                $query->where('user_id', $user->id);
+            } else {
+                $query->where('status', 'aktif');
+            }
+
+            // Get data
+            $kosts = $query->latest()->get();
+
             return response()->json([
-                'message' => 'Kost API is working',
-                'timestamp' => now()->toIso8601String(),
-                'test_mode' => true
+                'message' => 'Data kost berhasil diambil',
+                'total' => $kosts->count(),
+                'data' => $kosts
             ]);
         } catch (\Exception $e) {
+            Log::error('Kost index error: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Server error: ' . $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
+                'message' => 'Server error: ' . $e->getMessage()
             ], 500);
         }
     }
