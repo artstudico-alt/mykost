@@ -63,15 +63,19 @@ Route::get('/test', function () {
 
 // DEBUG: Check all kost data regardless of status
 Route::get('/debug/kost', function () {
-    $allKost = \App\Models\Kost::all();
-    $aktifKost = \App\Models\Kost::where('status', 'aktif')->get();
-    return response()->json([
-        'message' => 'Debug kost data',
-        'total_all' => $allKost->count(),
-        'total_aktif' => $aktifKost->count(),
-        'status_counts' => \App\Models\Kost::groupBy('status')->selectRaw('status, count(*) as count')->get(),
-        'all_data' => $allKost,
-    ]);
+    try {
+        $count = \App\Models\Kost::count();
+        return response()->json([
+            'message' => 'Debug kost data',
+            'count' => $count,
+            'db_connected' => true
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Error: ' . $e->getMessage(),
+            'db_connected' => false
+        ], 500);
+    }
 });
 
 // DEBUG: Check user permissions for kost creation
