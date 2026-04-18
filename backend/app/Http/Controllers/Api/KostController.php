@@ -32,59 +32,17 @@ class KostController extends Controller
     public function index(Request $request)
     {
         try {
-            // Get user from request if authenticated
-            $user = $request->user();
-
-            // Simple query without relationship eager loading first
-            $query = Kost::query();
-
-            // Katalog publik: semua kost berstatus aktif
-            $onlyMine = $request->boolean('mine');
-
-            if ($user && $user->hasRole('pemilik_kost') && $onlyMine) {
-                // Pemilik kost hanya lihat kost miliknya sendiri
-                $query->where('user_id', $user->id);
-            } else {
-                // Public atau role lain: hanya kost aktif
-                $query->where('status', 'aktif');
-            }
-
-            // Additional filters
-            if ($request->filled('kota')) {
-                $query->where('kota', 'like', '%' . $request->kota . '%');
-            }
-            if ($request->filled('tipe')) {
-                $query->where('tipe', $request->tipe);
-            }
-            if ($request->filled('harga_max')) {
-                $query->where('harga_min', '<=', $request->harga_max);
-            }
-            if ($request->filled('search')) {
-                $query->where(function ($q) use ($request) {
-                    $q->where('nama_kost', 'like', '%' . $request->search . '%')
-                      ->orWhere('alamat', 'like', '%' . $request->search . '%')
-                      ->orWhere('kota', 'like', '%' . $request->search . '%');
-                });
-            }
-
-            $kosts = $query->latest()->get();
-
-            // Load user relationship manually after query
-            $kosts->load('user');
-
+            // Test basic response first
             return response()->json([
-                'message' => 'Data kost berhasil diambil',
-                'total'   => $kosts->count(),
-                'data'    => $kosts,
+                'message' => 'Kost API is working',
+                'timestamp' => now()->toIso8601String(),
+                'test_mode' => true
             ]);
         } catch (\Exception $e) {
-            \Log::error('Kost index error: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'message' => 'Server error: ' . $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
             ], 500);
         }
     }
