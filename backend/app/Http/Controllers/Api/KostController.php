@@ -34,79 +34,22 @@ class KostController extends Controller
         try {
             // Get user from request if authenticated
             $user = $request->user();
-            if ($user) {
-                $user->load('role');
-            }
 
-            // CRITICAL DEBUG: Log all authentication and parameter details
-            \Log::critical('KOST INDEX - DETAILED DEBUG', [
-                'authenticated_user_id' => $user?->id,
-                'authenticated_user_name' => $user?->name,
-                'authenticated_user_email' => $user?->email,
-                'authenticated_user_role' => $user?->role?->name,
-                'mine_parameter_raw' => $request->input('mine'),
-                'mine_parameter_boolean' => $request->boolean('mine'),
-                'all_request_params' => $request->all(),
-                'request_headers' => $request->headers->all(),
-                'request_url' => $request->fullUrl(),
-                'request_method' => $request->method()
-            ]);
+            // Simple query without relationship eager loading first
+            $query = Kost::query();
 
-            $query = Kost::with('user');
-
-            // Katalog publik (beranda, tamu, karyawan, dll.): semua kost berstatus aktif.
-            // Hanya "Kost Saya" milik pemilik yang memakai ?mine=1 — supaya beranda tidak kosong saat pemilik login.
+            // Katalog publik: semua kost berstatus aktif
             $onlyMine = $request->boolean('mine');
-
-            \Log::critical('KOST INDEX - FILTERING LOGIC', [
-                'onlyMine_value' => $onlyMine,
-                'user_exists' => !is_null($user),
-                'user_role' => $user?->role?->name,
-                'is_pemilik_kost' => $user?->hasRole('pemilik_kost'),
-                'condition_1' => $user && $user->hasRole('pemilik_kost') && $onlyMine,
-                'condition_2' => $user && $user->hasRole('pemilik_kost') && !$onlyMine,
-                'condition_3' => !($user && $user->hasRole('pemilik_kost') && $onlyMine) && !($user && $user->hasRole('pemilik_kost') && !$onlyMine)
-            ]);
 
             if ($user && $user->hasRole('pemilik_kost') && $onlyMine) {
                 // Pemilik kost hanya lihat kost miliknya sendiri
-                // CRITICAL: Double-ensure the filter is applied correctly
                 $query->where('user_id', $user->id);
-
-                // Additional safety: Remove any status filter that might override user filter
-                // This ensures ONLY user_id filter matters for "mine=1"
-                \Log::critical('KOST INDEX - APPLYING STRICT USER FILTER', [
-                    'filtering_for_user_id' => $user->id,
-                    'filtering_for_user_name' => $user->name,
-                    'sql_query_before' => $query->toSql(),
-                    'bindings_before' => $query->getBindings(),
-                    'user_verification' => [
-                        'authenticated_id' => $user->id,
-                        'authenticated_name' => $user->name,
-                        'authenticated_email' => $user->email
-                    ]
-                ]);
-
-                // EXTRA SAFETY: Apply the filter again to be absolutely sure
-                $query->where('user_id', $user->id);
-
-            } elseif ($user && $user->hasRole('pemilik_kost') && !$onlyMine) {
-                // Jika pemilik kost tapi tidak pakai ?mine=1, tetap tampilkan kost aktif (untuk katalog umum)
-                $query->where('status', 'aktif');
-                \Log::critical('KOST INDEX - SHOWING ACTIVE KOST FOR OWNER', [
-                    'user_id' => $user->id,
-                    'user_name' => $user->name
-                ]);
             } else {
                 // Public atau role lain: hanya kost aktif
                 $query->where('status', 'aktif');
-                \Log::critical('KOST INDEX - SHOWING ACTIVE KOST FOR PUBLIC', [
-                    'user_id' => $user?->id,
-                    'user_role' => $user?->role?->name
-                ]);
             }
 
-            // Filter
+            // Additional filters
             if ($request->filled('kota')) {
                 $query->where('kota', 'like', '%' . $request->kota . '%');
             }
@@ -115,9 +58,6 @@ class KostController extends Controller
             }
             if ($request->filled('harga_max')) {
                 $query->where('harga_min', '<=', $request->harga_max);
-            }
-            if ($request->filled('status') && $user && $user->hasRole('pemilik_kost') && $onlyMine) {
-                $query->where('status', $request->status);
             }
             if ($request->filled('search')) {
                 $query->where(function ($q) use ($request) {
@@ -129,54 +69,13 @@ class KostController extends Controller
 
             $kosts = $query->latest()->get();
 
-            \Log::critical('KOST INDEX - QUERY RESULTS', [
-                'total_kosts_found' => $kosts->count(),
-                'final_sql_query' => $query->toSql(),
-                'final_bindings' => $query->getBindings(),
-                'kosts_with_owners' => $kosts->map(function($kost) {
-                    return [
-                        'kost_id' => $kost->id,
-                        'kost_name' => $kost->nama_kost,
-                        'owner_id' => $kost->user_id,
-                        'owner_name' => $kost->user?->name,
-                        'owner_email' => $kost->user?->email
-                    ];
-                })->toArray()
-            ]);
-
-            // Special fix: If kost owner with mine=1 gets no results, check if they actually have kosts
-            if ($user && $user->hasRole('pemilik_kost') && $onlyMine && $kosts->count() === 0) {
-                \Log::warning('Pemilik kost with mine=1 got no results, checking direct query', [
-                    'user_id' => $user->id
-                ]);
-
-                // Direct query to check if user has any kosts
-                $directKosts = Kost::where('user_id', $user->id)->get();
-                \Log::info('Direct query result', [
-                    'direct_count' => $directKosts->count(),
-                    'direct_data' => $directKosts->toArray()
-                ]);
-
-                if ($directKosts->count() > 0) {
-                    // There was an issue with the query, use direct results
-                    $kosts = $directKosts;
-                    \Log::info('Using direct query results as fallback');
-                }
-            }
+            // Load user relationship manually after query
+            $kosts->load('user');
 
             return response()->json([
                 'message' => 'Data kost berhasil diambil',
                 'total'   => $kosts->count(),
                 'data'    => $kosts,
-                'debug_info' => [
-                    'user_id' => $user?->id,
-                    'user_name' => $user?->name,
-                    'user_role' => $user?->role?->name,
-                    'mine_parameter' => $onlyMine,
-                    'query_filter_applied' => $user && $user->hasRole('pemilik_kost') && $onlyMine,
-                    'final_sql' => $query->toSql(),
-                    'final_bindings' => $query->getBindings()
-                ]
             ]);
         } catch (\Exception $e) {
             \Log::error('Kost index error: ' . $e->getMessage());
