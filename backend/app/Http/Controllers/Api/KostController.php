@@ -79,10 +79,12 @@ class KostController extends Controller
             ]);
         } catch (\Exception $e) {
             \Log::error('Kost index error: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'message' => 'Server error: ' . $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
             ], 500);
         }
     }
