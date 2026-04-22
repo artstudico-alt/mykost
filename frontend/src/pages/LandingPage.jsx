@@ -64,10 +64,18 @@ function LandingPage() {
 
   const fetchKosts = async () => {
     try {
+      console.log('Fetching kost data from:', import.meta.env.VITE_API_BASE_URL)
       const response = await api.get('/kost')
-      setKostData(Array.isArray(response.data?.data) ? response.data.data : [])
+      console.log('Kost API response:', response.data)
+      
+      const kostArray = Array.isArray(response.data?.data) ? response.data.data : []
+      console.log('Kost data count:', kostArray.length)
+      
+      setKostData(kostArray)
     } catch (error) {
       console.error('Gagal mengambil data kost:', error)
+      console.error('Error response:', error.response?.data)
+      setKostData([])
     }
   }
 
@@ -592,7 +600,19 @@ function LandingPage() {
               ))
             ) : (
               <div className="col-span-full py-20 text-center">
-                <p className="text-xl text-gray-500">Belum ada data kos yang tersedia.</p>
+                <p className="text-xl text-gray-500 mb-4">Belum ada data kos yang tersedia.</p>
+                <p className="text-sm text-gray-400">
+                  Backend: {import.meta.env.VITE_API_BASE_URL || 'not set'}
+                </p>
+                <p className="text-sm text-gray-400 mt-2">
+                  Total kost data: {kostData.length}
+                </p>
+                <button 
+                  onClick={fetchKosts}
+                  className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                >
+                  Refresh Data
+                </button>
               </div>
             )}
           </div>
