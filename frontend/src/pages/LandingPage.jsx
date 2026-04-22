@@ -490,7 +490,7 @@ function LandingPage() {
             </div>
           )}
 
-          <div className="recommend-kost-grid">
+          <div className="recommend-kost-grid grid-auto">
             {isLoading ? (
               [1, 2, 3].map(i => (
                 <div key={i} className="animate-pulse bg-gray-200 h-96 rounded-3xl" />
@@ -499,7 +499,7 @@ function LandingPage() {
               filteredKosts.map((k) => (
                 <article
                   key={k.id}
-                  className="recommend-kost-card"
+                  className="recommend-kost-card card-responsive"
                   onClick={() => handleSelectKost(k)}
                   style={{
                     borderRadius: '24px',
