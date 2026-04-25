@@ -8,6 +8,8 @@ import App from './App.jsx'
  * HashRouter hanya membaca hash — tanpa normalisasi ini user tetap di route "/" (beranda).
  */
 // Register Service Worker for PWA
+// Service Worker disabled in development to prevent caching issues
+/*
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
@@ -33,6 +35,7 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+*/
 
 ;(function normalizeMidtransReturnUrl() {
   const { search, hash, pathname, origin } = window.location

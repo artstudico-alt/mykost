@@ -58,8 +58,14 @@ function LandingPage() {
 
   const fetchData = async () => {
     setIsLoading(true)
-    await Promise.all([fetchKosts(), fetchSettings()])
-    setIsLoading(false)
+    // Jalankan keduanya secara bersamaan tapi jangan buat UI menunggu keduanya selesai untuk mulai render
+    fetchKosts().finally(() => {
+      // Cukup cek apakah settings juga sudah (opsional), 
+      // tapi kita biarkan loading state dikontrol oleh masing-masing jika mau lebih halus.
+      // Untuk sekarang, kita matikan loading setelah kost selesai karena itu yang utama.
+      setIsLoading(false);
+    });
+    fetchSettings();
   }
 
   const fetchKosts = async () => {
@@ -114,6 +120,16 @@ function LandingPage() {
 
   const userInitial = (user?.name || user?.email || localStorage.getItem('userEmail') || 'U').charAt(0).toUpperCase()
   const userDisplayName = user?.name || user?.email || localStorage.getItem('userEmail') || 'User'
+
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    // Jika path sudah merupakan URL lengkap, gunakan langsung
+    if (path.startsWith('http')) return path;
+    // Jika path mengandung 'storage/', hilangkan agar tidak double
+    const cleanPath = path.replace(/^\/?storage\//, '').replace(/^storage\//, '');
+    const baseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/api\/?$/, '');
+    return `${baseUrl.trim()}/storage/${cleanPath}`;
+  }
 
   const handleSelectKost = (k) => {
     navigate(`/kost/${k.id}`)
@@ -279,11 +295,11 @@ function LandingPage() {
   }
 
   const fallbackImages = [
-    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80',
-    'https://images.unsplash.com/photo-1502672260266-1c1de2d9d00c?w=800&q=80',
-    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80',
-    'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80',
-    'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&q=80'
+    'https://images.unsplash.com/photo-1555854817-30e7f83facc0?w=800&q=80',
+    'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=800&q=80',
+    'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800&q=80',
+    'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80',
+    'https://images.unsplash.com/photo-1536376074432-bf12177d4f4f?w=800&q=80'
   ]
 
   const filteredKosts = useRadar
@@ -300,7 +316,7 @@ function LandingPage() {
           <div className="landing-brand" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
             <div className="landing-brand-mark">
               {settings.logo ? (
-                <img src={settings.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                <img src={getImageUrl(settings.logo)} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               ) : (
                 <svg viewBox="0 0 24 24">
                   <path d="M4 12.2L12 5l8 7.2V20a1 1 0 0 1-1 1h-5v-5h-4v5H5a1 1 0 0 1-1-1z"></path>
@@ -490,7 +506,7 @@ function LandingPage() {
             </div>
           )}
 
-          <div className="recommend-kost-grid grid-auto">
+          <div className="recommend-kost-grid">
             {isLoading ? (
               [1, 2, 3].map(i => (
                 <div key={i} className="animate-pulse bg-gray-200 h-96 rounded-3xl" />
@@ -499,20 +515,8 @@ function LandingPage() {
               filteredKosts.map((k) => (
                 <article
                   key={k.id}
-                  className="recommend-kost-card card-responsive"
+                  className="recommend-kost-card"
                   onClick={() => handleSelectKost(k)}
-                  style={{
-                    borderRadius: '24px',
-                    overflow: 'hidden',
-                    boxShadow: '0 10px 40px -10px rgba(0,0,0,0.08)',
-                    background: '#ffffff',
-                    border: '1px solid #f1f5f9',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    cursor: 'pointer',
-                    position: 'relative',
-                  }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-8px)';
                     e.currentTarget.style.boxShadow = '0 20px 40px -5px rgba(5, 150, 105, 0.15)';
@@ -528,7 +532,7 @@ function LandingPage() {
                     if (img) img.style.transform = 'scale(1)';
                   }}
                 >
-                  <div style={{ position: 'relative', height: '240px', overflow: 'hidden' }}>
+                  <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', overflow: 'hidden', flexShrink: 0 }}>
                     <img
                       src={k.foto_utama || fallbackImages[parseInt(k.id, 10) % 5 || 0]}
                       alt={k.nama_kost}
