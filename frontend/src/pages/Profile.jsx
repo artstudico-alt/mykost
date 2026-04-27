@@ -234,7 +234,15 @@ const Profile = () => {
       
     } catch (error) {
       console.error('Profile data fetch error:', error)
-      setFetchError('Data profil tidak bisa dimuat. Silakan refresh halaman.')
+      
+      // Handle specific error codes
+      if (error.response?.status === 503) {
+        setFetchError('Server sedang maintenance/sleeping. Coba lagi dalam 30 detik atau redeploy Railway.')
+      } else if (error.response?.status === 502 || error.response?.status === 504) {
+        setFetchError('Server tidak merespons. Cek Railway Dashboard dan redeploy.')
+      } else {
+        setFetchError('Data profil tidak bisa dimuat. Silakan refresh halaman.')
+      }
       
       // Set fallback data
       setUser(authUser ?? null)
