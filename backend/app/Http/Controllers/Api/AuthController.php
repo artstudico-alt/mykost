@@ -208,28 +208,46 @@ class AuthController extends Controller
     // ================================================================
     public function updateProfile(Request $request)
     {
-        $user = $request->user();
+        try {
+            $user = $request->user();
 
-        $request->validate([
-            'phone' => 'nullable|string|max:20',
-            'ktp_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-        ]);
+            if (!$user) {
+                return response()->json(['message' => 'User not found'], 401);
+            }
 
-        $data = $request->only(['phone']);
+            $request->validate([
+                'phone' => 'nullable|string|max:20',
+                'ktp_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            ]);
 
-        if ($request->hasFile('ktp_photo')) {
-            $file = $request->file('ktp_photo');
-            $filename = time() . '_ktp_' . $user->id . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/ktp'), $filename);
-            $data['ktp_photo'] = 'uploads/ktp/' . $filename;
+            $data = $request->only(['phone']);
+
+            if ($request->hasFile('ktp_photo')) {
+                $file = $request->file('ktp_photo');
+                $filename = time() . '_ktp_' . $user->id . '.' . $file->getClientOriginalExtension();
+
+                // Create directory if not exists
+                if (!file_exists(public_path('uploads/ktp'))) {
+                    mkdir(public_path('uploads/ktp'), 0755, true);
+                }
+
+                $file->move(public_path('uploads/ktp'), $filename);
+                $data['ktp_photo'] = 'uploads/ktp/' . $filename;
+            }
+
+            $user->update($data);
+
+            return response()->json([
+                'message' => 'Profil berhasil diperbarui.',
+                'user' => $user,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Update profile error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error updating profile',
+                'error' => config('app.debug') ? $e->getMessage() : 'Server error'
+            ], 500);
         }
-
-        $user->update($data);
-
-        return response()->json([
-            'message' => 'Profil berhasil diperbarui.',
-            'user' => $user,
-        ]);
     }
 
     // ================================================================
