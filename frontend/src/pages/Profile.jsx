@@ -59,6 +59,21 @@ const TABS = [
   { id: 'settings', label: 'Pengaturan', icon: Settings },
 ]
 
+// Helper untuk clear cache dan reload
+const clearCacheAndReload = () => {
+  // Unregister service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      registrations.forEach(registration => registration.unregister())
+    })
+  }
+  // Clear localStorage cache
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+  // Reload page
+  window.location.reload()
+}
+
 const Profile = () => {
   const navigate = useNavigate()
   const { logout, user: authUser } = useAuth()
@@ -544,14 +559,24 @@ const Profile = () => {
                   }}
                 >
                   <span>{fetchError}</span>
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    onClick={() => fetchData()}
-                    style={{ fontSize: '0.8125rem' }}
-                  >
-                    Coba lagi
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => fetchData()}
+                      style={{ fontSize: '0.8125rem' }}
+                    >
+                      Coba lagi
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={clearCacheAndReload}
+                      style={{ fontSize: '0.8125rem', color: '#dc2626' }}
+                    >
+                      Clear Cache
+                    </button>
+                  </div>
                 </div>
               ) : null}
               {renderContent()}

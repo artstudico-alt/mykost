@@ -120,7 +120,20 @@ class AuthController extends Controller
 
             if (!$user) {
                 \Log::warning('Auth/me: No user found in request');
-                return response()->json(['message' => 'User tidak ditemukan.'], 401);
+                return response()->json([
+                    'message' => 'User tidak ditemukan.',
+                    'debug' => 'Token tidak valid atau user tidak ada di database'
+                ], 401);
+            }
+            
+            // Verify user still exists in database
+            $dbUser = \App\Models\User::find($user->id);
+            if (!$dbUser) {
+                \Log::warning('Auth/me: User from token not found in database', ['user_id' => $user->id]);
+                return response()->json([
+                    'message' => 'User tidak ditemukan di database.',
+                    'debug' => 'User ID dari token tidak ada di database'
+                ], 401);
             }
 
             \Log::info('Auth/me: User found', [
