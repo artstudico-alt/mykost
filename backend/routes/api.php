@@ -367,13 +367,11 @@ Route::prefix('auth')->group(function () {
 Route::post('/pembayaran/webhook', [PembayaranController::class, 'webhook']);
 
 // ============================================================
-// PUBLIC KOST API
+// PUBLIC KOST API (hanya untuk katalog aktif, tanpa ?mine parameter)
 // ============================================================
-Route::get('/kost', [KostController::class, 'index']);
+Route::get('/kost/{id}', [KostController::class, 'show']);
 
 Route::middleware(['auth:sanctum', 'role:super_admin'])->get('/kost/moderasi', [KostController::class, 'indexModerasi']);
-
-Route::get('/kost/{id}', [KostController::class, 'show']);
 
 // SEARCH API
 Route::get('/search/kost',           [SearchController::class, 'cariKost']);
@@ -394,6 +392,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{id}',   [KaryawanController::class, 'update']);
         Route::delete('/{id}',[KaryawanController::class, 'destroy']);
     });
+
+    // GET /api/kost — butuh auth ( untuk owner dengan ?mine=1 atau katalog umum)
+    Route::get('/kost', [KostController::class, 'index']);
 
     Route::prefix('kost')->group(function () {
         Route::middleware('role:pemilik_kost,super_admin')->group(function () {

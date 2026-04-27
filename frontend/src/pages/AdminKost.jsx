@@ -81,6 +81,12 @@ const AdminKost = () => {
     nama_kost: '', alamat: '', kota: '', provinsi: 'Jawa Barat', tipe: 'campur', harga_min: '', status: 'pending', deskripsi: '', latitude: -6.1751, longitude: 106.8650, jumlah_kamar: '', kode_kamar_list: []
   });
 
+  // Delete reason modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState({ id: null, nama: '' });
+  const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
+
   const inputStyle = {
     width: '100%', padding: '13px 16px', borderRadius: 12,
     border: '1.5px solid #e2e8f0', outline: 'none',
@@ -358,15 +364,32 @@ const AdminKost = () => {
     }
   };
 
-  const handleDelete = async (id, nama) => {
-    modalConfirm(`Hapus kost "${nama}"? Tindakan ini tidak dapat dibatalkan.`, () => {
-      api.delete(`/kost/${id}/force`).then(() => {
-        fetchKosts();
-        modalAlert('Kost berhasil dihapus!', 'success');
-      }).catch(() => {
-        modalAlert('Gagal menghapus kost.', 'error');
+  const handleDelete = (id, nama) => {
+    setDeleteTarget({ id, nama });
+    setDeleteReason('');
+    setShowDeleteModal(true);
+  };
+
+  const submitDeleteRequest = async () => {
+    if (!deleteReason || deleteReason.length < 10) {
+      modalAlert('Alasan penghapusan minimal 10 karakter.', 'error');
+      return;
+    }
+
+    setIsSubmittingDelete(true);
+    try {
+      await api.post(`/kost/${deleteTarget.id}/request-delete`, {
+        reason: deleteReason
       });
-    });
+      setShowDeleteModal(false);
+      fetchKosts();
+      modalAlert('Permintaan penghapusan kost telah dikirim ke admin untuk persetujuan.', 'success');
+    } catch (error) {
+      const message = error.response?.data?.message || 'Gagal mengirim permintaan penghapusan.';
+      modalAlert(message, 'error');
+    } finally {
+      setIsSubmittingDelete(false);
+    }
   };
 
   const statusFilter = kosts.filter(k => filterStatus === 'all' || k.status === filterStatus);
@@ -1058,6 +1081,66 @@ const AdminKost = () => {
               <button type="button" onClick={() => setShowModal(false)} style={{ padding: '13px 28px', borderRadius: 14, border: '1px solid #e2e8f0', background: 'white', fontWeight: 800, fontSize: 14, cursor: 'pointer', color: '#475569', transition: 'all 0.2s' }}>Batal</button>
               <button type="submit" form="kost-form" disabled={isSubmitting} style={{ padding: '13px 32px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white', fontWeight: 800, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 8px 20px -5px rgba(34,197,94,0.4)', minWidth: 160, opacity: isSubmitting ? 0.7 : 1 }}>
                 {isSubmitting ? 'Memproses...' : (currentKost ? 'Simpan Perubahan' : 'Daftarkan Properti')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Reason Modal */}
+      {showDeleteModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(6px)', padding: '1.5rem' }}>
+          <div style={{ background: 'white', borderRadius: 24, width: '100%', maxWidth: 480, boxShadow: '0 25px 60px rgba(0,0,0,0.18)', animation: 'fadeUp 0.25s ease', overflow: 'hidden' }}>
+            {/* Header */}
+            <div style={{ padding: '24px 28px', borderBottom: '1px solid #f1f5f9', background: 'linear-gradient(135deg, #fef2f2, #fee2e2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626' }}>
+                  <Trash2 size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1e293b' }}>Permintaan Hapus Kost</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>{deleteTarget.nama}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px 28px' }}>
+              <p style={{ margin: '0 0 16px', fontSize: 14, color: '#475569', lineHeight: 1.6 }}>
+                Penghapusan kost memerlukan persetujuan admin. Silakan berikan alasan mengapa kost ini ingin dihapus.
+              </p>
+
+              <div style={{ marginBottom: 8 }}>
+                <label style={{ ...labelStyle, marginBottom: 10 }}>Alasan Penghapusan *</label>
+                <textarea
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="Contoh: Kost sudah tidak dioperasikan lagi, ingin mengganti lokasi, dll."
+                  style={{ ...inputStyle, minHeight: 100, resize: 'vertical', fontFamily: 'inherit' }}
+                  maxLength={500}
+                />
+                <p style={{ margin: '6px 0 0', fontSize: 11, color: '#94a3b8', textAlign: 'right' }}>
+                  {deleteReason.length}/500 karakter (min. 10)
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '20px 28px', background: '#fcfcfd', borderTop: '1px solid #f1f5f9', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                style={{ padding: '12px 24px', borderRadius: 12, border: '1px solid #e2e8f0', background: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', color: '#475569' }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={submitDeleteRequest}
+                disabled={isSubmittingDelete || deleteReason.length < 10}
+                style={{ padding: '12px 24px', borderRadius: 12, border: 'none', background: '#dc2626', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: (isSubmittingDelete || deleteReason.length < 10) ? 0.6 : 1 }}
+              >
+                {isSubmittingDelete ? 'Mengirim...' : 'Kirim Permintaan'}
               </button>
             </div>
           </div>
