@@ -16,8 +16,13 @@ class PembayaranController extends Controller
     // GET /api/pembayaran
     public function index(Request $request)
     {
-        $user  = $request->user();
-        $query = Pembayaran::with(['booking.user', 'booking.kost']);
+        try {
+            $user  = $request->user();
+            if (!$user) {
+                return response()->json(['message' => 'Unauthorized'], 401);
+            }
+
+            $query = Pembayaran::with(['booking.user', 'booking.kost']);
 
         // Super admin bisa lihat semua pembayaran
         if ($user->hasRole('super_admin')) {
@@ -55,6 +60,13 @@ class PembayaranController extends Controller
         return $response->header('Cache-Control', 'no-cache, no-store, must-revalidate')
                         ->header('Pragma', 'no-cache')
                         ->header('Expires', '0');
+        } catch (\Exception $e) {
+            \Log::error('Pembayaran index error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error loading pembayaran data',
+                'error' => config('app.debug') ? $e->getMessage() : 'Server error'
+            ], 500);
+        }
     }
 
     /**
