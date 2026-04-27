@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect } from 'react'
+import { createContext, useState, useEffect, useRef } from 'react'
 import authService from '../services/authService'
 import api from '../utils/api'
 
@@ -8,8 +8,17 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const isFetchingRef = useRef(false)
 
   const checkAuth = async () => {
+    // Prevent multiple simultaneous auth checks
+    if (isFetchingRef.current) {
+      console.log('Auth check already in progress, skipping...')
+      return
+    }
+    
+    isFetchingRef.current = true
+    
     const authenticated = authService.isAuthenticated()
     setIsAuthenticated(authenticated)
     if (authenticated) {

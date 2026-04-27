@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { 
   User, 
@@ -100,10 +100,14 @@ const Profile = () => {
   })
   const [isSubmittingKeluhan, setIsSubmittingKeluhan] = useState(false)
 
+  // Ref to track if data has been fetched
+  const hasFetchedRef = useRef(false)
+  
   // Wait for AuthContext to finish loading, then fetch profile data
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && !hasFetchedRef.current) {
       console.log('AuthContext finished loading, authUser:', authUser)
+      hasFetchedRef.current = true
       fetchData()
     }
   }, [authLoading, authUser])
