@@ -90,7 +90,7 @@ class SearchController extends Controller
                 (float) $kost->latitude,
                 (float) $kost->longitude
             ), 2);
-            
+
             // Jarak dari lokasi pengguna saat ini (jika ada)
             if ($request->filled('latitude') && $request->filled('longitude')) {
                 $kost->jarak_dari_lokasi_saat_ini = round($this->hitungJarak(
@@ -102,7 +102,7 @@ class SearchController extends Controller
             } else {
                 $kost->jarak_dari_lokasi_saat_ini = null;
             }
-            
+
             return $kost;
         });
 

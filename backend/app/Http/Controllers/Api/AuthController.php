@@ -125,7 +125,7 @@ class AuthController extends Controller
                     'debug' => 'Token tidak valid atau user tidak ada di database'
                 ], 401);
             }
-            
+
             // Verify user still exists in database
             $dbUser = \App\Models\User::find($user->id);
             if (!$dbUser) {
