@@ -41,7 +41,10 @@ api.interceptors.response.use(
         url.includes('/auth/verify-otp') ||
         url.includes('/auth/forgot-password') ||
         url.includes('/auth/reset-password')
-      if (!isAuthForm) {
+      // Don't redirect for auth/me - let the component handle it
+      const isAuthMe = url.includes('/auth/me')
+      
+      if (!isAuthForm && !isAuthMe) {
         localStorage.removeItem('token')
         window.location.href = '/#/login'
       }

@@ -95,7 +95,20 @@ const Profile = () => {
     
     try {
       // Always fetch user profile
-      const meRes = await api.get('/auth/me')
+      let meRes
+      try {
+        meRes = await api.get('/auth/me')
+      } catch (meErr) {
+        // Handle 401 specifically - user not authenticated
+        if (meErr.response?.status === 401) {
+          console.log('Auth token invalid or expired, redirecting to login...')
+          localStorage.removeItem('token')
+          window.location.href = '/#/login'
+          return
+        }
+        throw meErr
+      }
+      
       if (meRes?.data?.user) {
         setUser(meRes.data.user)
       } else {
