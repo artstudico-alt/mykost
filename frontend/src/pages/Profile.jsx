@@ -109,29 +109,18 @@ const Profile = () => {
     setFetchError('')
     
     try {
-      // Always fetch user profile
-      let meRes
-      try {
-        meRes = await api.get('/auth/me')
-      } catch (meErr) {
-        // Handle 401 specifically - user not authenticated
-        if (meErr.response?.status === 401) {
-          console.log('Auth token invalid or expired, redirecting to login...')
-          localStorage.removeItem('token')
-          window.location.href = '/#/login'
-          return
-        }
-        throw meErr
+      // Use user from AuthContext (already fetched by AuthProvider)
+      // This avoids double API call and race condition with AuthContext
+      const currentUser = authUser
+      
+      if (!currentUser) {
+        console.log('No user in auth context, redirecting to login...')
+        window.location.href = '/#/login'
+        return
       }
       
-      if (meRes?.data?.user) {
-        setUser(meRes.data.user)
-      } else {
-        setUser(authUser ?? null)
-      }
-
-      // Get user role to determine which data to fetch
-      const currentUser = meRes?.data?.user || authUser
+      setUser(currentUser)
+      console.log('Profile using user from AuthContext:', currentUser)
       const userRole = formatRolePlain(currentUser)
       
       console.log('Profile fetch - User role:', userRole, 'User:', currentUser)
