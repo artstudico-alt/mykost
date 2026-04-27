@@ -400,6 +400,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/',       [KostController::class, 'store']);
             Route::put('/{id}',    [KostController::class, 'update']);
             Route::delete('/{id}', [KostController::class, 'destroy']);
+
+            // Permintaan hapus kost dengan alasan (untuk pemilik kost)
+            Route::post('/{id}/request-delete', [KostController::class, 'requestDelete']);
         });
 
         Route::patch('/{id}/status', [KostController::class, 'updateStatus'])
@@ -407,6 +410,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::delete('/{id}/force', [KostController::class, 'destroy'])
             ->middleware('role:super_admin');
+    });
+
+    // Admin: kelola permintaan hapus kost
+    Route::prefix('admin')->middleware('role:super_admin')->group(function () {
+        Route::get('/kost-delete-requests', [KostController::class, 'indexDeleteRequests']);
+        Route::patch('/kost-delete-requests/{id}/approve', [KostController::class, 'approveDelete']);
+        Route::patch('/kost-delete-requests/{id}/reject', [KostController::class, 'rejectDelete']);
     });
 
     Route::prefix('booking')->group(function () {

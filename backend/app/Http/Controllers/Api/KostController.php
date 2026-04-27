@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Kost;
+use App\Models\KostDeleteRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -245,7 +246,141 @@ class KostController extends Controller
         ]);
     }
 
-    // DELETE /api/kost/{id}
+    // POST /api/kost/{id}/request-delete — Pemilik minta hapus (dengan alasan)
+    public function requestDelete(Request $request, $id)
+    {
+        $kost = Kost::find($id);
+
+        if (!$kost) {
+            return response()->json(['message' => 'Kost tidak ditemukan'], 404);
+        }
+
+        $user = $request->user();
+
+        // Cek akses
+        if ($user->hasRole('pemilik_kost') && $kost->user_id !== $user->id) {
+            return response()->json(['message' => 'Anda tidak memiliki akses ke kost ini'], 403);
+        }
+
+        // Validasi alasan
+        $validated = $request->validate([
+            'reason' => 'required|string|min:10|max:500',
+        ]);
+
+        // Cek apakah sudah ada permintaan pending
+        $existingRequest = KostDeleteRequest::where('kost_id', $id)
+            ->where('status', 'pending')
+            ->first();
+
+        if ($existingRequest) {
+            return response()->json([
+                'message' => 'Anda sudah memiliki permintaan penghapusan yang menunggu persetujuan admin',
+                'data' => $existingRequest,
+            ], 422);
+        }
+
+        // Buat permintaan hapus
+        $deleteRequest = KostDeleteRequest::create([
+            'kost_id' => $id,
+            'requested_by' => $user->id,
+            'reason' => $validated['reason'],
+            'status' => 'pending',
+        ]);
+
+        return response()->json([
+            'message' => 'Permintaan penghapusan kost telah dikirim ke admin untuk persetujuan',
+            'data' => $deleteRequest,
+        ], 201);
+    }
+
+    // GET /api/admin/kost-delete-requests — Admin lihat semua permintaan hapus
+    public function indexDeleteRequests(Request $request)
+    {
+        $query = KostDeleteRequest::with(['kost', 'requester', 'approver']);
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $requests = $query->latest()->get();
+
+        return response()->json([
+            'message' => 'Data permintaan hapus kost berhasil diambil',
+            'total' => $requests->count(),
+            'data' => $requests,
+        ]);
+    }
+
+    // PATCH /api/admin/kost-delete-requests/{id}/approve — Admin setujui hapus
+    public function approveDelete(Request $request, $id)
+    {
+        $deleteRequest = KostDeleteRequest::with('kost')->find($id);
+
+        if (!$deleteRequest) {
+            return response()->json(['message' => 'Permintaan tidak ditemukan'], 404);
+        }
+
+        if ($deleteRequest->status !== 'pending') {
+            return response()->json([
+                'message' => 'Permintaan sudah diproses sebelumnya',
+                'status' => $deleteRequest->status,
+            ], 422);
+        }
+
+        $admin = $request->user();
+
+        // Update status permintaan
+        $deleteRequest->update([
+            'status' => 'approved',
+            'approved_by' => $admin->id,
+            'approved_at' => now(),
+        ]);
+
+        // Hapus kost
+        $kostName = $deleteRequest->kost?->nama_kost ?? 'Kost';
+        $deleteRequest->kost?->delete();
+
+        return response()->json([
+            'message' => "Kost '{$kostName}' berhasil dihapus setelah disetujui admin",
+            'data' => $deleteRequest->fresh(),
+        ]);
+    }
+
+    // PATCH /api/admin/kost-delete-requests/{id}/reject — Admin tolak hapus
+    public function rejectDelete(Request $request, $id)
+    {
+        $deleteRequest = KostDeleteRequest::find($id);
+
+        if (!$deleteRequest) {
+            return response()->json(['message' => 'Permintaan tidak ditemukan'], 404);
+        }
+
+        if ($deleteRequest->status !== 'pending') {
+            return response()->json([
+                'message' => 'Permintaan sudah diproses sebelumnya',
+                'status' => $deleteRequest->status,
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'rejection_reason' => 'required|string|min:10|max:500',
+        ]);
+
+        $admin = $request->user();
+
+        $deleteRequest->update([
+            'status' => 'rejected',
+            'approved_by' => $admin->id,
+            'rejection_reason' => $validated['rejection_reason'],
+        ]);
+
+        return response()->json([
+            'message' => 'Permintaan penghapusan kost telah ditolak',
+            'data' => $deleteRequest->fresh(),
+        ]);
+    }
+
+    // DELETE /api/kost/{id} — Hanya super_admin bisa langsung hapus
     public function destroy(Request $request, $id)
     {
         $kost = Kost::find($id);
@@ -256,12 +391,18 @@ class KostController extends Controller
 
         $user = $request->user();
 
-        if ($user->hasRole('pemilik_kost') && $kost->user_id !== $user->id) {
-            return response()->json(['message' => 'Anda tidak memiliki akses ke kost ini'], 403);
+        // Hanya super_admin yang bisa langsung hapus
+        if (!$user->hasRole('super_admin')) {
+            return response()->json([
+                'message' => 'Pemilik kost harus mengajukan permintaan hapus dengan alasan. Gunakan endpoint POST /api/kost/{id}/request-delete',
+            ], 403);
         }
 
+        $kostName = $kost->nama_kost;
         $kost->delete();
 
-        return response()->json(['message' => 'Kost berhasil dihapus']);
+        return response()->json([
+            'message' => "Kost '{$kostName}' berhasil dihapus oleh admin",
+        ]);
     }
 }
