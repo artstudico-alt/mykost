@@ -76,7 +76,7 @@ const clearCacheAndReload = () => {
 
 const Profile = () => {
   const navigate = useNavigate()
-  const { logout, user: authUser } = useAuth()
+  const { logout, user: authUser, loading: authLoading } = useAuth()
   const { alert: modalAlert, confirm: modalConfirm } = useGlobalModal()
   const [activeTab, setActiveTab] = useState('overview')
   const [user, setUser] = useState(null)
@@ -100,9 +100,13 @@ const Profile = () => {
   })
   const [isSubmittingKeluhan, setIsSubmittingKeluhan] = useState(false)
 
+  // Wait for AuthContext to finish loading, then fetch profile data
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (!authLoading) {
+      console.log('AuthContext finished loading, authUser:', authUser)
+      fetchData()
+    }
+  }, [authLoading, authUser])
 
   const fetchData = async () => {
     setLoading(true)
