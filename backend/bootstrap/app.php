@@ -35,6 +35,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // Handle all errors for API routes to prevent redirects
         $exceptions->render(function (\Throwable $e, Request $request) {
             if ($request->is('api/*')) {
+                // Log all API errors for debugging
+                \Log::error('API Error: ' . $e->getMessage(), [
+                    'url' => $request->url(),
+                    'method' => $request->method(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]);
+
                 // If it's an authentication-related error
                 if ($e instanceof \Illuminate\Auth\AuthenticationException ||
                     $e instanceof \Illuminate\Session\TokenMismatchException ||
@@ -44,6 +52,15 @@ return Application::configure(basePath: dirname(__DIR__))
                         'message' => 'Silakan login terlebih dahulu',
                     ], 401);
                 }
+
+                // Return generic error for other API errors
+                return response()->json([
+                    'message' => 'Server error: ' . $e->getMessage(),
+                    'debug' => config('app.debug') ? [
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine()
+                    ] : null
+                ], 500);
             }
         });
     })->create();
