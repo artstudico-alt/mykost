@@ -29,21 +29,33 @@ class KostController extends Controller
         ]);
     }
 
-    // GET /api/kost — semua role bisa lihat (Publik)
+    // GET /api/kost — semua bisa lihat (guest = aktif, pemilik = mine, admin = all)
     public function index(Request $request)
     {
         try {
             $user = $request->user();
+            $onlyMine = $request->boolean('mine');
 
             // Query dasar
             $query = Kost::query();
 
-            // Filter berdasarkan parameter mine atau status aktif
-            $onlyMine = $request->boolean('mine');
-
-            if ($user && $user->hasRole('pemilik_kost') && $onlyMine) {
-                $query->where('user_id', $user->id);
+            if ($user) {
+                // User terautentikasi
+                if ($user->hasRole('pemilik_kost') && $onlyMine) {
+                    // Pemilik lihat kost sendiri (semua status)
+                    $query->where('user_id', $user->id);
+                } elseif ($user->hasRole('super_admin')) {
+                    // Admin bisa lihat semua jika tidak ada filter
+                    if (!$onlyMine) {
+                        $query->where('status', 'aktif');
+                    }
+                    // Kalau mine=1, admin juga bisa filter (opsional)
+                } else {
+                    // Role lain (karyawan, hr) - hanya lihat aktif
+                    $query->where('status', 'aktif');
+                }
             } else {
+                // Guest - hanya lihat aktif
                 $query->where('status', 'aktif');
             }
 
