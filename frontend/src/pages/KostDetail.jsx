@@ -152,6 +152,7 @@ function KostDetail() {
         tanggal_mulai: formData.tanggal_mulai,
         durasi_bulan: parseInt(formData.durasi_bulan, 10),
         catatan: `Web — ${kost.nama_kost}`,
+        nomor_kamar: formData.nomor_kamar,
       })
 
       const booking = bookingRes.data?.data
@@ -699,6 +700,7 @@ function KostDetail() {
         user={userData}
         onSubmit={handleBookingSubmit}
         isSubmitting={isSubmittingBooking}
+        kamars={kost?.kamars || []}
       />
 
       {/* ===== MODAL INFORMASI FASILITAS ===== */}

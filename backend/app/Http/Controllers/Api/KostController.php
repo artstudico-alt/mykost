@@ -163,7 +163,7 @@ class KostController extends Controller
     // GET /api/kost/{id}
     public function show($id)
     {
-        $kost = Kost::with(['user'])->find($id);
+        $kost = Kost::with(['user', 'kamars'])->find($id);
 
         if (!$kost) {
             return response()->json(['message' => 'Kost tidak ditemukan'], 404);

@@ -7,7 +7,7 @@ import '../booking-modal.css'
  * Sewa per kost (tanpa pilihan kamar).
  * @param {object} kost — dari API: { id, nama_kost, harga_min, ... }
  */
-const BookingModal = ({ isOpen, onClose, kost, user, onSubmit, isSubmitting = false }) => {
+const BookingModal = ({ isOpen, onClose, kost, user, onSubmit, isSubmitting = false, kamars = [] }) => {
   const [step, setStep] = useState(1)
 
   const [formData, setFormData] = useState({
@@ -18,6 +18,7 @@ const BookingModal = ({ isOpen, onClose, kost, user, onSubmit, isSubmitting = fa
     ktp_photo: null,
     tanggal_mulai: '',
     durasi_bulan: 1,
+    nomor_kamar: '',
   })
 
   const wasOpenRef = useRef(false)
@@ -37,6 +38,7 @@ const BookingModal = ({ isOpen, onClose, kost, user, onSubmit, isSubmitting = fa
       email: user?.email ?? prev.email,
       phone: user?.phone ?? prev.phone,
       nik: user?.nik ?? prev.nik,
+      nomor_kamar: prev.nomor_kamar || (kamars.find(k => k.status === 'tersedia')?.kode_kamar || ''),
     }))
   }, [isOpen, user])
 
@@ -186,6 +188,33 @@ const BookingModal = ({ isOpen, onClose, kost, user, onSubmit, isSubmitting = fa
                 ))}
               </select>
             </div>
+            <div className="booking-form-group">
+              <label htmlFor="bm-kamar">Pilih Kamar</label>
+              <select
+                id="bm-kamar"
+                name="nomor_kamar"
+                value={formData.nomor_kamar}
+                onChange={handleChange}
+                disabled={kamars.filter(k => k.status === 'tersedia').length === 0}
+              >
+                {kamars.filter(k => k.status === 'tersedia').length === 0 ? (
+                  <option value="">Tidak ada kamar tersedia</option>
+                ) : (
+                  kamars.map((kamar) => (
+                    <option 
+                      key={kamar.id} 
+                      value={kamar.kode_kamar}
+                      disabled={kamar.status !== 'tersedia'}
+                    >
+                      Kamar {kamar.kode_kamar} {kamar.status === 'terisi' ? '(Sudah disewa)' : ''}
+                    </option>
+                  ))
+                )}
+              </select>
+              {kamars.filter(k => k.status === 'tersedia').length === 0 && (
+                <p className="booking-warn">Semua kamar sudah terisi</p>
+              )}
+            </div>
             <div className="booking-summary-card booking-summary-card--minimal">
               <p>
                 Perkiraan total: <strong>Rp {totalEstimasi.toLocaleString('id-ID')}</strong>
@@ -200,7 +229,7 @@ const BookingModal = ({ isOpen, onClose, kost, user, onSubmit, isSubmitting = fa
                 type="button"
                 className="booking-next-btn"
                 onClick={handleNext}
-                disabled={!formData.tanggal_mulai || !kostSiapBooking}
+                disabled={!formData.tanggal_mulai || !formData.nomor_kamar || !kostSiapBooking || kamars.filter(k => k.status === 'tersedia').length === 0}
               >
                 Lanjut
               </button>
