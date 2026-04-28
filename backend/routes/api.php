@@ -375,6 +375,10 @@ Route::middleware('auth:sanctum')->get('/kost', [KostController::class, 'index']
 // Route spesifik HARUS sebelum route dengan parameter {id}
 Route::middleware(['auth:sanctum', 'role:super_admin'])->get('/kost/moderasi', [KostController::class, 'indexModerasi']);
 
+// Kamars status check and fix routes (must be before {id} route)
+Route::middleware('auth:sanctum')->get('/kost/{id}/kamars', [KostController::class, 'getKamars']);
+Route::middleware('auth:sanctum')->post('/kost/{id}/fix-kamars', [KostController::class, 'fixKamars']);
+
 // Route dengan parameter {id} diletakkan PALING BAWAH
 Route::get('/kost/{id}', [KostController::class, 'show']);
 

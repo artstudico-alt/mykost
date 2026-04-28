@@ -417,4 +417,88 @@ class KostController extends Controller
             'message' => "Kost '{$kostName}' berhasil dihapus oleh admin",
         ]);
     }
+
+    // GET /api/kost/{id}/kamars — cek status kamar
+    public function getKamars($id)
+    {
+        $kost = Kost::with(['kamars'])->find($id);
+
+        if (!$kost) {
+            return response()->json(['message' => 'Kost tidak ditemukan'], 404);
+        }
+
+        // Get active bookings to see which rooms are actually occupied
+        $occupiedRooms = \App\Models\Booking::where('kost_id', $id)
+            ->whereIn('status', ['confirmed', 'aktif'])
+            ->whereNotNull('nomor_kamar')
+            ->pluck('nomor_kamar')
+            ->toArray();
+
+        $kamars = $kost->kamars->map(function ($kamar) use ($occupiedRooms) {
+            $shouldBeTerisi = in_array($kamar->kode_kamar, $occupiedRooms);
+            return [
+                'id' => $kamar->id,
+                'kode_kamar' => $kamar->kode_kamar,
+                'status' => $kamar->status,
+                'should_be' => $shouldBeTerisi ? 'terisi' : 'tersedia',
+                'is_correct' => ($kamar->status === 'terisi') === $shouldBeTerisi,
+            ];
+        });
+
+        return response()->json([
+            'message' => 'Status kamar berhasil diambil',
+            'kost_id' => $id,
+            'total_kamars' => $kamars->count(),
+            'tersedia' => $kamars->where('status', 'tersedia')->count(),
+            'terisi' => $kamars->where('status', 'terisi')->count(),
+            'occupied_by_bookings' => $occupiedRooms,
+            'data' => $kamars,
+        ]);
+    }
+
+    // POST /api/kost/{id}/fix-kamars — fix kamar status based on actual bookings
+    public function fixKamars(Request $request, $id)
+    {
+        $user = $request->user();
+        $kost = Kost::find($id);
+
+        if (!$kost) {
+            return response()->json(['message' => 'Kost tidak ditemukan'], 404);
+        }
+
+        // Only pemilik_kost or super_admin can fix
+        if (!$user->hasRole('super_admin') && !($user->hasRole('pemilik_kost') && $kost->user_id === $user->id)) {
+            return response()->json(['message' => 'Akses ditolak'], 403);
+        }
+
+        // Get active bookings
+        $occupiedRooms = \App\Models\Booking::where('kost_id', $id)
+            ->whereIn('status', ['confirmed', 'aktif'])
+            ->whereNotNull('nomor_kamar')
+            ->pluck('nomor_kamar')
+            ->toArray();
+
+        $fixed = 0;
+        $kamars = $kost->kamars;
+
+        foreach ($kamars as $kamar) {
+            $shouldBeTerisi = in_array($kamar->kode_kamar, $occupiedRooms);
+            $correctStatus = $shouldBeTerisi ? 'terisi' : 'tersedia';
+
+            if ($kamar->status !== $correctStatus) {
+                $kamar->update(['status' => $correctStatus]);
+                $fixed++;
+            }
+        }
+
+        // Update kost kamar_terisi count
+        $kost->updateKamarTerisi();
+
+        return response()->json([
+            'message' => "Status kamar berhasil diperbaiki. {$fixed} kamar diupdate.",
+            'fixed_count' => $fixed,
+            'occupied_rooms' => $occupiedRooms,
+            'kamar_terisi' => $kost->fresh()->kamar_terisi,
+        ]);
+    }
 }
