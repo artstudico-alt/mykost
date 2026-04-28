@@ -369,8 +369,8 @@ Route::post('/pembayaran/webhook', [PembayaranController::class, 'webhook']);
 // ============================================================
 // PUBLIC KOST API
 // ============================================================
-// GET /api/kost — public (guest = aktif, auth = sesuai role)
-Route::get('/kost', [KostController::class, 'index']);
+// GET /api/kost — Butuh auth untuk identifikasi user (guest akan return aktif only)
+Route::middleware('auth:sanctum')->get('/kost', [KostController::class, 'index']);
 
 // Route spesifik HARUS sebelum route dengan parameter {id}
 Route::middleware(['auth:sanctum', 'role:super_admin'])->get('/kost/moderasi', [KostController::class, 'indexModerasi']);
