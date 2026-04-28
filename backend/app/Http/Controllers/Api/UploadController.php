@@ -20,10 +20,14 @@ class UploadController extends Controller
             // Simpan ke storage/app/public/kosts
             $path = $file->storeAs('kosts', $filename, 'public');
 
+            // Build URL - gunakan request URL untuk mendukung local dan production
+            $host = $request->getSchemeAndHttpHost();
+            $url = $host . '/storage/' . $path;
+
             // Kembalikan URL penuh (misal: http://localhost:8000/storage/kosts/namafile.jpg)
             return response()->json([
                 'message' => 'Upload berhasil',
-                'url' => asset('storage/' . $path),
+                'url' => $url,
             ]);
         }
 
