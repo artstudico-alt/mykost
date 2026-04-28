@@ -372,9 +372,11 @@ Route::post('/pembayaran/webhook', [PembayaranController::class, 'webhook']);
 // GET /api/kost — public (guest = aktif, auth = sesuai role)
 Route::get('/kost', [KostController::class, 'index']);
 
-Route::get('/kost/{id}', [KostController::class, 'show']);
-
+// Route spesifik HARUS sebelum route dengan parameter {id}
 Route::middleware(['auth:sanctum', 'role:super_admin'])->get('/kost/moderasi', [KostController::class, 'indexModerasi']);
+
+// Route dengan parameter {id} diletakkan PALING BAWAH
+Route::get('/kost/{id}', [KostController::class, 'show']);
 
 // SEARCH API
 Route::get('/search/kost',           [SearchController::class, 'cariKost']);
