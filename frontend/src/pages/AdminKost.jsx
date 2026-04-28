@@ -645,14 +645,24 @@ const AdminKost = () => {
                       <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>{new Date(req.created_at).toLocaleDateString('id-ID')}</p>
                     </td>
                     <td style={{ padding: '20px 32px' }}>
-                      <span style={{
-                        padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800,
-                        background: req.status === 'pending' ? '#fffbeb' : req.status === 'approved' ? '#f0fdf4' : '#fef2f2',
-                        color: req.status === 'pending' ? '#d97706' : req.status === 'approved' ? '#16a34a' : '#dc2626',
-                        border: `1px solid ${req.status === 'pending' ? '#fef3c7' : req.status === 'approved' ? '#dcfce7' : '#fee2e2'}`
-                      }}>
-                        {req.status === 'pending' ? 'Menunggu' : req.status === 'approved' ? 'Disetujui' : 'Ditolak'}
-                      </span>
+                      {(() => {
+                        const statusConfig = {
+                          pending: { bg: '#fffbeb', color: '#d97706', border: '#fef3c7', label: 'Menunggu' },
+                          approved: { bg: '#f0fdf4', color: '#16a34a', border: '#dcfce7', label: 'Disetujui' },
+                          rejected: { bg: '#fef2f2', color: '#dc2626', border: '#fee2e2', label: 'Ditolak' }
+                        };
+                        const cfg = statusConfig[req.status] || statusConfig.pending;
+                        return (
+                          <span style={{
+                            padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800,
+                            background: cfg.bg,
+                            color: cfg.color,
+                            border: '1px solid ' + cfg.border
+                          }}>
+                            {cfg.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td style={{ padding: '20px 32px' }}>
                       {req.status === 'pending' && (
@@ -811,6 +821,7 @@ const AdminKost = () => {
             </tbody>
           </table>
         </div>
+      )}
       </div>
 
       {/* Modal Form */}
