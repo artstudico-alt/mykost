@@ -87,6 +87,10 @@ const AdminKost = () => {
   const [deleteTarget, setDeleteTarget] = useState({ id: null, nama: '' });
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
 
+  // Delete requests for admin
+  const [deleteRequests, setDeleteRequests] = useState([]);
+  const [activeTab, setActiveTab] = useState('kost'); // 'kost' | 'delete-requests'
+
   const inputStyle = {
     width: '100%', padding: '13px 16px', borderRadius: 12,
     border: '1.5px solid #e2e8f0', outline: 'none',
@@ -105,8 +109,18 @@ const AdminKost = () => {
   useEffect(() => {
     if (!authLoading && user) {
       fetchKosts();
+      if (isAdmin) {
+        fetchDeleteRequests();
+      }
     }
   }, [authLoading, user]);
+
+  // Fetch delete requests when tab changes to delete-requests
+  useEffect(() => {
+    if (isAdmin && activeTab === 'delete-requests') {
+      fetchDeleteRequests();
+    }
+  }, [activeTab, isAdmin]);
 
   const fetchKosts = async () => {
     setLoading(true);
@@ -370,6 +384,45 @@ const AdminKost = () => {
     setShowDeleteModal(true);
   };
 
+  // Fetch delete requests (admin only)
+  const fetchDeleteRequests = async () => {
+    if (!isAdmin) return;
+    try {
+      const res = await api.get('/admin/kost-delete-requests');
+      setDeleteRequests(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch delete requests:', err);
+    }
+  };
+
+  // Approve delete request
+  const handleApproveDelete = async (requestId) => {
+    try {
+      await api.patch(`/admin/kost-delete-requests/${requestId}/approve`);
+      modalAlert('Kost berhasil dihapus!', 'success');
+      fetchDeleteRequests();
+      fetchKosts();
+    } catch (err) {
+      modalAlert(err.response?.data?.message || 'Gagal menyetujui penghapusan.', 'error');
+    }
+  };
+
+  // Reject delete request
+  const handleRejectDelete = async (requestId) => {
+    const reason = prompt('Alasan penolakan (minimal 10 karakter):');
+    if (!reason || reason.length < 10) {
+      modalAlert('Alasan penolakan minimal 10 karakter.', 'error');
+      return;
+    }
+    try {
+      await api.patch(`/admin/kost-delete-requests/${requestId}/reject`, { rejection_reason: reason });
+      modalAlert('Permintaan penghapusan ditolak.', 'success');
+      fetchDeleteRequests();
+    } catch (err) {
+      modalAlert(err.response?.data?.message || 'Gagal menolak penghapusan.', 'error');
+    }
+  };
+
   const submitDeleteRequest = async () => {
     if (!deleteReason || deleteReason.length < 10) {
       modalAlert('Alasan penghapusan minimal 10 karakter.', 'error');
@@ -457,6 +510,59 @@ const AdminKost = () => {
         ))}
       </div>
 
+      {/* Tab Bar - Only for Admin */}
+      {isAdmin && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24, background: '#f1f5f9', padding: 6, borderRadius: 16 }}>
+          <button
+            onClick={() => setActiveTab('kost')}
+            style={{
+              flex: 1,
+              padding: '12px 24px',
+              borderRadius: 12,
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              border: 'none',
+              background: activeTab === 'kost' ? 'white' : 'transparent',
+              color: activeTab === 'kost' ? '#0f172a' : '#64748b',
+              boxShadow: activeTab === 'kost' ? '0 4px 12px rgba(0,0,0,0.08)' : 'none'
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Home size={18} />
+              Daftar Kost ({kosts.length})
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('delete-requests')}
+            style={{
+              flex: 1,
+              padding: '12px 24px',
+              borderRadius: 12,
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              border: 'none',
+              background: activeTab === 'delete-requests' ? 'white' : 'transparent',
+              color: activeTab === 'delete-requests' ? '#dc2626' : '#64748b',
+              boxShadow: activeTab === 'delete-requests' ? '0 4px 12px rgba(0,0,0,0.08)' : 'none'
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Trash2 size={18} />
+              Permintaan Hapus
+              {deleteRequests.filter(r => r.status === 'pending').length > 0 && (
+                <span style={{ background: '#dc2626', color: 'white', fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 800 }}>
+                  {deleteRequests.filter(r => r.status === 'pending').length}
+                </span>
+              )}
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Table Card */}
       <div style={{ background: 'white', borderRadius: 28, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.03)' }}>
         {/* Toolbar */}
@@ -490,18 +596,100 @@ const AdminKost = () => {
           </div>
         </div>
 
-        {/* Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
-            <thead>
-              <tr style={{ background: '#f8fafc' }}>
-                {['Properti', 'Pemilik', 'Lokasi', 'Tipe', 'Kamar', 'Harga / Bulan', 'Status', 'Aksi'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '16px 32px', color: '#94a3b8', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: '1px solid #f1f5f9' }}>
-                    {h}
-                  </th>
+        {/* Table Content */}
+        {activeTab === 'delete-requests' && isAdmin ? (
+          /* Delete Requests Table */
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
+              <thead>
+                <tr style={{ background: '#f8fafc' }}>
+                  {['Kost', 'Pemilik', 'Alasan Penghapusan', 'Tanggal Request', 'Status', 'Aksi'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '16px 32px', color: '#94a3b8', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: '1px solid #f1f5f9' }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {deleteRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ padding: '80px 0', textAlign: 'center', color: '#94a3b8', fontSize: 15, fontWeight: 500 }}>
+                      Tidak ada permintaan penghapusan kost.
+                    </td>
+                  </tr>
+                ) : deleteRequests.map(req => (
+                  <tr key={req.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                    <td style={{ padding: '20px 32px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 14, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', flexShrink: 0, fontWeight: 800 }}>
+                          <Trash2 size={18} />
+                        </div>
+                        <div>
+                          <p style={{ fontWeight: 800, color: '#0f172a', margin: 0, fontSize: 14 }}>{req.kost?.nama_kost || 'Kost tidak ditemukan'}</p>
+                          <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, fontWeight: 700 }}>ID: {req.kost_id}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '20px 32px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 10, fontWeight: 800 }}>
+                          {(req.requester?.name || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <p style={{ fontWeight: 700, color: '#334155', margin: 0, fontSize: 13 }}>{req.requester?.name || 'Unknown'}</p>
+                      </div>
+                    </td>
+                    <td style={{ padding: '20px 32px', maxWidth: 300 }}>
+                      <p style={{ fontSize: 13, color: '#475569', margin: 0, lineHeight: 1.5 }}>{req.reason}</p>
+                    </td>
+                    <td style={{ padding: '20px 32px' }}>
+                      <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>{new Date(req.created_at).toLocaleDateString('id-ID')}</p>
+                    </td>
+                    <td style={{ padding: '20px 32px' }}>
+                      <span style={{
+                        padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800,
+                        background: req.status === 'pending' ? '#fffbeb' : req.status === 'approved' ? '#f0fdf4' : '#fef2f2',
+                        color: req.status === 'pending' ? '#d97706' : req.status === 'approved' ? '#16a34a' : '#dc2626',
+                        border: `1px solid ${req.status === 'pending' ? '#fef3c7' : req.status === 'approved' ? '#dcfce7' : '#fee2e2'}`
+                      }}>
+                        {req.status === 'pending' ? 'Menunggu' : req.status === 'approved' ? 'Disetujui' : 'Ditolak'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '20px 32px' }}>
+                      {req.status === 'pending' && (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            onClick={() => handleApproveDelete(req.id)}
+                            style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: '#22c55e', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            Setujui
+                          </button>
+                          <button
+                            onClick={() => handleRejectDelete(req.id)}
+                            style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: 'white', color: '#64748b', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            Tolak
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
                 ))}
-              </tr>
-            </thead>
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* Kost Table */
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
+              <thead>
+                <tr style={{ background: '#f8fafc' }}>
+                  {['Properti', 'Pemilik', 'Lokasi', 'Tipe', 'Kamar', 'Harga / Bulan', 'Status', 'Aksi'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '16px 32px', color: '#94a3b8', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: '1px solid #f1f5f9' }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
             <tbody>
               {loading ? (
                 <tr>

@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Hunian;
 use App\Models\Karyawan;
 use App\Models\Kost;
+use App\Models\KostDeleteRequest;
 use App\Models\Pembayaran;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -64,6 +65,8 @@ class DashboardController extends Controller
                 'total_pembayaran' => Pembayaran::count(),
                 'pembayaran_berhasil' => Pembayaran::where('status', 'berhasil')->sum('jumlah'),
                 'hunian_aktif'     => Hunian::where('status', 'aktif')->count(),
+                // Permintaan hapus kost
+                'delete_requests_pending' => KostDeleteRequest::where('status', 'pending')->count(),
                 // New real data for charts
                 'cash_flow' => $cashFlow,
                 'property_distribution' => $propertyDistribution,
@@ -85,7 +88,7 @@ class DashboardController extends Controller
                     $endHour = ($i + 1) * 4;
                     $amount = Pembayaran::where('status', 'berhasil')
                         ->whereDate('created_at', today())
-                        ->whereRaw('HOUR(created_at) >= ? AND HOUR(created_at) < ?', [$startHour, $endHour])
+                        ->whereRaw('EXTRACT(HOUR FROM created_at) >= ? AND EXTRACT(HOUR FROM created_at) < ?', [$startHour, $endHour])
                         ->sum('jumlah');
                     $cashFlow[] = [
                         'day' => $labels[$i],
@@ -120,7 +123,7 @@ class DashboardController extends Controller
                     $amount = Pembayaran::where('status', 'berhasil')
                         ->whereMonth('created_at', now()->month)
                         ->whereYear('created_at', now()->year)
-                        ->whereRaw('DAY(created_at) >= ? AND DAY(created_at) <= ?', [$startDay, $endDay])
+                        ->whereRaw('EXTRACT(DAY FROM created_at) >= ? AND EXTRACT(DAY FROM created_at) <= ?', [$startDay, $endDay])
                         ->sum('jumlah');
                     $cashFlow[] = [
                         'day' => $labels[$i],
