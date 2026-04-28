@@ -122,6 +122,7 @@ class BookingController extends Controller
             'total_harga'     => $totalHarga,
             'status'          => 'pending',
             'catatan'         => $validated['catatan'] ?? null,
+            'nomor_kamar'     => $validated['nomor_kamar'], // SIMPAN NOMOR KAMAR YANG DIPILIH
         ]);
 
         return response()->json([
@@ -178,6 +179,16 @@ class BookingController extends Controller
 
         // Update booking status
         $booking->update(['status' => 'confirmed']);
+
+        // Update status kamar spesifik yang dipilih menjadi 'terisi'
+        if ($booking->nomor_kamar) {
+            $kamar = \App\Models\Kamar::where('kost_id', $booking->kost_id)
+                ->where('kode_kamar', $booking->nomor_kamar)
+                ->first();
+            if ($kamar) {
+                $kamar->update(['status' => 'terisi']);
+            }
+        }
 
         // Update kamar terisi di kost
         $booking->kost->updateKamarTerisi();
