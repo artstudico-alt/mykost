@@ -176,7 +176,8 @@ class _HunianSayaScreenState extends State<HunianSayaScreen> {
     final String kostName = kost['nama_kost'] ?? booking['kost_name'] ?? item['kost_name'] ?? 'Nama Kost';
     final String address = kost['alamat'] ?? booking['alamat'] ?? 'Alamat tidak tersedia';
     final String status = booking['status'] ?? 'aktif';
-    final String imageUrl = kost['foto_utama'] ?? booking['image'] ?? '';
+    final String rawImageUrl = kost['foto_utama'] ?? booking['image'] ?? '';
+    final String imageUrl = ApiService.getFullImageUrl(rawImageUrl);
     final String rawStartDate = booking['tanggal_mulai'] ?? item['tanggal_masuk'] ?? '';
     final String rawEndDate = booking['tanggal_selesai'] ?? item['tanggal_keluar'] ?? '';
 

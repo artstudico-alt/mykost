@@ -620,13 +620,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 currentHunian?['alamat_kost'] ?? 
                                 'Alamat tidak tersedia';
     
-    final String? fotoUrl = kostData['foto_url'] ?? 
+    final String? rawFotoUrl = kostData['foto_url'] ?? 
                             kostData['foto'] ?? 
                             kostData['foto_kost'] ?? 
-                            kostData['gambar'] ?? 
+                            kostData['gambar'] ??
+                            kostData['foto_utama'] ??
                             kostData['thumbnail'] ??
                             currentHunian?['foto_url'] ??
                             currentHunian?['foto'];
+    final String? fotoUrl = ApiService.getFullImageUrl(rawFotoUrl);
 
     return Container(
       decoration: BoxDecoration(

@@ -188,9 +188,10 @@ class _SearchScreenState extends State<SearchScreen> {
     final lokasi = [kecamatan, kota].where((s) => s.isNotEmpty).join(', ');
     final tipe = (kost['tipe'] ?? 'campur').toString().toUpperCase();
     final images = kost['images'] as List?;
-    final imageUrl = (images != null && images.isNotEmpty)
+    final rawImageUrl = (images != null && images.isNotEmpty)
         ? images[0]['url'] ?? images[0]['path'] ?? ''
         : '';
+    final imageUrl = ApiService.getFullImageUrl(rawImageUrl);
 
     return GestureDetector(
       onTap: () {

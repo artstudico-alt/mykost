@@ -52,18 +52,9 @@ class _KostDetailScreenState extends State<KostDetailScreen> {
     return images;
   }
   
-  // Get full image URL (handle Supabase URLs)
+  // Get full image URL using ApiService helper
   String _getFullImageUrl(String url) {
-    if (url.startsWith('http')) {
-      return url;
-    }
-    // For Supabase storage URLs
-    if (url.contains('supabase')) {
-      return url;
-    }
-    // For relative paths from backend
-    final baseUrl = ApiService.baseUrl.replaceAll('/api', '');
-    return '$baseUrl/storage/$url';
+    return ApiService.getFullImageUrl(url);
   }
 
   @override

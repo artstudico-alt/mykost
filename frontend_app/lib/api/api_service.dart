@@ -11,7 +11,12 @@ class ApiService {
   // Untuk development dengan emulator Android: http://10.0.2.2:8000/api
   // Untuk development dengan device fisik: http://192.168.x.x:8000/api (ganti dengan IP komputer)
   // Untuk production: https://your-domain.com/api
-  static const String baseUrl = "http://127.0.0.1:8000/api"; // For Web/Browser testing 
+  
+  // DEFAULT: Gunakan 10.0.2.2 untuk Android Emulator (localhost dari host computer)
+  static const String baseUrl = "http://10.0.2.2:8000/api"; // For Android Emulator
+  
+  // Alternatif untuk iOS Simulator atau Web: http://127.0.0.1:8000/api
+  // Alternatif untuk Device Fisik: http://192.168.1.x:8000/api (ganti x dengan IP komputer) 
 
   
   static String? token;
@@ -38,6 +43,37 @@ class ApiService {
     ApiService.currentUser = user;
     await _prefs.setString('token', token);
     await _prefs.setString('user_data', jsonEncode(user));
+  }
+
+  // Helper: Get full image URL (fixes localhost for mobile)
+  static String getFullImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      return '';
+    }
+    
+    // For Supabase storage URLs
+    if (url.contains('supabase')) {
+      return url;
+    }
+    
+    // Get storage base URL (without /api)
+    final storageBase = baseUrl.replaceAll('/api', '');
+    
+    // If URL contains localhost/127.0.0.1, replace with correct mobile base URL
+    if (url.startsWith('http://127.0.0.1:8000')) {
+      return url.replaceFirst('http://127.0.0.1:8000', storageBase);
+    }
+    if (url.startsWith('http://localhost:8000')) {
+      return url.replaceFirst('http://localhost:8000', storageBase);
+    }
+    
+    // Already full URL from other source
+    if (url.startsWith('http')) {
+      return url;
+    }
+    
+    // For relative paths from backend
+    return '$storageBase/storage/$url';
   }
 
 //HEADER
