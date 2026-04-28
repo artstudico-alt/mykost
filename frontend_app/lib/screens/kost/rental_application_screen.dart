@@ -32,6 +32,7 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
   // Step 3
   DateTime selectedDate = DateTime.now();
   int durationMonths = 1;
+  String? selectedKamar; // NOMOR KAMAR YANG DIPILIH
 
   @override
   void initState() {
@@ -109,6 +110,7 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
         'tanggal_mulai': "${selectedDate.year}-${selectedDate.month.toString().padLeft(2,'0')}-${selectedDate.day.toString().padLeft(2,'0')}",
         'durasi_bulan': durationMonths,
         'catatan': 'Booking via Mobile App (${widget.kost['nama_kost']})',
+        'nomor_kamar': selectedKamar, // KIRIM NOMOR KAMAR YANG DIPILIH
       });
 
       final bookingId = bookingResponse['data']['id'];
@@ -454,17 +456,30 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                "Pilih Durasi Sewa",
+                "Pilih Kamar & Durasi",
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                "Tentukan kapan kamu akan mulai menempati kost ini.",
+                "Pilih nomor kamar yang tersedia dan tentukan kapan kamu akan mulai menempati kost ini.",
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary.withOpacity(0.7)),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
+              
+              // PEMILIHAN KAMAR
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Pilih Kamar",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildKamarDropdown(),
+              const SizedBox(height: 24),
+              
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -585,7 +600,7 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
                   Expanded(
                     child: CustomButton(
                       title: "Lanjut ke Pembayaran",
-                      onPressed: _nextPage,
+                      onPressed: selectedKamar != null ? _nextPage : null, // DISABLE JIKA BELUM PILIH KAMAR
                     ),
                   ),
                 ],
@@ -729,6 +744,63 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
     } catch (e) {
       return 0.0;
     }
+  }
+
+  // Build kamar selection dropdown
+  Widget _buildKamarDropdown() {
+    final kamars = widget.kost['kamars'] as List<dynamic>? ?? [];
+    final tersediaKamars = kamars.where((k) => k['status'] == 'tersedia').toList();
+    
+    if (tersediaKamars.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.orange.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_amber, color: Colors.orange.shade700),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Semua kamar sudah terisi. Silakan pilih kost lain.",
+                style: TextStyle(color: Colors.orange.shade700, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          value: selectedKamar,
+          hint: const Text("Pilih nomor kamar"),
+          items: tersediaKamars.map<DropdownMenuItem<String>>((kamar) {
+            final kode = kamar['kode_kamar'] ?? 'Kamar';
+            return DropdownMenuItem<String>(
+              value: kode,
+              child: Text("Kamar $kode - Tersedia"),
+            );
+          }).toList(),
+          onChanged: (value) {
+            setState(() {
+              selectedKamar = value;
+            });
+          },
+        ),
+      ),
+    );
   }
 }
 

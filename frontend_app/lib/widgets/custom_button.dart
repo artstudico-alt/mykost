@@ -3,7 +3,7 @@ import 'package:frontend_app/utils/colors.dart';
 
 class CustomButton extends StatelessWidget {
   final String title;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool isOutlined;
   final bool isLoading;
   final IconData? icon;
@@ -11,7 +11,7 @@ class CustomButton extends StatelessWidget {
   const CustomButton({
     super.key,
     required this.title,
-    required this.onPressed,
+    this.onPressed,
     this.isOutlined = false,
     this.isLoading = false,
     this.icon,
@@ -48,7 +48,7 @@ class CustomButton extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              onPressed: isLoading ? null : onPressed,
+              onPressed: (isLoading || onPressed == null) ? null : onPressed,
               child: _buildContent(),
             )
           : ElevatedButton(
@@ -61,7 +61,7 @@ class CustomButton extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              onPressed: isLoading ? null : onPressed,
+              onPressed: (isLoading || onPressed == null) ? null : onPressed,
               child: _buildContent(),
             ),
     );
