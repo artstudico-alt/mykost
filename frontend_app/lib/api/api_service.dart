@@ -7,16 +7,20 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show File;
 
 class ApiService {
-  // Konfigurasi URL - ubah sesuai environment
-  // Untuk development dengan emulator Android: http://10.0.2.2:8000/api
-  // Untuk development dengan device fisik: http://192.168.x.x:8000/api (ganti dengan IP komputer)
-  // Untuk production: https://your-domain.com/api
+  // Konfigurasi URL - otomatis detect platform
+  // Web (browser): pakai 127.0.0.1
+  // Android Emulator: pakai 10.0.2.2
+  // Device Fisik: ganti dengan IP komputer (http://192.168.x.x:8000/api)
   
-  // DEFAULT: Gunakan 10.0.2.2 untuk Android Emulator (localhost dari host computer)
-  static const String baseUrl = "http://10.0.2.2:8000/api"; // For Android Emulator
-  
-  // Alternatif untuk iOS Simulator atau Web: http://127.0.0.1:8000/api
-  // Alternatif untuk Device Fisik: http://192.168.1.x:8000/api (ganti x dengan IP komputer) 
+  static String get baseUrl {
+    if (kIsWeb) {
+      // Web browser pakai localhost
+      return "http://127.0.0.1:8000/api";
+    } else {
+      // Android/iOS pakai 10.0.2.2 (emulator) atau IP fisik
+      return "http://10.0.2.2:8000/api";
+    }
+  } 
 
   
   static String? token;
