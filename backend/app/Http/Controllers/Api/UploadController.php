@@ -17,14 +17,22 @@ class UploadController extends Controller
         if ($request->hasFile('image')) {
             $file = $request->file('image');
             $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            // Simpan ke storage/app/public/kosts
-            $path = $file->storeAs('kosts', $filename, 'public');
 
-            // Build URL - gunakan request URL untuk mendukung local dan production
-            $host = $request->getSchemeAndHttpHost();
-            $url = $host . '/storage/' . $path;
+            // Gunakan disk supabase untuk production, public untuk local
+            $disk = env('FILESYSTEM_DISK', 'public');
+            $path = $file->storeAs('kosts', $filename, $disk);
 
-            // Kembalikan URL penuh (misal: http://localhost:8000/storage/kosts/namafile.jpg)
+            // Build URL berdasarkan disk
+            if ($disk === 'supabase') {
+                // Untuk Supabase S3
+                $url = env('SUPABASE_STORAGE_URL') . '/kosts/' . $filename;
+            } else {
+                // Untuk local/public disk
+                $host = $request->getSchemeAndHttpHost();
+                $url = $host . '/storage/' . $path;
+            }
+
+            // Kembalikan URL penuh
             return response()->json([
                 'message' => 'Upload berhasil',
                 'url' => $url,
