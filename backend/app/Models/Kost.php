@@ -92,9 +92,12 @@ class Kost extends Model
 
     public function updateKamarTerisi()
     {
+        // Hitung jumlah kamar UNIK yang terisi (berdasarkan nomor_kamar), bukan jumlah booking
         $this->kamar_terisi = $this->bookings()
             ->whereIn('status', ['aktif', 'confirmed'])
-            ->count();
+            ->whereNotNull('nomor_kamar')
+            ->distinct('nomor_kamar')
+            ->count('nomor_kamar');
         $this->save();
     }
 
