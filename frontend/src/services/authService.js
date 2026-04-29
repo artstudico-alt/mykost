@@ -57,6 +57,7 @@ const authService = {
   logout: () => {
     localStorage.removeItem('token')
     localStorage.removeItem('userEmail')
+    localStorage.removeItem('user')
     // HashRouter pakai /#/login bukan /login
     window.location.hash = '#/login'
   },
