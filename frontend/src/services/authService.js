@@ -4,9 +4,13 @@ const authService = {
   login: async (credentials) => {
     try {
       const response = await api.post('/auth/login', credentials)
+      console.log('[AUTH DEBUG] Login response:', response.data)
       if (response.data.token) {
         localStorage.setItem('token', response.data.token)
         localStorage.setItem('userEmail', credentials.email)
+        console.log('[AUTH DEBUG] Token saved to localStorage:', response.data.token.substring(0, 20) + '...')
+      } else {
+        console.error('[AUTH DEBUG] No token in response!')
       }
       return response.data
     } catch (error) {

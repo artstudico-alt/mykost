@@ -86,6 +86,8 @@ export const AuthProvider = ({ children }) => {
       const data = await authService.login(credentials)
       setIsAuthenticated(true)
       setUser(data.user)
+      // Persist user to localStorage for recovery after refresh
+      localStorage.setItem('user', JSON.stringify(data.user))
       return data
     } catch (error) {
       throw error
@@ -96,6 +98,7 @@ export const AuthProvider = ({ children }) => {
     authService.logout()
     setIsAuthenticated(false)
     setUser(null)
+    localStorage.removeItem('user')
   }
 
   return (
