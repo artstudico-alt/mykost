@@ -163,7 +163,7 @@ class AuthController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'role' => $user->role?->name ?? 'unknown',
+                    'role' => $user->role ?? ['name' => 'unknown'], // Return role object like login
                 ],
             ]);
         } catch (\Exception $e) {
