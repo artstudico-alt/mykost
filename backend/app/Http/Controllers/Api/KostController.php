@@ -37,7 +37,7 @@ class KostController extends Controller
             $onlyMine = $request->boolean('mine');
 
             // Debug logging
-            \Log::info('Kost index request', [
+            Log::info('Kost index request', [
                 'user_id' => $user?->id,
                 'user_email' => $user?->email,
                 'has_role' => $user ? $user->role?->name : 'no user',
@@ -174,7 +174,7 @@ class KostController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            \Log::error('Kost store error: ' . $e->getMessage());
+            Log::error('Kost store error: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Gagal membuat kost: ' . $e->getMessage(),
                 'trace' => config('app.debug') ? $e->getTraceAsString() : null

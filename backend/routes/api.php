@@ -79,7 +79,7 @@ Route::get('/debug/kost', function () {
 });
 
 // DEBUG: Check user permissions for kost creation
-Route::get('/debug/kost-permissions', function () {
+Route::middleware('auth:sanctum')->get('/debug/kost-permissions', function () {
     $user = request()->user();
     if (!$user) {
         return response()->json(['message' => 'Not authenticated'], 401);

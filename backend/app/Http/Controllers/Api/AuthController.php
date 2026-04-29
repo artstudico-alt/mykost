@@ -73,7 +73,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         // Debug: Log user info
-        \Log::info('Login successful', [
+        Log::info('Login successful', [
             'user_id' => $user->id,
             'email' => $user->email,
             'role' => $user->role?->name ?? 'no role',
@@ -118,7 +118,7 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         try {
-            \Log::info('Auth/me request received', [
+            Log::info('Auth/me request received', [
                 'has_token' => $request->bearerToken() ? true : false,
                 'token_length' => $request->bearerToken() ? strlen($request->bearerToken()) : 0,
                 'request_headers' => $request->headers->all()
@@ -127,7 +127,7 @@ class AuthController extends Controller
             $user = $request->user();
 
             if (!$user) {
-                \Log::warning('Auth/me: No user found in request');
+                Log::warning('Auth/me: No user found in request');
                 return response()->json([
                     'message' => 'User tidak ditemukan.',
                     'debug' => 'Token tidak valid atau user tidak ada di database'
@@ -137,14 +137,14 @@ class AuthController extends Controller
             // Verify user still exists in database
             $dbUser = \App\Models\User::find($user->id);
             if (!$dbUser) {
-                \Log::warning('Auth/me: User from token not found in database', ['user_id' => $user->id]);
+                Log::warning('Auth/me: User from token not found in database', ['user_id' => $user->id]);
                 return response()->json([
                     'message' => 'User tidak ditemukan di database.',
                     'debug' => 'User ID dari token tidak ada di database'
                 ], 401);
             }
 
-            \Log::info('Auth/me: User found', [
+            Log::info('Auth/me: User found', [
                 'user_id' => $user->id,
                 'user_email' => $user->email,
                 'user_name' => $user->name
@@ -153,12 +153,12 @@ class AuthController extends Controller
             // Load role relationship safely
             try {
                 $user->load('role');
-                \Log::info('Auth/me: Role loaded successfully', [
+                Log::info('Auth/me: Role loaded successfully', [
                     'role_id' => $user->role?->id,
                     'role_name' => $user->role?->name
                 ]);
             } catch (\Exception $roleError) {
-                \Log::error('Auth/me: Error loading role', [
+                Log::error('Auth/me: Error loading role', [
                     'error' => $roleError->getMessage(),
                     'user_id' => $user->id
                 ]);
@@ -175,7 +175,7 @@ class AuthController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error in AuthController me(): ' . $e->getMessage(), [
+            Log::error('Error in AuthController me(): ' . $e->getMessage(), [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -250,7 +250,7 @@ class AuthController extends Controller
                 'user' => $user,
             ]);
         } catch (\Exception $e) {
-            \Log::error('Update profile error: ' . $e->getMessage());
+            Log::error('Update profile error: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error updating profile',
                 'error' => config('app.debug') ? $e->getMessage() : 'Server error'
