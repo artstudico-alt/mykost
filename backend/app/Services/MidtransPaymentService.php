@@ -125,6 +125,19 @@ class MidtransPaymentService
         if ($booking && in_array($booking->status, ['pending', 'confirmed'], true)) {
             $booking->update(['status' => 'aktif']);
 
+            // Update status kamar spesifik yang dipilih menjadi 'terisi'
+            if ($booking->nomor_kamar) {
+                $kamar = \App\Models\Kamar::where('kost_id', $booking->kost_id)
+                    ->where('kode_kamar', $booking->nomor_kamar)
+                    ->first();
+                if ($kamar) {
+                    $kamar->update(['status' => 'terisi']);
+                }
+            }
+
+            // Update kamar terisi count di kost
+            $booking->kost->updateKamarTerisi();
+
             // Cari karyawan berdasarkan user_id
             $karyawan = Karyawan::where('user_id', $booking->user_id)->first();
 

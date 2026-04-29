@@ -33,11 +33,35 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
   DateTime selectedDate = DateTime.now();
   int durationMonths = 1;
   String? selectedKamar; // NOMOR KAMAR YANG DIPILIH
+  
+  // Kost detail dengan kamars
+  Map<String, dynamic>? kostDetail;
+  bool isLoadingKost = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadKostDetail(); // Fetch kost detail dengan kamars
+  }
+  
+  Future<void> _loadKostDetail() async {
+    setState(() => isLoadingKost = true);
+    try {
+      final kostId = widget.kost['id'] ?? widget.kost['kost_id'];
+      if (kostId != null) {
+        final response = await ApiService.getDetailKost(kostId);
+        if (response != null && response['data'] != null) {
+          setState(() {
+            kostDetail = response['data'];
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading kost detail: $e');
+    } finally {
+      setState(() => isLoadingKost = false);
+    }
   }
 
   Future<void> _loadUserProfile() async {
@@ -748,7 +772,26 @@ class _RentalApplicationScreenState extends State<RentalApplicationScreen> {
 
   // Build kamar selection dropdown
   Widget _buildKamarDropdown() {
-    final kamars = widget.kost['kamars'] as List<dynamic>? ?? [];
+    // Gunakan kostDetail jika sudah loaded, otherwise gunakan widget.kost
+    final kostData = kostDetail ?? widget.kost;
+    final kamars = kostData['kamars'] as List<dynamic>? ?? [];
+    
+    if (isLoadingKost) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            SizedBox(width: 12),
+            Text("Memuat daftar kamar...", style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
     final tersediaKamars = kamars.where((k) => k['status'] == 'tersedia').toList();
     
     if (tersediaKamars.isEmpty) {
