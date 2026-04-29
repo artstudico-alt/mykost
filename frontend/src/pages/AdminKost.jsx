@@ -126,6 +126,15 @@ const AdminKost = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      
+      console.log('=== FETCH KOSTS START ===');
+      console.log('Token from localStorage:', token ? 'EXISTS (' + token.substring(0, 20) + '...)' : 'NULL');
+      console.log('User from localStorage:', storedUser ? 'EXISTS' : 'NULL');
+      console.log('User from context:', user ? 'EXISTS (ID: ' + user.id + ')' : 'NULL');
+      console.log('isOwner:', isOwner);
+      console.log('isAdmin:', isAdmin);
+      
       if (!token) {
         console.warn('Token belum tersedia, skip fetch.');
         return;
@@ -227,8 +236,17 @@ const AdminKost = () => {
         }
       }
       
+      // DETAILED DEBUG LOGGING
+      console.error('=== KOST FETCH ERROR ===');
+      console.error('Error status:', error.response?.status);
+      console.error('Error message:', error.response?.data?.message || error.message);
+      console.error('Error response data:', error.response?.data);
+      console.error('Error config:', error.config);
+      console.error('Token at error time:', localStorage.getItem('token') ? 'exists' : 'missing');
+      
       // Jika error 401, berarti sesi habis (karena server restart dll)
       if (error.response?.status === 401) {
+        console.error('401 detected - logging out');
         modalAlert('Sesi Anda telah habis. Silakan login kembali.', 'warning', () => {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
