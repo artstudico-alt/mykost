@@ -36,6 +36,15 @@ class KostController extends Controller
             $user = $request->user();
             $onlyMine = $request->boolean('mine');
 
+            // Debug logging
+            \Log::info('Kost index request', [
+                'user_id' => $user?->id,
+                'user_email' => $user?->email,
+                'has_role' => $user ? $user->role?->name : 'no user',
+                'is_pemilik' => $user ? $user->hasRole('pemilik_kost') : false,
+                'only_mine' => $onlyMine,
+            ]);
+
             // Query dasar
             $query = Kost::query();
 

@@ -72,6 +72,14 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Debug: Log user info
+        \Log::info('Login successful', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'role' => $user->role?->name ?? 'no role',
+            'email_verified' => !!$user->email_verified_at,
+        ]);
+
         // Auto-create karyawan record jika user punya role karyawan tapi belum ada data karyawan
         if ($user->role?->name === 'karyawan') {
             $karyawanExists = Karyawan::where('user_id', $user->id)->exists();
